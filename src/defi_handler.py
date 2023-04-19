@@ -320,8 +320,8 @@ class DeFiHandler:
                 return
             print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - The minimum transfer amount is {self.web3.fromWei(min_transfer_amount, 'ether')} {self.get_token_name(token_in_address)}.")
         except Exception as e:
-            print(
-                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Token contract does not have a minimum_transfer_amount function.")
+            # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Token contract does not have a minimum_transfer_amount function.")
+            pass
 
         # Check token balance
         token_balance = self.get_token_balance(wallet, token_in_address)
@@ -403,8 +403,7 @@ class DeFiHandler:
             return swap_txn_hash
 
     def wrap_native_token(self, wallet, amount, blockchain):
-        print(
-            f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Wrapping {self.web3.fromWei(amount, 'ether')} native tokens")
+        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Wrapping {self.web3.fromWei(amount, 'ether')} native tokens")
 
         # Get the deposit function from the wrapped token contract
         contract = self.web3.eth.contract(address=self.wrapped_native_token_address, abi=self.wrapped_native_token_abi)

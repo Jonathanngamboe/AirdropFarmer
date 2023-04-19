@@ -8,12 +8,12 @@ import importlib.util
 from src.twitter_handler import TwitterHandler
 from src.discord_handler import DiscordHandler
 from src.defi_handler import DeFiHandler
-from src.telegram_notifier import TelegramNotifier
+from src.telegram_bot import register_handlers
+from aiogram import Dispatcher, Bot
 import config.settings as settings
 
 class AirdropFarmer:
     def __init__(self):
-        self.telegram_notifier = TelegramNotifier(timeout=30)
         self.connected_to_discord_event = asyncio.Event()
         self.discord_handler = DiscordHandler(self.connected_to_discord_event)
         self.last_executed = {}  # Dictionary to store the last execution time
@@ -21,7 +21,6 @@ class AirdropFarmer:
     async def initialize(self):
         message = f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Welcome to the Airdrop Farming Bot!"
         print(message)
-        await self.telegram_notifier.send_message(message)
 
     async def execute_airdrop_actions(self, airdrop_info):
         active_actions = [action for action in airdrop_info["actions"] if action["isActivated"]]
@@ -63,9 +62,8 @@ class AirdropFarmer:
                                 message = f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction hash : {txn_hash}"
                         except Exception as e:
                             message = f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - An error occurred while executing action {platform} : {e}"
-                            # traceback.print_exc()
+                            # traceback.print_exc() # Uncomment this line to print the full stack trace
                         print(message)
-                        await self.telegram_notifier.send_message(message)
 
                     self.last_executed[key] = now
                     print(
@@ -74,8 +72,6 @@ class AirdropFarmer:
                 else:
                     print(
                         f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Skipping {platform} action for {airdrop_info['name']} due to delay constraint.")
-
-            await self.telegram_notifier.notify_success(airdrop_info["name"])
 
     async def airdrop_execution(self, has_discord_action):
         if has_discord_action:
@@ -88,13 +84,11 @@ class AirdropFarmer:
                     print("------------------------")
                     message = f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Executing actions for {airdrop['name']} airdrop"
                     print(message)
-                    # await self.telegram_notifier.send_message(message)
                     await self.execute_airdrop_actions(airdrop)
 
                     # Message indicating that the actions for the current airdrop are finished
                     message = f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Finished actions for {airdrop['name']} airdrop"
                     print(message)
-                    await self.telegram_notifier.send_message(message)
 
             # Message indicating that there is a waiting time before starting the next actions
             message = f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Waiting for {settings.INTERVAL}s before starting the next airdrop actions"
@@ -127,13 +121,17 @@ async def main():
     airdrop_bot = AirdropFarmer()
     await airdrop_bot.initialize()
 
+    # Initialize the dispatcher and register handlers
+    bot_instance = Bot(token=settings.TELEGRAM_TOKEN)
+    dp = Dispatcher(bot_instance)
+    register_handlers(dp)
+
     has_discord_action = any(action["platform"] == "discord" for airdrop in airdrop_info for action in airdrop["actions"])
 
     try:
         await airdrop_bot.airdrop_execution(has_discord_action)
     finally:
         await airdrop_bot.close()
-        await airdrop_bot.telegram_notifier.on_shutdown()
 
 asyncio.run(main())
 

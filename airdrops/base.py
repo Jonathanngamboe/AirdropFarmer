@@ -11,11 +11,11 @@
 # ]
 airdrop_info = {
     "name": "Base",
-    "isActivated": True,
+    "isActivated": False,
     "actions": [
         {
          "platform": "defi",
-         "isActivated": False,
+         "isActivated": True,
          "blockchain": "goerli",
          "action": "transfer_native_token",
          "amount_in_wei": 5000000000000000,
@@ -23,7 +23,7 @@ airdrop_info = {
     },
         {
         "platform": "defi",
-        "isActivated": False,
+        "isActivated": True,
         "blockchain": "base_goerli",
         "action": "interact_with_contract",
         "msg_value": 1000000000000000,

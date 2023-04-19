@@ -39,7 +39,7 @@ WALLET_LIST = [
 ]
 
 # App
-INTERVAL = 0
+INTERVAL = 60
 
 # Waiting time between actions for each platform
 PLATEFORM_WAIT_TIMES = {
