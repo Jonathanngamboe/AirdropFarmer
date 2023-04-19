@@ -14,10 +14,18 @@ TWITTER_ACCESS_TOKEN = "votre_token_d'accès_twitter"
 TWITTER_ACCESS_TOKEN_SECRET = "votre_token_d'accès_secrète_twitter"
 
 # Web3
+# Ethereum Mainnet
 ETHEREUM_MAINNET_ENDPOINT = "https://eth.llamarpc.com"
+ETHEREUM_MAINNET_WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+# Ethereum Goerli
 ETHEREUM_GOERLI_ENDPOINT = "https://eth-goerli.public.blastapi.io"
+ETHEREUM_GOERLI_WETH_ADDRESS = "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6"
+# Arbitrum One Mainnet
 ARBITRUM_ONE_MAINNET_ENDPOINT = "https://endpoints.omniatech.io/v1/arbitrum/one/public"
+# Base Chain Goerli
 BASE_GOERLI_ENDPOINT = "https://base-goerli.public.blastapi.io"
+BASE_GOERLI_WETH_ADDRESS = "0x4200000000000000000000000000000000000006"
+
 DEFAULT_TRANSACTION_TIMEOUT = 120
 GAS_PRICE_INCREASE = 1.2
 

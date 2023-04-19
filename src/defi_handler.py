@@ -15,12 +15,18 @@ class DeFiHandler:
     def connect_to_blockchain(self, blockchain):
         if blockchain == 'ethereum':
             web3 = Web3(Web3.HTTPProvider(settings.ETHEREUM_MAINNET_ENDPOINT))
+            self.wrapped_native_token_address = settings.ETHEREUM_MAINNET_WETH_ADDRESS
+            self.wrapped_native_token_abi = self.get_token_abi('weth_mainnet_abi.json')
             self.token_abi = self.get_token_abi('erc20_abi.json')
         elif blockchain == 'goerli':
             web3 = Web3(Web3.HTTPProvider(settings.ETHEREUM_GOERLI_ENDPOINT))
+            self.wrapped_native_token_address = settings.ETHEREUM_GOERLI_WETH_ADDRESS
+            self.wrapped_native_token_abi = self.get_token_abi('weth_mainnet_abi.json')
             self.token_abi = self.get_token_abi('erc20_abi.json')
         elif blockchain == 'base_goerli':
             web3 = Web3(Web3.HTTPProvider(settings.BASE_GOERLI_ENDPOINT))
+            self.wrapped_native_token_address = settings.BASE_GOERLI_WETH_ADDRESS
+            self.wrapped_native_token_abi = self.get_token_abi('weth_base_abi.json')
             self.token_abi = self.get_token_abi('erc20_abi.json')
         # Add more blockchains here if needed
         else:
@@ -72,6 +78,17 @@ class DeFiHandler:
                 amount = int(action["amount"]),
                 recipient_address = self.web3.toChecksumAddress(action["recipient_address"].strip('"')),
                 blockchain = action["blockchain"],
+            )
+        elif action["action"] == "swap_native_token":
+            return self.swap_native_token(
+                wallet = action["wallet"],
+                amount = int(action["amount_in_wei"]),
+                token_address = self.web3.toChecksumAddress(action["token_address"].strip('"')),
+                slippage_tolerance = action["slippage"],
+                exchange_address = self.web3.toChecksumAddress(action["exchange_address"].strip('"')),
+                exchange_abi = action["exchange_abi"],
+                deadline_minutes = action["deadline_minutes"],
+                blockchain = action["blockchain"]
             )
         elif action["action"] == "swap_tokens":
             return self.swap_tokens(
@@ -292,6 +309,28 @@ class DeFiHandler:
     def swap_tokens(self, wallet, token_in_address, token_out_address, amount_in, exchange_address, exchange_abi, blockchain, slippage_tolerance=0.1, deadline_minutes=3):
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Swapping {self.get_token_name(token_in_address)} for {self.get_token_name(token_out_address)} on contract {exchange_address}")
 
+        # Check minimum transfer amount
+        # Assuming `minimum_transfer_amount` function exists in the token contract
+        contract = self.web3.eth.contract(address=token_in_address, abi=self.token_abi)
+        try:
+            min_transfer_amount = contract.functions.minimum_transfer_amount().call()
+            if amount_in < min_transfer_amount:
+                print(
+                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Amount to swap is less than the minimum transfer amount.")
+                return
+            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - The minimum transfer amount is {self.web3.fromWei(min_transfer_amount, 'ether')} {self.get_token_name(token_in_address)}.")
+        except Exception as e:
+            print(
+                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Token contract does not have a minimum_transfer_amount function.")
+
+        # Check token balance
+        token_balance = self.get_token_balance(wallet, token_in_address)
+        print(
+            f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - The token balance is {self.web3.fromWei(token_balance, 'ether')} {self.get_token_name(token_in_address)}.")
+        if token_balance < amount_in:
+            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Insufficient token balance. Aborting...")
+            return
+
         # Approve contract to spend tokens if needed
         allowance = self.check_allowance(wallet, token_in_address, exchange_address)
         # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - The allowance is {self.web3.fromWei(allowance, 'ether')} and the amount to swap is {self.web3.fromWei(amount_in, 'ether')} {self.get_token_name(token_in_address)}.")
@@ -339,6 +378,47 @@ class DeFiHandler:
             deadline,
         )
 
+        return txn_hash_hex
+
+    def swap_native_token(self, wallet, token_address, amount, exchange_address, exchange_abi,
+                          blockchain, slippage_tolerance=0.1, deadline_minutes=3, is_buy=True):
+        if is_buy:  # Swap native token for another token
+            # Wrap native token
+            wrap_txn_hash = self.wrap_native_token(wallet, amount, blockchain)
+            if wrap_txn_hash is None:
+                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Wrapping native token failed.")
+                return
+            print(
+                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Wrapping native token transaction hash: {wrap_txn_hash}")
+
+            # Perform swap
+            swap_txn_hash = self.swap_tokens(wallet, self.wrapped_native_token_address, token_address, amount, exchange_address,
+                                             exchange_abi, blockchain, slippage_tolerance, deadline_minutes)
+            return swap_txn_hash
+
+        else:  # Swap another token for the native token
+            # Perform swap
+            swap_txn_hash = self.swap_tokens(wallet, token_address, self.wrapped_native_token_address, amount, exchange_address,
+                                             exchange_abi, blockchain, slippage_tolerance, deadline_minutes)
+            return swap_txn_hash
+
+    def wrap_native_token(self, wallet, amount, blockchain):
+        print(
+            f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Wrapping {self.web3.fromWei(amount, 'ether')} native tokens")
+
+        # Get the deposit function from the wrapped token contract
+        contract = self.web3.eth.contract(address=self.wrapped_native_token_address, abi=self.wrapped_native_token_abi)
+        deposit_function = contract.functions.deposit()
+
+        # Estimate gas for the deposit function
+        try:
+            gas_estimate = deposit_function.estimateGas({"from": wallet["address"], "value": amount})
+        except Exception as e:
+            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Error estimating gas limit: {str(e)}")
+            return None
+
+        # Build and send the deposit transaction
+        txn_hash_hex = self.build_and_send_transaction(wallet, deposit_function, blockchain, msg_value=amount)
         return txn_hash_hex
 
     # This function is used to check the allowance of a spender for a token
