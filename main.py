@@ -8,7 +8,7 @@ import importlib.util
 from src.twitter_handler import TwitterHandler
 from src.discord_handler import DiscordHandler
 from src.defi_handler import DeFiHandler
-from src.telegram_bot import register_handlers
+from src.telegram_bot import TelegramBot
 from aiogram import Dispatcher, Bot
 import config.settings as settings
 
@@ -121,17 +121,18 @@ async def main():
     airdrop_bot = AirdropFarmer()
     await airdrop_bot.initialize()
 
-    # Initialize the dispatcher and register handlers
-    bot_instance = Bot(token=settings.TELEGRAM_TOKEN)
-    dp = Dispatcher(bot_instance)
-    register_handlers(dp)
-
     has_discord_action = any(action["platform"] == "discord" for airdrop in airdrop_info for action in airdrop["actions"])
 
+    # Create a TelegramBot instance
+    telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN)
+
     try:
-        await airdrop_bot.airdrop_execution(has_discord_action)
+        # Run the airdrop_execution coroutine concurrently with the Telegram bot
+        await asyncio.gather(airdrop_bot.airdrop_execution(has_discord_action), telegram_bot.dp.start_polling())
     finally:
         await airdrop_bot.close()
+        # Stop the Telegram bot
+        telegram_bot.stop()
 
 asyncio.run(main())
 
