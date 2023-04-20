@@ -123,18 +123,17 @@ airdrop_info = load_airdrop_files()
 async def main():
     # Initialize the database
     db_manager = DBManager()
-    max_retries = settings.MAX_DB_RETRIES # Define the maximum number of retries for connecting to the database
-    for i in range(max_retries):
+    for i in range(settings.MAX_DB_RETRIES): # Try to connect to the database
         try:
             await db_manager.init_db()
             print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Successfully connected to the database.")
             break
         except ConnectionDoesNotExistError as e:
-            if i < max_retries - 1:  # Check if it's not the last retry
+            if i < settings.MAX_DB_RETRIES - 1:  # Check if it's not the last retry
                 print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database: {e}. Retrying in 5 seconds...")
                 await asyncio.sleep(5)
             else:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database after {max_retries} attempts. Exiting...")
+                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...")
                 return
 
     # Create an AirdropFarmer instance

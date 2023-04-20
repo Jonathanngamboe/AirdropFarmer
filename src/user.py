@@ -67,7 +67,7 @@ class User:
         query = "INSERT INTO users (telegram_id, username, subscription_level, created_at) VALUES ($1, $2, $3, $4) RETURNING id"
         values = (telegram_id, username, subscription_level, datetime.utcnow())
 
-        user_id = await db_manager.fetchval(query, *values)
+        user_id = await db_manager.fetchval_query(query, *values)
 
         return cls(user_id, telegram_id, username, subscription_level, db_manager)
 

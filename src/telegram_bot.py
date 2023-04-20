@@ -1,6 +1,6 @@
 from aiogram import Bot, Dispatcher, types
 from aiogram.dispatcher.filters import Command
-from aiogram.types import ParseMode
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ParseMode
 from config import settings
 import logging
 
@@ -17,9 +17,8 @@ class TelegramBot:
 
     def register_handlers(self):
         self.dp.register_message_handler(self.cmd_start, Command(["start", "help"]))
-        self.dp.register_message_handler(self.cmd_action1, commands=["action1"])
-        self.dp.register_message_handler(self.cmd_action2, commands=["action2"])
-        self.dp.register_message_handler(self.cmd_action3, commands=["action3"])
+        self.dp.register_message_handler(self.cmd_start_airdrops, commands=["start_airdrops"])
+        self.dp.register_callback_query_handler(self.on_menu_button_click)
 
     async def cmd_start(self, message: types.Message):
         telegram_id = message.from_user.id
@@ -27,24 +26,69 @@ class TelegramBot:
         user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
 
         if not user:
-            user = await User.create_user(telegram_id, self.db_manager)
+            user = await User.create_user(telegram_id, username, self.db_manager)
 
-        subscription_info = user.get_subscription_info()
-        welcome_text = f"🤖 Welcome, {username}! You're using the Airdrop Farmer Bot. 🤖\n\nYour subscription level: {subscription_info['level']}\nFeatures available: {', '.join(subscription_info['features'])}\n\n📩 If you have any questions, suggestions, or need assistance, please contact our support team at @support. We're always here to help!"
+        welcome_text = f"🤖 Hey {username}, welcome on board!\n\nHow to use the bot?\n📚 Detailed Guide: Guide\n\n📩 If you have any questions, suggestions, or need assistance, please contact our support team at @support. We're always here to help!"
 
-        await message.reply(welcome_text, parse_mode=ParseMode.HTML)
+        await self.send_menu(message.chat.id, 'main', message=welcome_text) # Send the main menu
 
-    async def cmd_action1(self, message: types.Message):
-        # Code to execute action 1
-        await message.reply("Action 1 executed")
+    async def on_menu_button_click(self, query: CallbackQuery):
+        data = query.data.split(':')
+        action = data[0]
+        menu = data[1]
 
-    async def cmd_action2(self, message: types.Message):
-        # Code to execute action 2
-        await message.reply("Action 2 executed")
+        if action == 'menu':
+            await self.send_menu(query.from_user.id, menu, query.message.message_id)
+        if action == 'start_farming':
+            await self.cmd_start_farming(query.message)
+        elif action == 'edit_airdrops':
+            await self.cmd_edit_airdrops(query.message)
+        elif action == 'edit_wallets':
+            await self.cmd_edit_wallets(query.message)
+        elif action == 'manage_subscription':
+            # Add your code to handle manage_subscription action
+            pass
+        elif action == 'settings':
+            # Add your code to handle settings action
+            pass
+        # Add more actions as needed
 
-    async def cmd_action3(self, message: types.Message):
-        # Code to execute action 3
-        await message.reply("Action 3 executed")
+        await query.answer()
+
+    async def send_menu(self, chat_id, menu, message = "Choose an option:",message_id=None):
+        if menu == 'main':
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard.add(
+                InlineKeyboardButton("🚀 Start farming", callback_data="menu:start_farming"),
+                InlineKeyboardButton("💸 Edit airdrops", callback_data="menu:edit_airdrops"),
+                InlineKeyboardButton("👛 Edit wallets", callback_data="menu:edit_wallets"),
+                InlineKeyboardButton("💳 Subscription", callback_data="menu:manage_subscription"),
+                InlineKeyboardButton("⚙️ Settings", callback_data="menu:settings")
+            )
+        elif menu == 'airdrops':
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard.add(
+                InlineKeyboardButton("➕ Select new airdrop", callback_data="select_airdrop"),
+                InlineKeyboardButton("✏️ Edit current airdrops", callback_data="edit_airdrops"),
+                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
+            )
+        # Add more menus as needed
+        else:
+            return
+
+        if message_id:
+            await self.bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=keyboard)
+        else:
+            await self.bot.send_message(chat_id=chat_id, text=f"{message}", reply_markup=keyboard)
+
+    async def cmd_start_airdrops(self, message: types.Message):
+        # Extract the selected airdrop names from the message text
+        selected_airdrops = message.text.split()[1:]
+
+        # Call the start_selected_airdrops method of AirdropFarmer
+        self.airdrop_farmer.start_selected_airdrops(selected_airdrops)
+
+        await message.reply("Starting selected airdrops")
 
     async def start_polling(self):
         from aiogram import types
