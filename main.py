@@ -11,6 +11,9 @@ from src.defi_handler import DeFiHandler
 from src.telegram_bot import TelegramBot
 from aiogram import Dispatcher, Bot
 import config.settings as settings
+from src.db_manager import DBManager
+from asyncpg.exceptions import ConnectionDoesNotExistError
+
 
 class AirdropFarmer:
     def __init__(self):
@@ -118,21 +121,38 @@ def load_airdrop_files():
 airdrop_info = load_airdrop_files()
 
 async def main():
+    # Initialize the database
+    db_manager = DBManager()
+    max_retries = settings.MAX_DB_RETRIES # Define the maximum number of retries for connecting to the database
+    for i in range(max_retries):
+        try:
+            await db_manager.init_db()
+            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Successfully connected to the database.")
+            break
+        except ConnectionDoesNotExistError as e:
+            if i < max_retries - 1:  # Check if it's not the last retry
+                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database: {e}. Retrying in 5 seconds...")
+                await asyncio.sleep(5)
+            else:
+                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database after {max_retries} attempts. Exiting...")
+                return
+
+    # Create an AirdropFarmer instance
     airdrop_bot = AirdropFarmer()
     await airdrop_bot.initialize()
 
-    has_discord_action = any(action["platform"] == "discord" for airdrop in airdrop_info for action in airdrop["actions"])
-
     # Create a TelegramBot instance
-    telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN)
+    telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN, db_manager)
+
+    # Check if there is at least one Discord action
+    has_discord_action = any(action["platform"] == "discord" for airdrop in airdrop_info for action in airdrop["actions"])
 
     try:
         # Run the airdrop_execution coroutine concurrently with the Telegram bot
         await asyncio.gather(airdrop_bot.airdrop_execution(has_discord_action), telegram_bot.dp.start_polling())
     finally:
         await airdrop_bot.close()
-        # Stop the Telegram bot
-        telegram_bot.stop()
+        telegram_bot.stop()  # Stop the Telegram bot
 
 asyncio.run(main())
 

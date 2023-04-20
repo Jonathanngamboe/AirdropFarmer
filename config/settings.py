@@ -47,3 +47,7 @@ PLATEFORM_WAIT_TIMES = {
     "discord": 60, # Seconds delay between Discord actions
     "defi": 30 # Seconds delay between DeFi actions
 }
+
+# Database
+MAX_DB_RETRIES = 5 # Number of times to retry a query if it fails
+DB_TIMEOUT = 90 # Timeout for database queries

@@ -2,26 +2,23 @@
 import os
 from datetime import datetime
 
-import asyncpg
-
 
 class User:
-    def __init__(self, user_id, telegram_id, username, subscription_level):
+    def __init__(self, user_id, telegram_id, username, subscription_level, db_manager):
         self.user_id = user_id
         self.telegram_id = telegram_id
         self.username = username
         self.subscription_level = subscription_level
+        self.db_manager = db_manager
     def add_wallet(self, wallet):
-        self.wallet.append(wallet)
-
-    def add_wallet(self, wallet):
-        self.wallets.append(wallet)
+        if wallet not in self.wallet:
+            self.wallet.append(wallet)
         # Update the user's wallets in the database
 
     def remove_wallet(self, wallet):
         if wallet in self.wallets:
             self.wallets.remove(wallet)
-            # Update the user's wallets in the database
+        # Update the user's wallets in the database
 
     def set_twitter_credentials(self, twitter_credentials):
         self.twitter_credentials = twitter_credentials
@@ -33,13 +30,11 @@ class User:
 
     async def update_subscription_level(self, subscription_level):
         self.subscription_level = subscription_level
-        conn = await asyncpg.connect("postgres://username:password@localhost/dbname")
-        await conn.execute(
+        await self.db_manager.execute_query(
             "UPDATE users SET subscription_level=$1 WHERE telegram_id=$2",
             subscription_level,
             self.telegram_id,
         )
-        await conn.close()
 
     def log_session(self, log_data):
         self.session_logs.append(log_data)
@@ -68,30 +63,22 @@ class User:
         return subscription_levels[self.subscription_level]
 
     @classmethod
-    async def create_user(cls, telegram_id, username, subscription_level='free'):
-        conn = await asyncpg.connect(os.environ.get("DATABASE_URL"))
-
+    async def create_user(cls, telegram_id, username, db_manager, subscription_level='free'):
         query = "INSERT INTO users (telegram_id, username, subscription_level, created_at) VALUES ($1, $2, $3, $4) RETURNING id"
         values = (telegram_id, username, subscription_level, datetime.utcnow())
 
-        user_id = await conn.fetchval(query, *values)
+        user_id = await db_manager.fetchval(query, *values)
 
-        await conn.close()
-
-        return cls(user_id, telegram_id, username, subscription_level)
+        return cls(user_id, telegram_id, username, subscription_level, db_manager)
 
     @classmethod
-    async def get_user_by_telegram_id(cls, telegram_id):
-        conn = await asyncpg.connect("postgres://username:password@localhost/dbname")
-
+    async def get_user_by_telegram_id(cls, telegram_id, db_manager):
         query = "SELECT id, telegram_id, username, subscription_level FROM users WHERE telegram_id = $1"
         values = (telegram_id,)
 
-        user_data = await conn.fetchrow(query, *values)
-
-        await conn.close()
+        user_data = await db_manager.fetch_query(query, *values)
 
         if user_data:
-            return cls(*user_data)
+            return cls(*user_data, db_manager)
         else:
             return None

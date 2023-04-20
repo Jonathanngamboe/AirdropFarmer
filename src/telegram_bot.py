@@ -9,8 +9,9 @@ from src.user import User  # Import the User class
 logging.basicConfig(level=logging.INFO)
 
 class TelegramBot:
-    def __init__(self, token):
+    def __init__(self, token, db_manager):
         self.bot = Bot(token=token)
+        self.db_manager = db_manager
         self.dp = Dispatcher(self.bot)
         self.register_handlers()
 
@@ -23,10 +24,10 @@ class TelegramBot:
     async def cmd_start(self, message: types.Message):
         telegram_id = message.from_user.id
         username = message.from_user.full_name
-        user = await User.get_user_by_telegram_id(telegram_id)
+        user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
 
         if not user:
-            user = await User.create_user(telegram_id)
+            user = await User.create_user(telegram_id, self.db_manager)
 
         subscription_info = user.get_subscription_info()
         welcome_text = f"🤖 Welcome, {username}! You're using the Airdrop Farmer Bot. 🤖\n\nYour subscription level: {subscription_info['level']}\nFeatures available: {', '.join(subscription_info['features'])}\n\n📩 If you have any questions, suggestions, or need assistance, please contact our support team at @support. We're always here to help!"
