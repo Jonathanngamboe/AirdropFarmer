@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 class TelegramBot:
     def __init__(self, token, db_manager):
+        self.welcome_text = None
         self.bot = Bot(token=token)
         self.db_manager = db_manager
         self.dp = Dispatcher(self.bot)
@@ -28,9 +29,9 @@ class TelegramBot:
         if not user:
             user = await User.create_user(telegram_id, username, self.db_manager)
 
-        welcome_text = f"🤖 Hey {username}, welcome on board!\n\nHow to use the bot?\n📚 Detailed Guide: Guide\n\n📩 If you have any questions, suggestions, or need assistance, please contact our support team at @support. We're always here to help!"
+        self.welcome_text = f"🤖 Hey {username}, welcome on board!\n\nHow to use the bot?\n📚 Detailed Guide: Guide\n\n📩 If you have any questions, suggestions, or need assistance, please contact our support team at @support. We're always here to help!"
 
-        await self.send_menu(message.chat.id, 'main', message=welcome_text) # Send the main menu
+        await self.send_menu(message.chat.id, 'main', message=self.welcome_text) # Send the main menu
 
     async def on_menu_button_click(self, query: CallbackQuery):
         data = query.data.split(':')
@@ -38,16 +39,16 @@ class TelegramBot:
         menu = data[1]
 
         if action == 'menu':
-            await self.send_menu(query.from_user.id, menu, query.message.message_id)
+            await self.send_menu(query.from_user.id, menu, message_id=query.message.message_id)
         if action == 'start_farming':
             await self.cmd_start_farming(query.message)
         elif action == 'edit_airdrops':
             await self.cmd_edit_airdrops(query.message)
-        elif action == 'edit_wallets':
-            await self.cmd_edit_wallets(query.message)
         elif action == 'manage_subscription':
             # Add your code to handle manage_subscription action
             pass
+        elif action == 'edit_wallets':
+            await self.cmd_edit_wallets(query.message)
         elif action == 'settings':
             # Add your code to handle settings action
             pass
@@ -55,21 +56,39 @@ class TelegramBot:
 
         await query.answer()
 
-    async def send_menu(self, chat_id, menu, message = "Choose an option:",message_id=None):
+    async def send_menu(self, chat_id, menu, message="Choose an option:",message_id=None):
         if menu == 'main':
+            message = self.welcome_text
             keyboard = InlineKeyboardMarkup(row_width=2)
             keyboard.add(
                 InlineKeyboardButton("🚀 Start farming", callback_data="menu:start_farming"),
                 InlineKeyboardButton("💸 Edit airdrops", callback_data="menu:edit_airdrops"),
-                InlineKeyboardButton("👛 Edit wallets", callback_data="menu:edit_wallets"),
                 InlineKeyboardButton("💳 Subscription", callback_data="menu:manage_subscription"),
+                InlineKeyboardButton("👛 Edit wallets", callback_data="menu:edit_wallets"),
                 InlineKeyboardButton("⚙️ Settings", callback_data="menu:settings")
             )
-        elif menu == 'airdrops':
+        elif menu == 'edit_airdrops':
             keyboard = InlineKeyboardMarkup(row_width=2)
             keyboard.add(
                 InlineKeyboardButton("➕ Select new airdrop", callback_data="select_airdrop"),
-                InlineKeyboardButton("✏️ Edit current airdrops", callback_data="edit_airdrops"),
+                InlineKeyboardButton("✏️ Edit airdrops", callback_data="edit_airdrops"),
+                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
+            )
+        elif menu == 'edit_wallets':
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard.add(
+                InlineKeyboardButton("➕ Add wallet", callback_data="add_wallet"),
+                InlineKeyboardButton("✏️ Edit wallets", callback_data="edit_wallets"),
+                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
+            )
+        elif menu == 'manage_subscription':
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard.add(
+                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
+            )
+        elif menu == 'settings':
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard.add(
                 InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
             )
         # Add more menus as needed
@@ -77,7 +96,8 @@ class TelegramBot:
             return
 
         if message_id:
-            await self.bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=keyboard)
+            await self.bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=f"{message}",
+                                             reply_markup=keyboard)
         else:
             await self.bot.send_message(chat_id=chat_id, text=f"{message}", reply_markup=keyboard)
 
