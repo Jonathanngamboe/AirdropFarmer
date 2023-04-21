@@ -18,7 +18,7 @@ class DBManager:
         try:
             result = await self.db_connection.execute(query, *args, **kwargs)
             return result
-        except asyncpg.ConnectionError:
+        except asyncpg.exceptions.InterfaceError:
             # Reconnect and retry if a connection error occurs
             await self.init_db()
             result = await self.db_connection.execute(query, *args, **kwargs)
@@ -31,7 +31,7 @@ class DBManager:
         try:
             result = await self.db_connection.fetchrow(query, *args, **kwargs)
             return result
-        except asyncpg.ConnectionError:
+        except asyncpg.exceptions.InterfaceError:
             # Reconnect and retry if a connection error occurs
             await self.init_db()
             result = await self.db_connection.fetchrow(query, *args, **kwargs)
@@ -43,7 +43,7 @@ class DBManager:
         try:
             result = await self.db_connection.fetchval(query, *args, **kwargs)
             return result
-        except asyncpg.ConnectionError:
+        except asyncpg.exceptions.InterfaceError:
             # Reconnect and retry if a connection error occurs
             await self.init_db()
             result = await self.db_connection.fetchval(query, *args, **kwargs)

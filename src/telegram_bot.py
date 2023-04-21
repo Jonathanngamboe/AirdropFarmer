@@ -4,6 +4,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.dispatcher.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ParseMode
 from config import settings
+from typing import List
 import logging
 
 from src.user import User  # Import the User class
@@ -25,9 +26,9 @@ class TelegramBot:
     async def cmd_start(self, message: types.Message):
         telegram_id = message.from_user.id
         username = message.from_user.full_name
-        user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
 
-        if not user:
+        user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
+        if user is None:
             user = await User.create_user(telegram_id, username, self.db_manager)
 
         welcome_text = f"🤖 Hey {username}, welcome on board!\n\nHow to use the bot?\n📚 Detailed Guide: Guide\n\n📩 If you have any questions, suggestions, or need assistance, please contact our support team at @support. We're always here to help!"
@@ -47,7 +48,7 @@ class TelegramBot:
             else:
                 await self.send_menu(query.from_user.id, menu, message_id=query.message.message_id)
         elif action == 'add_airdrop':
-            await self.cmd_add_airdrop(query.message) # Handle the add_airdrop action
+            await self.cmd_add_airdrop(query) # Handle the add_airdrop action
         elif action == 'start_farming':
             await self.cmd_start_farming(query.message) # Handle the start_farming action
         # Add more actions as needed
@@ -72,10 +73,21 @@ class TelegramBot:
             )
         elif menu == 'add_airdrop':
             available_airdrops = ["Base", "Scroll", "Arbitrum", "Zksync"]
-            for airdrop in available_airdrops:
-                keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"add_airdrop:{airdrop}"))
-            keyboard.add(InlineKeyboardButton("🔙 Back", callback_data="menu:main"))
-            message = "Select the airdrop(s) you want to farm:"
+            telegram_id = chat_id
+            user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
+            if user.airdrops:
+                available_airdrops = list(set(available_airdrops) - set(user.airdrops))
+
+            if available_airdrops:
+                for airdrop in available_airdrops:
+                    keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"add_airdrop:{airdrop}"))
+                message = "Select the airdrop(s) you want to farm:"
+            else:
+                message = "There are currently no airdrops to farm.\nCheck your airdrops list to see which airdrops you are farming."
+
+            keyboard.add(
+                InlineKeyboardButton("🔙 Back", callback_data="menu:manage_airdrops"),
+                InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"))
         elif menu == 'manage_wallets':
             keyboard.add(
                 InlineKeyboardButton("➕ Add wallet", callback_data="menu:add_wallet"),
@@ -123,9 +135,23 @@ class TelegramBot:
         print("Start farming")
         pass
 
-    async def cmd_add_airdrop(self, message: types.Message):
-        print("Airdrop added to the farm list")
-        pass
+    async def cmd_add_airdrop(self, query: CallbackQuery):
+        data = query.data.split(':')
+        airdrop_name = data[1] if len(data) > 1 else None
+
+        if airdrop_name:
+            telegram_id = query.from_user.id
+            user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
+
+            if not user.airdrops:
+                user.airdrops = []
+
+            user.airdrops.append(airdrop_name)
+            await user.update_airdrops(self.db_manager)
+
+            message = f"{airdrop_name} airdrop added to your list."
+            await self.bot.send_message(chat_id=telegram_id, text=message)
+            await self.send_menu(telegram_id, 'add_airdrop', message="Select the airdrop(s) you want to farm:")
 
     async def stop(self):
         await self.bot.close()

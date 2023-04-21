@@ -4,12 +4,19 @@ from datetime import datetime
 
 
 class User:
-    def __init__(self, user_id, telegram_id, username, subscription_level, db_manager):
-        self.user_id = user_id
+    def __init__(self, telegram_id, username, subscription_level, airdrops=None):
         self.telegram_id = telegram_id
         self.username = username
         self.subscription_level = subscription_level
-        self.db_manager = db_manager
+        self.airdrops = airdrops if airdrops is not None else []
+
+    async def update_airdrops(self, db_manager):
+        airdrops_str = '{' + ','.join([f'"{name}"' for name in self.airdrops]) + '}'
+        await db_manager.execute_query(
+            "UPDATE users SET airdrops = $1 WHERE telegram_id = $2",
+            list(self.airdrops), self.telegram_id
+        )
+
     def add_wallet(self, wallet):
         if wallet not in self.wallet:
             self.wallet.append(wallet)
@@ -63,22 +70,35 @@ class User:
         return subscription_levels[self.subscription_level]
 
     @classmethod
-    async def create_user(cls, telegram_id, username, db_manager, subscription_level='free'):
-        query = "INSERT INTO users (telegram_id, username, subscription_level, created_at) VALUES ($1, $2, $3, $4) RETURNING id"
-        values = (telegram_id, username, subscription_level, datetime.utcnow())
-
-        user_id = await db_manager.fetchval_query(query, *values)
-
-        return cls(user_id, telegram_id, username, subscription_level, db_manager)
+    async def create_user(cls, telegram_id, username, db_manager):
+        user_data = {
+            'telegram_id': telegram_id,
+            'username': username,
+            'subscription_level': 'free',
+        }
+        user = cls(**user_data)
+        await db_manager.execute_query(  # Replace 'execute' with 'execute_query'
+            "INSERT INTO users (telegram_id, username) VALUES ($1, $2)",
+            telegram_id,
+            username,
+        )
+        return user
 
     @classmethod
-    async def get_user_by_telegram_id(cls, telegram_id, db_manager):
-        query = "SELECT id, telegram_id, username, subscription_level FROM users WHERE telegram_id = $1"
-        values = (telegram_id,)
-
-        user_data = await db_manager.fetch_query(query, *values)
+    async def get_user_by_telegram_id(cls, telegram_id: int, db_manager) -> "User":
+        user_data = await db_manager.fetch_query(
+            "SELECT * FROM users WHERE telegram_id = $1", telegram_id
+        )
 
         if user_data:
-            return cls(*user_data, db_manager)
-        else:
-            return None
+            user_data = dict(user_data)  # Convert the asyncpg.Record object to a dictionary
+            user_data.pop('id', None)  # Remove 'id' from the user_data dictionary, this id is only used in the database
+            user_data.pop('created_at',
+                          None)  # Remove 'created_at' from the user_data dictionary, this is only used in the database
+            user = cls(**user_data)
+            if user.airdrops:
+                user.airdrops = list(user.airdrops)  # Convert the text array to a Python list
+            else:
+                user.airdrops = []
+            return user
+        return None
