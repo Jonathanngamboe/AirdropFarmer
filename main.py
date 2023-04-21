@@ -151,7 +151,7 @@ async def main():
         await asyncio.gather(airdrop_bot.airdrop_execution(has_discord_action), telegram_bot.dp.start_polling())
     finally:
         await airdrop_bot.close()
-        telegram_bot.stop()  # Stop the Telegram bot
+        await telegram_bot.stop()  # Stop the Telegram bot
 
 asyncio.run(main())
 
