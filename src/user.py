@@ -1,7 +1,4 @@
 # user.py
-import os
-from datetime import datetime
-
 
 class User:
     def __init__(self, telegram_id, username, subscription_level, airdrops=None):
@@ -9,6 +6,7 @@ class User:
         self.username = username
         self.subscription_level = subscription_level
         self.airdrops = airdrops if airdrops is not None else []
+        self.wallets = []
 
     async def update_airdrops(self, db_manager):
         airdrops_str = '{' + ','.join([f'"{name}"' for name in self.airdrops]) + '}'
@@ -18,9 +16,14 @@ class User:
         )
 
     def add_wallet(self, wallet):
-        if wallet not in self.wallet:
-            self.wallet.append(wallet)
+        if wallet not in self.wallets:
+            self.wallets.append(wallet)
+        # Implement the user's wallet encryption
         # Update the user's wallets in the database
+
+    def get_wallets(self):
+        # Retrieve and decrypt the user's wallets from the database
+        return self.wallets
 
     def remove_wallet(self, wallet):
         if wallet in self.wallets:
