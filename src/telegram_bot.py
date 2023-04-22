@@ -49,6 +49,9 @@ class TelegramBot:
                 await self.send_menu(query.from_user.id, menu, message_id=query.message.message_id)
         elif action == 'add_airdrop':
             await self.cmd_add_airdrop(query) # Handle the add_airdrop action
+        elif action == 'show_airdrop':  # Add the show_airdrop action
+            airdrop_name = data[1] if len(data) > 1 else None
+            await self.cmd_show_airdrop_details(query, airdrop_name)
         elif action == 'start_farming':
             await self.cmd_start_farming(query.message) # Handle the start_farming action
         # Add more actions as needed
@@ -68,11 +71,11 @@ class TelegramBot:
         elif menu == 'manage_airdrops':
             keyboard.add(
                 InlineKeyboardButton("➕ Add new airdrop", callback_data="menu:add_airdrop"),
-                InlineKeyboardButton("✏️ Edit airdrops", callback_data="menu:edit_airdrops"),
+                InlineKeyboardButton("✏️ Edit my airdrops", callback_data="menu:edit_airdrops"),
                 InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
             )
         elif menu == 'add_airdrop':
-            available_airdrops = ["Base", "Scroll", "Arbitrum", "Zksync"]
+            available_airdrops = ["Base", "Scroll", "Arbitrum", "Zksync", "Linear"]
             telegram_id = chat_id
             user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
             if user.airdrops:
@@ -80,11 +83,10 @@ class TelegramBot:
 
             if available_airdrops:
                 for airdrop in available_airdrops:
-                    keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"add_airdrop:{airdrop}"))
+                    keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"show_airdrop:{airdrop}"))
                 message = "Select the airdrop(s) you want to farm:"
             else:
-                message = "There are currently no airdrops to farm.\nCheck your airdrops list to see which airdrops you are farming."
-
+                message = "There are currently no additional airdrops to farm.\nCheck your airdrops list to see which airdrops you are farming."
             keyboard.add(
                 InlineKeyboardButton("🔙 Back", callback_data="menu:manage_airdrops"),
                 InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"))
@@ -134,6 +136,26 @@ class TelegramBot:
     async def cmd_start_farming(self, message: types.Message):
         print("Start farming")
         pass
+
+    async def cmd_show_airdrop_details(self, query: CallbackQuery, airdrop_name: str):
+        # Replace this with the actual airdrop descriptions
+        airdrop_descriptions = {
+            "Base": "Base airdrop description...",
+            "Scroll": "Scroll airdrop description...",
+            "Arbitrum": "Arbitrum airdrop description...",
+            "Zksync": "Zksync airdrop description...",
+        }
+
+        description = airdrop_descriptions.get(airdrop_name, "Airdrop description not found.")
+        message = f"Airdrop: {airdrop_name}\n\n{description}\n\nDo you want to add this airdrop to your list?"
+
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        keyboard.add(
+            InlineKeyboardButton("Add airdrop", callback_data=f"add_airdrop:{airdrop_name}"),
+            InlineKeyboardButton("Back to list", callback_data="menu:add_airdrop")
+        )
+
+        await self.bot.send_message(chat_id=query.from_user.id, text=message, reply_markup=keyboard)
 
     async def cmd_add_airdrop(self, query: CallbackQuery):
         data = query.data.split(':')
