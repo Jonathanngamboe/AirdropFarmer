@@ -131,7 +131,6 @@ class TelegramBot:
                     message = "Your wallet (click on the wallet to remove it):"
             else:
                 message = "You don't have any wallets yet. Add a wallet to start farming."
-            keyboard = InlineKeyboardMarkup(row_width=1)
 
             for wallet in user_wallets:
                 keyboard.add(InlineKeyboardButton(wallet['name'], callback_data=f"remove_wallet:{wallet['name']}"))
@@ -272,7 +271,7 @@ class TelegramBot:
                 private_key = private_key.strip()
                 if not self.is_valid_wallet_name(wallet_name):
                     await message.reply(
-                        f"Invalid wallet name. Please use only alphanumeric characters and underscores, with a maximum length of {settings.MAX_WALLET_NAME_LENGTH} characters. Type /add_wallet to try again.")
+                        f"Invalid wallet name. Please use only alphanumeric characters and underscores, with a maximum length of {settings.MAX_WALLET_NAME_LENGTH} characters and without spaces. Type /add_wallet to try again.")
                     await message.delete()  # Delete the message containing the private key for security reasons
                     return
             else:
@@ -297,7 +296,8 @@ class TelegramBot:
             return
 
         # Store the encrypted private key and wallet name in the user's database
-        wallet['name'] = wallet_name
+        formatted_wallet_name = f"{wallet_name} ({wallet['public_key'][:4]}...{wallet['public_key'][-4:]})"
+        wallet['name'] = formatted_wallet_name
 
         # Store the encrypted private key in the user's database
         if wallet not in self.user.wallets:
@@ -312,8 +312,11 @@ class TelegramBot:
         await self.send_menu(message.from_user.id, 'manage_wallets')
 
     async def is_valid_private_key(self, private_key_hex):
-        private_key_int = int(private_key_hex, 16)
-        return 0 < private_key_int < SECP256k1.order
+        try:
+            private_key_int = int(private_key_hex, 16)
+            return 0 < private_key_int < SECP256k1.order
+        except ValueError:
+            return False
 
     async def private_to_public_key(self, private_key_hex):
         private_key = keys.PrivateKey(bytes.fromhex(private_key_hex))
@@ -367,8 +370,9 @@ class TelegramBot:
             for airdrop in self.user.airdrops:
                 keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"edit_airdrop:{airdrop}"))
         else:
-            message = "You don't have any airdrops in your list."
+            message = "Your airdrop list is empty."
             await self.bot.send_message(chat_id=telegram_id, text=message)
+            await self.send_menu(telegram_id, 'manage_airdrops')
             return
 
         keyboard.add(
