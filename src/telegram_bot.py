@@ -87,7 +87,7 @@ class TelegramBot:
             if available_airdrops:
                 for airdrop in available_airdrops:
                     keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"show_airdrop:{airdrop}"))
-                message = "Select the airdrop(s) you want to farm:"
+                message = "Select the airdrop you want to farm:"
             else:
                 message = "There are currently no additional airdrops to farm. Check your airdrops list to see which airdrops you are farming."
             keyboard.add(
@@ -105,7 +105,9 @@ class TelegramBot:
             for airdrop in user_airdrops:
                 keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"edit_airdrop:{airdrop}"))
 
-            keyboard.add(InlineKeyboardButton("🔙 Back to manage airdrops", callback_data="menu:manage_airdrops"))
+            keyboard.add(
+                InlineKeyboardButton("🔙 Back to manage airdrops", callback_data="menu:manage_airdrops"),
+                InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"))
         elif menu == 'manage_wallets':
             keyboard.add(
                 InlineKeyboardButton("➕ Add wallet", callback_data="menu:add_wallet"),
@@ -215,7 +217,7 @@ class TelegramBot:
 
             message = f"{airdrop_name} airdrop added to your list."
             await self.bot.send_message(chat_id=telegram_id, text=message)
-            await self.send_menu(telegram_id, 'add_airdrop', message="Select the airdrop(s) you want to farm:")
+            await self.send_menu(telegram_id, 'add_airdrop', message="Select the airdrop you want to farm:")
 
     async def cmd_remove_airdrop(self, query: CallbackQuery, airdrop_name: str):
         telegram_id = query.from_user.id
