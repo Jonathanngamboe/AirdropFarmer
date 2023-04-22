@@ -38,20 +38,23 @@ class TelegramBot:
     async def on_menu_button_click(self, query: CallbackQuery):
         data = query.data.split(':')
         action = data[0]
-        menu = data[1] if len(data) > 1 else None
-
+        sub_data = data[1] if len(data) > 1 else None
+        print(f"Action: {action}, Subdata: {sub_data}")
         if action == 'menu':
-            if menu == 'main':
+            if sub_data == 'main':
                 username = query.from_user.full_name
                 welcome_text = f"🤖 Hey {username}, welcome on board!\n\nHow to use the bot?\n📚 Detailed Guide: Guide\n\n📩 If you have any questions, suggestions, or need assistance, please contact our support team at @support. We're always here to help!"
-                await self.send_menu(query.from_user.id, menu, message=welcome_text, message_id=query.message.message_id)
+                await self.send_menu(query.from_user.id, sub_data, message=welcome_text, message_id=query.message.message_id)
             else:
-                await self.send_menu(query.from_user.id, menu, message_id=query.message.message_id)
+                await self.send_menu(query.from_user.id, sub_data, message_id=query.message.message_id)
         elif action == 'add_airdrop':
             await self.cmd_add_airdrop(query) # Handle the add_airdrop action
         elif action == 'show_airdrop':  # Add the show_airdrop action
-            airdrop_name = data[1] if len(data) > 1 else None
-            await self.cmd_show_airdrop_details(query, airdrop_name)
+            await self.cmd_show_airdrop_details(query, airdrop_name=sub_data)
+        elif action == 'edit_airdrop':
+            await self.cmd_edit_airdrop(query, airdrop_name=sub_data)
+        elif action == 'remove_airdrop':
+            await self.cmd_remove_airdrop(query, sub_data)
         elif action == 'start_farming':
             await self.cmd_start_farming(query.message) # Handle the start_farming action
         # Add more actions as needed
@@ -86,10 +89,23 @@ class TelegramBot:
                     keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"show_airdrop:{airdrop}"))
                 message = "Select the airdrop(s) you want to farm:"
             else:
-                message = "There are currently no additional airdrops to farm.\nCheck your airdrops list to see which airdrops you are farming."
+                message = "There are currently no additional airdrops to farm. Check your airdrops list to see which airdrops you are farming."
             keyboard.add(
-                InlineKeyboardButton("🔙 Back", callback_data="menu:manage_airdrops"),
-                InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"))
+                InlineKeyboardButton("🔙 Back to manage airdrops", callback_data="menu:manage_airdrops"),
+                InlineKeyboardButton("🏠 Main menu", callback_data="menu:main")
+            )
+        elif menu == 'edit_airdrops':
+            telegram_id = chat_id
+            user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
+            user_airdrops = user.airdrops if user.airdrops else []
+
+            message = "Your airdrops:"
+            keyboard = InlineKeyboardMarkup(row_width=1)
+
+            for airdrop in user_airdrops:
+                keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"edit_airdrop:{airdrop}"))
+
+            keyboard.add(InlineKeyboardButton("🔙 Back to manage airdrops", callback_data="menu:manage_airdrops"))
         elif menu == 'manage_wallets':
             keyboard.add(
                 InlineKeyboardButton("➕ Add wallet", callback_data="menu:add_wallet"),
@@ -98,7 +114,8 @@ class TelegramBot:
             )
         elif menu == 'manage_subscription':
             keyboard.add(
-                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
+                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main"),
+                InlineKeyboardButton("🏠 Main menu", callback_data="menu:main")
             )
         elif menu == 'settings':
             keyboard.add(
@@ -151,11 +168,36 @@ class TelegramBot:
 
         keyboard = InlineKeyboardMarkup(row_width=2)
         keyboard.add(
-            InlineKeyboardButton("Add airdrop", callback_data=f"add_airdrop:{airdrop_name}"),
-            InlineKeyboardButton("Back to list", callback_data="menu:add_airdrop")
+            InlineKeyboardButton("✅ Add airdrop", callback_data=f"add_airdrop:{airdrop_name}"),
+            InlineKeyboardButton("🔙 Back to list", callback_data="menu:add_airdrop"),
+            InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"),
         )
 
-        await self.bot.send_message(chat_id=query.from_user.id, text=message, reply_markup=keyboard)
+        await self.bot.edit_message_text(chat_id=query.from_user.id, message_id=query.message.message_id, text=message,
+                                         reply_markup=keyboard)
+    async def cmd_edit_airdrop(self, query: CallbackQuery, airdrop_name: str):
+        # Replace this with the actual airdrop descriptions and editable parameters
+        airdrop_data = {
+            "Base": {"description": "Base airdrop description...", "editable_params": ["param1", "param2"]},
+            "Scroll": {"description": "Scroll airdrop description...", "editable_params": ["param1", "param2"]},
+            "Arbitrum": {"description": "Arbitrum airdrop description...", "editable_params": ["param1", "param2"]},
+            "Zksync": {"description": "Zksync airdrop description...", "editable_params": ["param1", "param2"]},
+        }
+
+        airdrop_info = airdrop_data.get(airdrop_name,
+                                        {"description": "Airdrop description not found.", "editable_params": []})
+
+        message = f"Airdrop: {airdrop_name}\n\n{airdrop_info['description']}\n\nEditable parameters: {', '.join(airdrop_info['editable_params'])}\n\nDo you want to edit or remove this airdrop?"
+
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        keyboard.add(
+            InlineKeyboardButton("✏️ Edit params", callback_data=f"edit_airdrop_params:{airdrop_name}"),
+            InlineKeyboardButton("❌ Remove", callback_data=f"remove_airdrop:{airdrop_name}"),
+            InlineKeyboardButton("🔙 Back to list", callback_data="menu:edit_airdrops")
+        )
+
+        await self.bot.edit_message_text(chat_id=query.from_user.id, message_id=query.message.message_id, text=message,
+                                         reply_markup=keyboard)
 
     async def cmd_add_airdrop(self, query: CallbackQuery):
         data = query.data.split(':')
@@ -174,6 +216,40 @@ class TelegramBot:
             message = f"{airdrop_name} airdrop added to your list."
             await self.bot.send_message(chat_id=telegram_id, text=message)
             await self.send_menu(telegram_id, 'add_airdrop', message="Select the airdrop(s) you want to farm:")
+
+    async def cmd_remove_airdrop(self, query: CallbackQuery, airdrop_name: str):
+        telegram_id = query.from_user.id
+        user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
+
+        if user.airdrops and airdrop_name in user.airdrops:
+            user.airdrops.remove(airdrop_name)
+            await user.update_airdrops(self.db_manager)
+
+            message = f"{airdrop_name} airdrop removed from your list."
+            await self.bot.send_message(chat_id=telegram_id, text=message)
+            await self.send_airdrop_edit_menu(telegram_id)
+        else:
+            message = f"{airdrop_name} airdrop not found in your list."
+            await self.bot.send_message(chat_id=telegram_id, text=message)
+
+    async def send_airdrop_edit_menu(self, telegram_id):
+        user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
+        keyboard = InlineKeyboardMarkup(row_width=1)
+
+        if user.airdrops:
+            for airdrop in user.airdrops:
+                keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"edit_airdrop:{airdrop}"))
+        else:
+            message = "You don't have any airdrops in your list."
+            await self.bot.send_message(chat_id=telegram_id, text=message)
+            return
+
+        keyboard.add(
+            InlineKeyboardButton("🔙 Back to manage airdrops", callback_data="menu:manage_airdrops"),
+            InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"))
+
+        message = "Select the airdrop you want to edit:"
+        await self.bot.send_message(chat_id=telegram_id, text=message, reply_markup=keyboard)
 
     async def stop(self):
         await self.bot.close()
