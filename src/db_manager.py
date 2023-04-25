@@ -10,7 +10,27 @@ class DBManager:
         self.db_connection = None
 
     async def init_db(self):
-        self.db_connection = await asyncpg.connect(os.environ.get("AIRDROP_FARMER_DATABASE_URL"), timeout=settings.DB_TIMEOUT)
+        self.db_connection = await asyncpg.connect(settings.AIRDROP_FARMER_DATABASE_URL, timeout=settings.DB_TIMEOUT)
+        await self.create_tables()
+
+    async def create_tables(self):
+        await self.execute_query('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL,
+                telegram_id BIGINT UNIQUE NOT NULL,
+                subscription_level VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                airdrops TEXT[],
+                encrypted_wallets JSONB,
+                twitter_credentials JSONB,
+                discord_credentials JSONB,
+                session_logs JSONB
+            );
+        ''')
+
+    async def get_all_users(self):
+        return await self.fetch_query("SELECT * FROM users;")
 
     async def close_db(self):
         if self.db_connection:

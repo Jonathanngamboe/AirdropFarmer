@@ -11,7 +11,7 @@
 # ]
 airdrop_info = {
     "name": "Base",
-    "isActivated": False,
+    "isActivated": True,
     "actions": [
         {
          "platform": "defi",

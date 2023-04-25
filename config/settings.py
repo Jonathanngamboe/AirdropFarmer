@@ -1,11 +1,12 @@
 # settings.py
 
+from decouple import config
+
 # Discord
 DISCORD_TOKEN = "NTM4MzMzODUyMTEzMDQzNDY2.GQhLNS.jQKTZAPT5BOZlxbgbUig1XvR8PovK90O4N06Wk"
 
 # Telegram
-TELEGRAM_TOKEN = "6079676736:AAFBYpYGZMBf0FNQdylhVQ7JttkjySO2aDc"
-TELEGRAM_CHAT_ID = "1892238442"
+TELEGRAM_TOKEN = config("TELEGRAM_TOKEN")
 MAX_WALLET_NAME_LENGTH = 20
 
 # Twitter
@@ -40,7 +41,19 @@ WALLET_LIST = [
 ]
 
 # App
-INTERVAL = 600
+ENCRYPTION_KEY = config("ENCRYPTION_KEY")
+AIRDROP_FARMER_DATABASE_URL = config("AIRDROP_FARMER_DATABASE_URL")
+LOG_PATH = 'logs'
+SUBSCRIPTION_LEVELS = {
+            'free': {
+                'level': 'Free',
+                'features': ['Feature 1', 'Feature 2']
+            },
+            'premium': {
+                'level': 'Premium',
+                'features': ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4']
+            }
+        }
 
 # Waiting time between actions for each platform
 PLATEFORM_WAIT_TIMES = {

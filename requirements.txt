@@ -11,4 +11,7 @@ pyrogram
 asyncpg
 tenacity
 eth-keys
+cryptography
+python-decouple
+
 
