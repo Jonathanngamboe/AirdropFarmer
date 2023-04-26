@@ -1,6 +1,7 @@
 # airdrop_execution.py
 import asyncio
-import time
+import traceback
+
 from src.defi_handler import DeFiHandler
 from src.twitter_handler import TwitterHandler
 from config import settings
@@ -117,7 +118,7 @@ class AirdropExecution:
                 except Exception as e:
                     success = False
                     message = f"ERROR - An error occurred while executing action {platform} : {e}"
-                    # traceback.print_exc() # Uncomment this line to print the full stack trace
+                    traceback.print_exc() # Uncomment this line to print the full stack trace
                 print(message)
                 self.logger.add_log(message)
 

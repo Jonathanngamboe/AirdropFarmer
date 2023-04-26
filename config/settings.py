@@ -44,16 +44,32 @@ WALLET_LIST = [
 ENCRYPTION_KEY = config("ENCRYPTION_KEY")
 AIRDROP_FARMER_DATABASE_URL = config("AIRDROP_FARMER_DATABASE_URL")
 LOG_PATH = 'logs'
-SUBSCRIPTION_LEVELS = {
-            'free': {
-                'level': 'Free',
-                'features': ['Feature 1', 'Feature 2']
+SUBSCRIPTION_LEVELS = [
+            {
+                'level': 'Basic',
+                'features': ['Feature 1', 'Feature 2'],
+                'price': '0',
+                'wallets': '1',
             },
-            'premium': {
+            {
+                'level': 'Standard',
+                'features': ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'],
+                'price': '0.1',
+                'wallets': '100',
+            },
+            {
                 'level': 'Premium',
-                'features': ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4']
-            }
-        }
+                'features': ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5', 'Feature 6'],
+                'price': '0.2',
+                'wallets': '1000',
+            },
+            {
+                'level': 'Custom',
+                'features': ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5', 'Feature 6', 'Feature 7', 'Feature 8'],
+                'price': '0.3',
+                'wallets': 'Unlimited',
+            },
+        ]
 
 # Waiting time between actions for each platform
 PLATEFORM_WAIT_TIMES = {

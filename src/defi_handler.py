@@ -33,27 +33,23 @@ class DeFiHandler:
         # Add more blockchains here if needed
         else:
             raise ValueError(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Unsupported blockchain.")
+            return None
         if web3.isConnected():
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Successfully connected to {blockchain} blockchain.")
+            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Connected to {blockchain} blockchain.")
         else:
             print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Could not connect to {blockchain} blockchain.")
             print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Exiting program...")
             return None
         return web3
 
-    def get_token_abi(self, filename):
-        # Get the current file's directory
-        current_directory = os.path.dirname(os.path.abspath(__file__))
-
-        # Construct the path to the erc20_abi.json file
-        token_abi_path = os.path.join(current_directory, '..', 'data', filename)
-
-        # Read the token_abi.json file
-        with open(token_abi_path, 'r') as f:
-            token_abi = json.load(f)
-        return token_abi
-
     async def perform_action(self, action):
+        # Cancel all pending transactions before performing a new action
+        pending_transactions = self.get_pending_transactions(action["wallet"]["address"])
+        if pending_transactions:
+            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Canceling all pending transactions")
+            for tx in pending_transactions:
+                self.cancel_pending_transactions(action["blockchain"], action["wallet"])
+
         if action["action"] == "interact_with_contract":
             # Convert address type arguments to checksum address
             function_args = self.convert_args_to_checksum_address(action["function_args"])
@@ -105,29 +101,22 @@ class DeFiHandler:
                 blockchain = action["blockchain"]
             )
 
-    def convert_args_to_checksum_address(self, args):
-        converted_args = {}
-        for key, arg in args.items():
-            if isinstance(arg, str) and len(arg) == 42 and arg[:2] == "0x" and self.web3.isAddress(arg):
-                # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Converting {arg} to checksum address.")
-                converted_args[key] = self.web3.toChecksumAddress(arg.strip('"'))
-            else:
-                converted_args[key] = arg
-        return converted_args
-
     def cancel_pending_transactions(self, blockchain, wallet):
         nonce = self.web3.eth.getTransactionCount(wallet["address"], 'pending')
 
         # Fetch recommended gas price
         gas_price = self.fetch_recommended_gas_price(blockchain)
+        print(f"Recommended gas price: {gas_price} Gwei")
 
         if gas_price is None:
             # Fallback to default gas price if fetching fails
             gas_price = self.web3.eth.gasPrice
+            print(f"Gsd price is None, using default gas price: {gas_price} Gwei")
         else:
             gas_price = int(gas_price * 1.5)
 
         gas_price = int(self.web3.toWei(gas_price, "gwei"))
+        print(f"Final gas price: {gas_price} wei")
 
         transaction = {
             'to': wallet["address"],
@@ -142,6 +131,28 @@ class DeFiHandler:
         txn_hash = self.web3.eth.sendRawTransaction(signed_txn.rawTransaction)
         txn_hash_hex = self.web3.toHex(txn_hash)
         return txn_hash_hex
+
+    def get_token_abi(self, filename):
+        # Get the current file's directory
+        current_directory = os.path.dirname(os.path.abspath(__file__))
+
+        # Construct the path to the erc20_abi.json file
+        token_abi_path = os.path.join(current_directory, '..', 'data', filename)
+
+        # Read the token_abi.json file
+        with open(token_abi_path, 'r') as f:
+            token_abi = json.load(f)
+        return token_abi
+
+    def convert_args_to_checksum_address(self, args):
+        converted_args = {}
+        for key, arg in args.items():
+            if isinstance(arg, str) and len(arg) == 42 and arg[:2] == "0x" and self.web3.isAddress(arg):
+                # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Converting {arg} to checksum address.")
+                converted_args[key] = self.web3.toChecksumAddress(arg.strip('"'))
+            else:
+                converted_args[key] = arg
+        return converted_args
 
     # Get the recommended Gas Price
     def fetch_recommended_gas_price(self, blockchain):
@@ -202,7 +213,7 @@ class DeFiHandler:
                 return None
         # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Estimated gas limit : {estimated_gas_limit}")
 
-        nonce = self.web3.eth.getTransactionCount(wallet["address"]) # Get the nonce for the wallet
+        nonce = self.web3.eth.getTransactionCount(wallet["address"], "pending")  # Get the nonce for the wallet, including pending transactions
 
         # Build the transaction
         transaction = function_call.buildTransaction({
@@ -224,30 +235,23 @@ class DeFiHandler:
             else:
                 print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Unexpected error occurred while sending transaction: {error_message}")
             return
-        txn_hash_hex = await self.async_wait_for_transaction_mined(blockchain, wallet, txn_hash)
+        txn_hash_hex = await self.wait_for_transaction_mined(txn_hash)
 
         return txn_hash_hex
 
-    import asyncio
-
-    async def async_wait_for_transaction_mined(self, blockchain, wallet, txn_hash,
-                                               timeout=settings.DEFAULT_TRANSACTION_TIMEOUT):
+    async def wait_for_transaction_mined(self, txn_hash, timeout=settings.DEFAULT_TRANSACTION_TIMEOUT):
         txn_hash_hex = self.web3.toHex(txn_hash)
         start_time = time.time()
 
-        async def get_transaction_receipt(txn_hash, timeout):
-            elapsed_time = 0
-            while elapsed_time < timeout:
-                txn_receipt = self.web3.eth.getTransactionReceipt(txn_hash)
-                if txn_receipt is not None:
-                    return txn_receipt
-                await asyncio.sleep(1)  # Sleep for a second before checking again
-                elapsed_time += 1
-            return None
-
         try:
             print(f"Waiting for transaction to be mined...")
-            txn_receipt = await asyncio.wait_for(get_transaction_receipt(txn_hash, timeout), timeout)
+            txn_receipt = None
+            while txn_receipt is None and time.time() - start_time < timeout:
+                txn_receipt = self.web3.eth.getTransactionReceipt(txn_hash)
+                print(f"Transaction receipt : {txn_receipt}")
+                if txn_receipt is None:
+                    print(f"Transaction not mined yet. Waiting for 1 second...")
+                    await asyncio.sleep(1)  # Sleep for a second before checking again
 
             if txn_receipt is None:
                 print(
@@ -264,29 +268,10 @@ class DeFiHandler:
                 # Here, you can handle the failure and provide suggestions to the user
                 # based on the error message, for example, if the message contains
                 # "Transaction reverted".
-        except TimeExhausted:
-            print(
-                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Transaction has not been mined after the timeout. You may want to check the transaction manually : {txn_hash_hex}")
-            return None
-        except TransactionNotFound as e:
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Transaction not found: {txn_hash_hex}")
-            return None
-        except ValueError as e:
-            error_message = str(e)
-            if "replacement transaction underpriced" in error_message:
-                print(
-                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Replacement transaction underpriced. Canceling the previous transaction...")
-                self.cancel_transaction(wallet, txn_hash)
-            else:
-                print(
-                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Unexpected error occurred while waiting for transaction to be mined: {error_message}")
         except Exception as e:
-            pending_txn = self.web3.eth.getTransaction(txn_hash)
-            if pending_txn is not None:
-                print(
-                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction taking too long to mine. Cancelling...")
-                txn_hash_hex = self.cancel_pending_transactions(blockchain, wallet)
             print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Error waiting for transaction receipt:\n{e}")
+            return None
+
         return txn_hash_hex
 
     def cancel_transaction(self, wallet, original_txn_hash):
@@ -294,7 +279,7 @@ class DeFiHandler:
         nonce = original_txn["nonce"]
         gas_price = original_txn["gasPrice"]
 
-        new_gas_price = int(gas_price * 1.1)  # Increase the gas price by 10%
+        new_gas_price = int(gas_price * 1.2)  # Increase the gas price by 20%
         transaction = {
             "from": wallet["address"],
             "to": wallet["address"],
@@ -311,6 +296,28 @@ class DeFiHandler:
 
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Cancelled original transaction. Sent a new transaction with hash {txn_hash_hex}")
         return txn_hash_hex
+
+    def get_pending_transactions(self, wallet_address):
+        pending_transactions = []
+
+        # Get the transaction pool content
+        try:
+            txpool_content = self.web3.manager.request_blocking('txpool_content', [])
+        except Exception as e:
+            print("The connected node does not support 'txpool_content' method.")
+            return pending_transactions
+
+        # Check both queued and pending transactions
+        for group in [txpool_content['queued'], txpool_content['pending']]:
+            for txs in group.values():
+                for tx in txs.values():
+                    # Check if the transaction is related to the wallet_address
+                    if tx['from'] == wallet_address:
+                        pending_transactions.append(tx)
+
+        print(f"Pending transactions : {pending_transactions}")
+
+        return pending_transactions
 
     async def approve_token_spend(self, wallet, token_address, spender, amount, blockchain):
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Approving token spend...")
@@ -474,7 +481,7 @@ class DeFiHandler:
         return token_balance
 
     async def transfer_native_token(self, wallet, recipient_address, amount_in_wei, blockchain):
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transfering {self.web3.fromWei(amount_in_wei, 'ether')} ETH from {wallet['address']} to {recipient_address}.")
+        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transfering {self.web3.fromWei(amount_in_wei, 'ether')} ETH from wallet {wallet['address']} to {recipient_address}.")
         nonce = self.web3.eth.getTransactionCount(wallet["address"])
 
         # Estimate the gas required for the transaction
@@ -495,8 +502,8 @@ class DeFiHandler:
         }
         signed_txn = self.web3.eth.account.signTransaction(transaction, wallet["private_key"])
         txn_hash = self.web3.eth.sendRawTransaction(signed_txn.rawTransaction)
-        txn_hash_hex = await self.async_wait_for_transaction_mined(blockchain, wallet, txn_hash)
-
+        print(f"Transaction hash in function 'transfer_native_token': {txn_hash.hex()}")
+        txn_hash_hex = await self.wait_for_transaction_mined(txn_hash)
 
         return txn_hash_hex
 

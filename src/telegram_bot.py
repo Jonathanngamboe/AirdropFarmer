@@ -14,6 +14,7 @@ from src.airdrop_execution import AirdropExecution
 from src.discord_handler import DiscordHandler
 from src.logger import Logger
 from src.user import User
+from aiogram.types import InputFile
 import re
 
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +30,7 @@ class TelegramBot:
         self.user_airdrop_executions = defaultdict(dict)
         self.airdrop_events = defaultdict(asyncio.Event)
         self.discord_handler = DiscordHandler(self.airdrop_events)
+        self.user_loggers = {} # Used to store Logger instances for each user
         self.register_handlers()
         self.welcome_text = None
         self.MAX_RETRIES = 3
@@ -36,6 +38,7 @@ class TelegramBot:
 
     def register_handlers(self):
         self.dp.register_message_handler(self.cmd_start, Command(["start", "help"]))
+        self.dp.register_message_handler(self.cmd_show_menu, Command(["menu"]))
         self.dp.register_message_handler(self.cmd_add_wallet, Command("add_wallet"), content_types=types.ContentTypes.TEXT)
         self.dp.register_callback_query_handler(self.on_menu_button_click)
 
@@ -53,9 +56,15 @@ class TelegramBot:
         # Add user to the started_users set
         self.started_users.add(message.from_user.id)
 
+        user_logger = self.get_user_logger(telegram_id)  # This will create the logger instance for the user if it doesn't already exist
+        user_logger.add_log(f"User {username} (ID: {telegram_id}) started the bot.")
+
         self.welcome_text = f"🤖 Hey {username}, welcome on board!\n\nHow to use the bot?\n📚 Detailed Guide: Guide\n\n📩 If you have any questions, suggestions, or need assistance, please contact our support team at @support. We're always here to help!"
 
         await self.send_menu(message.chat.id, 'main', message=self.welcome_text) # Send the main menu
+
+    async def cmd_show_menu(self, message: types.Message):
+        await self.send_menu(message.chat.id, 'main',message=self.welcome_text) # Send the main menu
 
     async def on_menu_button_click(self, query: CallbackQuery):
         if not await self.validate_user(query.from_user.id):
@@ -64,39 +73,34 @@ class TelegramBot:
         action = data[0]
         sub_data = data[1] if len(data) > 1 else None
         if action == 'menu':
-            print(f"Menu button clicked: {sub_data}")
             if sub_data == 'main':
-                username = query.from_user.full_name
                 await self.send_menu(query.from_user.id, sub_data, message=self.welcome_text,
                                      message_id=query.message.message_id)
             elif sub_data == 'add_wallet':
                 await self.display_wallet_warning(query.message)  # Display the warning message before adding a wallet
+            elif sub_data == 'show_logs':
+                await self.send_menu(query.from_user.id, sub_data, message_id=query.message.message_id)
             else:
                 await self.send_menu(query.from_user.id, sub_data, message_id=query.message.message_id)
         elif action == 'add_airdrop':
-            print(f"Add button clicked: {sub_data}")
             await self.cmd_add_airdrop(query)  # Handle the add_airdrop action
         elif action == 'show_airdrop':  # Add the show_airdrop action
-            print(f"Show button clicked: {sub_data}")
             await self.cmd_show_airdrop_details(query, airdrop_name=sub_data)
         elif action == 'edit_airdrop':
-            print(f"Edit button clicked: {sub_data}")
             await self.cmd_edit_airdrop(query, airdrop_name=sub_data)
         elif action == 'remove_airdrop':
-            print(f"Remove button clicked: {sub_data}")
             await self.cmd_remove_airdrop(query, sub_data)
         elif action == 'edit_wallets':
-            print(f"Edit button clicked: {sub_data}")
             await self.cmd_edit_wallets(query)  # Handle the edit_wallets action
         elif action == 'remove_wallet':
-            print(f"Remove button clicked: {sub_data}")
             await self.cmd_remove_wallet(query, sub_data)
         elif action == 'start_farming':
-            print(f"Start farming button clicked: {sub_data}")
             await self.cmd_start_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
         elif action == "stop_farming":
-            print(f"Stop farming button clicked: {sub_data}")
             await self.cmd_stop_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
+        elif action == "display_log":
+            await self.cmd_display_log(query.from_user.id, query.message.chat.id, sub_data, query.message.message_id)
+
         # Add more actions as needed
 
         await self.retry_request(self.bot.answer_callback_query, query.id)
@@ -123,8 +127,10 @@ class TelegramBot:
         keyboard = InlineKeyboardMarkup(row_width=2)
         if menu == 'main':
             keyboard.add(
-                InlineKeyboardButton("💸 Manage airdrops", callback_data="menu:manage_airdrops"),
-                InlineKeyboardButton("👛 Manage wallets", callback_data="menu:manage_wallets"),
+                InlineKeyboardButton("💸 My airdrops", callback_data="menu:manage_airdrops"),
+                InlineKeyboardButton("👛 My wallets", callback_data="menu:manage_wallets"),
+                InlineKeyboardButton("💡 Tips", callback_data="menu:show_tips"),
+                InlineKeyboardButton("📋 Logs", callback_data="menu:show_logs"),
                 InlineKeyboardButton("💳 Subscription", callback_data="menu:manage_subscription"),
                 InlineKeyboardButton("⚙️ Settings", callback_data="menu:settings"),
                 InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"),
@@ -194,6 +200,21 @@ class TelegramBot:
                 InlineKeyboardButton("➕ Add wallet", callback_data="menu:add_wallet"),
                 InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
             )
+        elif menu == 'show_logs':
+            user_logger = self.get_user_logger(chat_id)
+            log_dates = user_logger.get_log_dates()
+
+            if not log_dates:
+                await self.bot.send_message(chat_id, "No logs found.")
+                return
+
+            keyboard = InlineKeyboardMarkup(row_width=1)
+            for date in log_dates:
+                keyboard.add(InlineKeyboardButton(date, callback_data=f"display_log:{date}"))
+
+            keyboard.add(InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main"))
+
+            message = "Select a date to view the logs:"
         elif menu == 'manage_subscription':
             keyboard.add(
                 InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
@@ -234,14 +255,24 @@ class TelegramBot:
             await self.bot.send_message(chat_id=user_id, text="Please run the /start command first.")
             return False
 
+    async def cmd_display_log(self, user_id, chat_id, log_date, message_id=None):
+        user_logger = Logger(user_id)
+        date_str = log_date.replace(f"user_{user_id}_", "").replace(".log", "")
+        log_file_path = user_logger.get_log_file_path(date_str)
+
+        if log_file_path.exists():
+            with log_file_path.open('rb') as log_file:
+                await self.bot.send_document(chat_id, InputFile(log_file), caption=f"Logs for {date_str}")
+        else:
+            await self.bot.send_message(chat_id, f"No logs found for {date_str}")
+
     async def cmd_start_farming(self, user_id, chat_id, message_id):
         user = await self.get_user(user_id)
         user_airdrops = await user.get_airdrops(self.db_manager) if await user.get_airdrops(self.db_manager) else []
         user_wallets = await user.get_wallets(self.db_manager)
 
         if user_id in self.farming_users.keys():
-            await self.bot.send_message(chat_id,
-                                        "Airdrop farming is already in progress. Please wait or press the 'Stop farming' button to stop.")
+            await self.bot.send_message(chat_id, "Airdrop farming is already in progress. Please wait or press the 'Stop farming' button to stop.")
             return
 
         if not user_airdrops:
@@ -252,15 +283,13 @@ class TelegramBot:
             await self.bot.send_message(chat_id, "You must have at least one wallet registered to start farming.")
             return
 
-        logger = Logger(user_id, settings.LOG_PATH)
-        airdrop_execution = AirdropExecution(self.discord_handler, logger)
+        airdrop_execution = AirdropExecution(self.discord_handler, self.user_loggers[user_id])
         active_airdrops = airdrop_execution.get_active_airdrops()
 
         active_airdrop_names = [airdrop["name"] for airdrop in active_airdrops]
         valid_airdrops = [airdrop for airdrop in user_airdrops if airdrop in active_airdrop_names]
         if not valid_airdrops:
-            await self.bot.send_message(chat_id,
-                                        "You must have at least one active airdrop registered to start farming.")
+            await self.bot.send_message(chat_id, "You must have at least one active airdrop registered to start farming.")
             return
 
         self.farming_users[user_id] = True
@@ -300,11 +329,9 @@ class TelegramBot:
 
         for airdrop_name, status in airdrop_results.items():
             if status:
-                await self.bot.send_message(user.telegram_id,
-                                            f"Airdrop '{airdrop_name}' executed successfully. Check the logs for more details.")
+                await self.bot.send_message(user.telegram_id, f"Airdrop '{airdrop_name}' executed successfully. Check the logs for more details.")
             else:
-                await self.bot.send_message(user.telegram_id,
-                                            f"Error executing airdrop '{airdrop_name}'. Check the logs for more details.")
+                await self.bot.send_message(user.telegram_id, f"Error executing airdrop '{airdrop_name}'. Check the logs for more details.")
 
         if self.user_airdrop_executions[user_id][0].stop_requested:
             await self.bot.send_message(user.telegram_id, "Airdrop farming has been successfully stopped.")
@@ -319,16 +346,19 @@ class TelegramBot:
         if menu == 'main':
             keyboard = types.InlineKeyboardMarkup()
             if user_id in self.farming_users.keys():
-                print("Adding Stop farming button")
                 keyboard.add(types.InlineKeyboardButton("🛑 Stop farming", callback_data="stop_farming"))
             else:
-                print("Adding Start farming button")
                 keyboard.add(types.InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"))
 
             try:
                 await self.bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=keyboard)
             except MessageNotModified:
                 print("Message not modified: new keyboard layout is the same as the current one.")
+
+    def get_user_logger(self, user_id):
+        if user_id not in self.user_loggers:
+            self.user_loggers[user_id] = Logger(user_id)
+        return self.user_loggers[user_id]
 
     async def cmd_show_airdrop_details(self, query: CallbackQuery, airdrop_name: str):
         # Replace this with the actual airdrop descriptions
@@ -344,8 +374,8 @@ class TelegramBot:
 
         keyboard = InlineKeyboardMarkup(row_width=2)
         keyboard.add(
-            InlineKeyboardButton("✅ Add airdrop", callback_data=f"add_airdrop:{airdrop_name}"),
             InlineKeyboardButton("🔙 Back to list", callback_data="menu:add_airdrop"),
+            InlineKeyboardButton("✅ Add airdrop", callback_data=f"add_airdrop:{airdrop_name}"),
             InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"),
         )
 
@@ -416,7 +446,7 @@ class TelegramBot:
                 private_key = private_key.strip()
                 if not self.is_valid_wallet_name(wallet_name):
                     await message.reply(
-                        f"Invalid wallet name. Please use only alphanumeric characters and underscores, with a maximum length of {settings.MAX_WALLET_NAME_LENGTH} characters and without spaces. Type /add_wallet to try again.")
+                        f"Invalid wallet name. Please use only alphanumeric characters and underscores, with a maximum length of {settings.MAX_WALLET_NAME_LENGTH} characters and without spaces.\nType /add_wallet to try again.")
                     await message.delete()  # Delete the message containing the private key for security reasons
                     return
             else:
@@ -426,17 +456,17 @@ class TelegramBot:
                 return
         else:
             # Handle the case where nothing is provided after the command add_wallet
-            await message.reply("Please provide a wallet name and private key after the command. Type /add_wallet to try again.")
+            await message.reply("Please provide a wallet name folooed by a colon and your private key.\nType /add_wallet to try again.")
             return
 
         wallet = await self.check_private_key(private_key)
         if not wallet: # If the private key is invalid
-            await message.reply("Invalid private key. Please try again. Type /add_wallet to try again.")
+            await message.reply("Invalid private key. Please try again.\nType /add_wallet to try again.")
             return
 
         # Check if the wallet name is already in use
         if any(w['name'] == wallet_name for w in user_wallets):
-            await message.reply("The wallet name is already in use. Please choose a different name. Type /add_wallet to try again.")
+            await message.reply("The wallet name is already in use. Please choose a different name.\nType /add_wallet to try again.")
             await message.delete()  # Delete the message containing the private key for security reasons
             return
 
