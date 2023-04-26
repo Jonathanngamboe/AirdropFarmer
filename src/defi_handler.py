@@ -11,7 +11,9 @@ import os
 import config.settings as settings
 
 class DeFiHandler:
-    def __init__(self, blockchain):
+    def __init__(self, blockchain, logger, stop_requested):
+        self.logger = logger
+        self.stop_requested = stop_requested
         self.web3 = self.connect_to_blockchain(blockchain)
 
     def connect_to_blockchain(self, blockchain):
@@ -32,23 +34,31 @@ class DeFiHandler:
             self.token_abi = self.get_token_abi('erc20_abi.json')
         # Add more blockchains here if needed
         else:
-            raise ValueError(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Unsupported blockchain.")
+            raise ValueError(f"INFO - Unsupported blockchain.")
             return None
         if web3.isConnected():
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Connected to {blockchain} blockchain.")
+            message = f"INFO - Connected to {blockchain} blockchain."
+            print(message)
+            self.logger.add_log(message)
         else:
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Could not connect to {blockchain} blockchain.")
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Exiting program...")
+            message = f"INFO - Could not connect to {blockchain} blockchain."
+            print(message)
+            self.logger.add_log(message)
+            message = f"INFO - Exiting program..."
+            print(message)
+            self.logger.add_log(message)
             return None
         return web3
 
     async def perform_action(self, action):
         # Cancel all pending transactions before performing a new action
-        pending_transactions = self.get_pending_transactions(action["wallet"]["address"])
-        if pending_transactions:
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Canceling all pending transactions")
-            for tx in pending_transactions:
-                self.cancel_pending_transactions(action["blockchain"], action["wallet"])
+        #pending_transactions = self.get_pending_transactions(action["wallet"]["address"])
+        #if pending_transactions:
+        #    message = f"INFO - Canceling all pending transactions"
+        #    print(message)
+        #    self.logger.add_log(message)
+        #    for tx in pending_transactions:
+        #        self.cancel_pending_transactions(action["blockchain"], action["wallet"])
 
         if action["action"] == "interact_with_contract":
             # Convert address type arguments to checksum address
@@ -106,17 +116,23 @@ class DeFiHandler:
 
         # Fetch recommended gas price
         gas_price = self.fetch_recommended_gas_price(blockchain)
-        print(f"Recommended gas price: {gas_price} Gwei")
+        message = f"Recommended gas price: {gas_price} Gwei"
+        print(message)
+        self.logger.add_log(message)
 
         if gas_price is None:
             # Fallback to default gas price if fetching fails
             gas_price = self.web3.eth.gasPrice
-            print(f"Gsd price is None, using default gas price: {gas_price} Gwei")
+            message = f"Gas price is None, using default gas price: {gas_price} Gwei"
+            print(message)
+            self.logger.add_log(message)
         else:
             gas_price = int(gas_price * 1.5)
 
         gas_price = int(self.web3.toWei(gas_price, "gwei"))
-        print(f"Final gas price: {gas_price} wei")
+        message = f"Final gas price: {gas_price} wei"
+        print(message)
+        self.logger.add_log(message)
 
         transaction = {
             'to': wallet["address"],
@@ -148,7 +164,7 @@ class DeFiHandler:
         converted_args = {}
         for key, arg in args.items():
             if isinstance(arg, str) and len(arg) == 42 and arg[:2] == "0x" and self.web3.isAddress(arg):
-                # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Converting {arg} to checksum address.")
+                # print(f"INFO - Converting {arg} to checksum address.")
                 converted_args[key] = self.web3.toChecksumAddress(arg.strip('"'))
             else:
                 converted_args[key] = arg
@@ -164,10 +180,11 @@ class DeFiHandler:
             elif blockchain in ('goerli', 'base_goerli'):
                 gas_price = self.web3.fromWei(self.web3.eth.gasPrice, 'gwei')
             gas_price = int(gas_price) if int(gas_price) > 0 else 1
-            # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Recommended gas price : {gas_price} Gwei")
+            # print(f"INFO - Recommended gas price : {gas_price} Gwei")
         except Exception as e:
-            print(
-                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Error fetching gas price : {e}")
+            message = f"INFO - Error fetching gas price : {e}"
+            print(message)
+            self.logger.add_log(message)
             gas_price = None
         return gas_price
 
@@ -181,7 +198,9 @@ class DeFiHandler:
         return gas_price
 
     def check_wallet_balance(self, wallet):
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Wallet {wallet['address']} balance : {self.web3.fromWei(self.web3.eth.getBalance(wallet['address']), 'ether')} ETH")
+        message = f"INFO - Wallet {wallet['address']} balance : {self.web3.fromWei(self.web3.eth.getBalance(wallet['address']), 'ether')} ETH"
+        print(message)
+        self.logger.add_log(message)
         return self.web3.eth.getBalance(wallet["address"])
 
     def get_token_name(self, token_address):
@@ -206,12 +225,16 @@ class DeFiHandler:
         except ValueError as e:
             error_message = str(e)
             if "Insufficient msg.value" in error_message:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - {error_message}. Using default gas limit but transaction may fail.")
+                message = f"ERROR - {error_message}. Using default gas limit but transaction may fail."
+                print(message)
+                self.logger.add_log(message)
                 estimated_gas_limit = 100000 # Set a default gas limit
             else:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Error estimating gas limit : {error_message}")
+                message = f"ERROR - Error estimating gas limit : {error_message}"
+                print(message)
+                self.logger.add_log(message)
                 return None
-        # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Estimated gas limit : {estimated_gas_limit}")
+        # print(f"INFO - Estimated gas limit : {estimated_gas_limit}")
 
         nonce = self.web3.eth.getTransactionCount(wallet["address"], "pending")  # Get the nonce for the wallet, including pending transactions
 
@@ -231,9 +254,13 @@ class DeFiHandler:
         except ValueError as e:
             error_message = str(e)
             if "insufficient funds for gas * price + value" in error_message:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Insufficient funds for gas * price + value. Check your account balance.")
+                message = f"ERROR - Insufficient funds for gas * price + value. Check your account balance."
+                print(message)
+                self.logger.add_log(message)
             else:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Unexpected error occurred while sending transaction: {error_message}")
+                message = f"ERROR - Unexpected error occurred while sending transaction: {error_message}"
+                print(message)
+                self.logger.add_log(message)
             return
         txn_hash_hex = await self.wait_for_transaction_mined(txn_hash)
 
@@ -243,28 +270,41 @@ class DeFiHandler:
         txn_hash_hex = self.web3.toHex(txn_hash)
         start_time = time.time()
 
-        print(f"Waiting for transaction to be mined...")
+        message = f"INFO - Waiting for transaction to be mined..."
+        print(message)
+        self.logger.add_log(message)
         txn_receipt = None
         while txn_receipt is None and time.time() - start_time < timeout:
             try:
                 txn_receipt = self.web3.eth.getTransactionReceipt(txn_hash)
             except TransactionNotFound:
                 await asyncio.sleep(1)
+            except Exception as e:
+                message = f"ERROR - Error while fetching transaction receipt : {e}"
+                print(message)
+                self.logger.add_log(message)
+                return None
+            if self.stop_requested:
+                return None
 
         if txn_receipt is None:
-            print(
-                f"Transaction has not been mined after the timeout. You may want to check the transaction manually : {txn_hash_hex}")
+            message = f"WARNING - Transaction has not been mined after the timeout. You may want to check the transaction manually : {txn_hash_hex}"
+            print(message)
+            self.logger.add_log(message)
             return None
 
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction mined in {round(time.time() - start_time, 2)} seconds.")
+        message = f"INFO - Transaction mined in {round(time.time() - start_time, 2)} seconds."
+        print(message)
+        self.logger.add_log(message)
 
         if txn_receipt['status'] == 1:
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction succeeded.")
+            message = f"INFO - Transaction succeeded."
+            print(message)
+            self.logger.add_log(message)
         else:
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction failed.")
-            # Here, you can handle the failure and provide suggestions to the user
-            # based on the error message, for example, if the message contains
-            # "Transaction reverted".
+            message = f"INFO - Transaction failed."
+            print(message)
+            self.logger.add_log(message)
 
         return txn_hash_hex
 
@@ -288,7 +328,9 @@ class DeFiHandler:
         txn_hash = self.web3.eth.sendRawTransaction(signed_txn.rawTransaction)
         txn_hash_hex = self.web3.toHex(txn_hash)
 
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Cancelled original transaction. Sent a new transaction with hash {txn_hash_hex}")
+        message = f"INFO - Cancelled original transaction. Sent a new transaction with hash {txn_hash_hex}"
+        print(message)
+        self.logger.add_log(message)
         return txn_hash_hex
 
     def get_pending_transactions(self, wallet_address):
@@ -314,7 +356,9 @@ class DeFiHandler:
         return pending_transactions
 
     async def approve_token_spend(self, wallet, token_address, spender, amount, blockchain):
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Approving token spend...")
+        message = f"INFO - Approving token spend..."
+        print(message)
+        self.logger.add_log(message)
         contract = self.web3.eth.contract(
             address=token_address,
             abi=self.token_abi,
@@ -329,12 +373,16 @@ class DeFiHandler:
         function = contract.functions[function_name]
         function_call = function(*args, **kwargs) # If gettting error "Function invocation failed due to no matching argument types", try to switch from *args to *kwargs or vice versa in the function call
 
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Interacting with the function '{function_name}' of the contract {contract_address}")
+        message = f"INFO - Interacting with the function '{function_name}' of the contract {contract_address}"
+        print(message)
+        self.logger.add_log(message)
 
         return await self.build_and_send_transaction(wallet, function_call, blockchain, msg_value)
 
     async def swap_tokens(self, wallet, token_in_address, token_out_address, amount_in, exchange_address, exchange_abi, blockchain, slippage_tolerance=0.1, deadline_minutes=3):
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Swapping {self.get_token_name(token_in_address)} for {self.get_token_name(token_out_address)} on contract {exchange_address}")
+        message = f"INFO - Swapping {self.get_token_name(token_in_address)} for {self.get_token_name(token_out_address)} on contract {exchange_address}"
+        print(message)
+        self.logger.add_log(message)
 
         # Check minimum transfer amount
         # Assuming `minimum_transfer_amount` function exists in the token contract
@@ -342,25 +390,31 @@ class DeFiHandler:
         try:
             min_transfer_amount = contract.functions.minimum_transfer_amount().call()
             if amount_in < min_transfer_amount:
-                print(
-                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Amount to swap is less than the minimum transfer amount.")
+                message = f"ERROR - Amount to swap is less than the minimum transfer amount."
+                print(message)
+                self.logger.add_log(message)
                 return
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - The minimum transfer amount is {self.web3.fromWei(min_transfer_amount, 'ether')} {self.get_token_name(token_in_address)}.")
+            message = f"INFO - The minimum transfer amount is {self.web3.fromWei(min_transfer_amount, 'ether')} {self.get_token_name(token_in_address)}."
+            print(message)
+            self.logger.add_log(message)
         except Exception as e:
-            # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Token contract does not have a minimum_transfer_amount function.")
+            # print(f"INFO - Token contract does not have a minimum_transfer_amount function.")
             pass
 
         # Check token balance
         token_balance = self.get_token_balance(wallet, token_in_address)
-        print(
-            f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - The token balance is {self.web3.fromWei(token_balance, 'ether')} {self.get_token_name(token_in_address)}.")
+        message = f"INFO - The token balance is {self.web3.fromWei(token_balance, 'ether')} {self.get_token_name(token_in_address)}."
+        print(message)
+        self.logger.add_log(message)
         if token_balance < amount_in:
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Insufficient token balance. Aborting...")
+            message = f"ERROR - Insufficient token balance. Aborting..."
+            print(message)
+            self.logger.add_log(message)
             return
 
         # Approve contract to spend tokens if needed
         allowance = self.check_allowance(wallet, token_in_address, exchange_address)
-        # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - The allowance is {self.web3.fromWei(allowance, 'ether')} and the amount to swap is {self.web3.fromWei(amount_in, 'ether')} {self.get_token_name(token_in_address)}.")
+        # print(f"INFO - The allowance is {self.web3.fromWei(allowance, 'ether')} and the amount to swap is {self.web3.fromWei(amount_in, 'ether')} {self.get_token_name(token_in_address)}.")
         if allowance < amount_in:
             approval_txn_hash = await self.approve_token_spend(
                 wallet,
@@ -370,11 +424,15 @@ class DeFiHandler:
                 blockchain,
             )
             if approval_txn_hash is None:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Token approval failed.")
+                message = f"ERROR - Token approval failed."
+                print(message)
+                self.logger.add_log(message)
                 return
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Approval transaction hash: {approval_txn_hash}")
+            message = f"INFO - Approval transaction hash: {approval_txn_hash}"
+            print(message)
+            self.logger.add_log(message)
         else:
-            # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Token allowance is sufficient.")
+            # print(f"INFO - Token allowance is sufficient.")
             pass
 
         path = [token_in_address, token_out_address] # Path of tokens to swap
@@ -413,10 +471,13 @@ class DeFiHandler:
             # Wrap native token
             wrap_txn_hash = await self.wrap_native_token(wallet, amount, blockchain)
             if wrap_txn_hash is None:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Wrapping native token failed.")
+                message = f"ERROR - Wrapping native token failed."
+                print(message)
+                self.logger.add_log(message)
                 return
-            print(
-                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Wrapping native token transaction hash: {wrap_txn_hash}")
+            message = f"INFO - Wrapping native token transaction hash: {wrap_txn_hash}"
+            print(message)
+            self.logger.add_log(message)
 
             # Perform swap
             swap_txn_hash = await self.swap_tokens(wallet, self.wrapped_native_token_address, token_address, amount, exchange_address,
@@ -430,7 +491,9 @@ class DeFiHandler:
             return swap_txn_hash
 
     async def wrap_native_token(self, wallet, amount, blockchain):
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Wrapping {self.web3.fromWei(amount, 'ether')} native tokens")
+        message = f"INFO - Wrapping {self.web3.fromWei(amount, 'ether')} native tokens"
+        print(message)
+        self.logger.add_log(message)
 
         # Get the deposit function from the wrapped token contract
         contract = self.web3.eth.contract(address=self.wrapped_native_token_address, abi=self.wrapped_native_token_abi)
@@ -440,7 +503,9 @@ class DeFiHandler:
         try:
             gas_estimate = deposit_function.estimateGas({"from": wallet["address"], "value": amount})
         except Exception as e:
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Error estimating gas limit: {str(e)}")
+            message = f"ERROR - Error estimating gas limit: {str(e)}"
+            print(message)
+            self.logger.add_log(message)
             return None
 
         # Build and send the deposit transaction
@@ -451,7 +516,7 @@ class DeFiHandler:
     def check_allowance(self, wallet, token_address, spender):
         contract = self.web3.eth.contract(address=token_address, abi=self.token_abi)
         allowance = contract.functions.allowance(wallet["address"], spender).call()
-        # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Allowance for contract {spender} : {self.web3.fromWei(allowance, 'ether')} {self.get_token_name(token_address)}")
+        # print(f"INFO - Allowance for contract {spender} : {self.web3.fromWei(allowance, 'ether')} {self.get_token_name(token_address)}")
         return allowance
 
     def get_token_balance(self, wallet, token_address):
@@ -475,7 +540,9 @@ class DeFiHandler:
         return token_balance
 
     async def transfer_native_token(self, wallet, recipient_address, amount_in_wei, blockchain):
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transfering {self.web3.fromWei(amount_in_wei, 'ether')} ETH from wallet {wallet['address']} to {recipient_address}.")
+        message = f"INFO - Transfering {self.web3.fromWei(amount_in_wei, 'ether')} ETH from wallet {wallet['address']} to {recipient_address}."
+        print(message)
+        self.logger.add_log(message)
         nonce = self.web3.eth.getTransactionCount(wallet["address"])
 
         # Estimate the gas required for the transaction
@@ -496,14 +563,20 @@ class DeFiHandler:
         }
         signed_txn = self.web3.eth.account.signTransaction(transaction, wallet["private_key"])
         txn_hash = self.web3.eth.sendRawTransaction(signed_txn.rawTransaction)
-        print(f"Transaction hash in function 'transfer_native_token': {txn_hash.hex()}")
+        message = f"Transaction hash in function 'transfer_native_token': {txn_hash.hex()}"
+        print(message)
+        self.logger.add_log(message)
         txn_hash_hex = await self.wait_for_transaction_mined(txn_hash)
 
         return txn_hash_hex
 
     async def transfer_token(self, wallet, recipient_address, amount, token_address, blockchain):
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Account balance before transfer: {self.web3.fromWei(self.get_token_balance(wallet, token_address), 'ether')} {self.get_token_name(token_address)}")
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Sending {self.web3.fromWei(amount, 'ether')} {self.get_token_name(token_address)} to {recipient_address}")
+        message = f"INFO - Account balance before transfer: {self.web3.fromWei(self.get_token_balance(wallet, token_address), 'ether')} {self.get_token_name(token_address)}"
+        print(message)
+        self.logger.add_log(message)
+        message = f"INFO - Sending {self.web3.fromWei(amount, 'ether')} {self.get_token_name(token_address)} to {recipient_address}"
+        print(message)
+        self.logger.add_log(message)
         contract = self.web3.eth.contract(address=token_address, abi=self.token_abi)
         function_call = contract.functions.transfer(recipient_address, amount)
         return await self.build_and_send_transaction(wallet, function_call, blockchain)

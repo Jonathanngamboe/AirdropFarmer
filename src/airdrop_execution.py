@@ -43,7 +43,9 @@ class AirdropExecution:
         return [airdrop for airdrop in self.airdrop_info if airdrop["isActivated"]]
 
     async def execute_single_airdrop(self, airdrop):
-        print("------------------------")
+        message = "------------------------"
+        self.logger.add_log(message)
+        print(message)
         message = f"INFO - Executing actions for {airdrop['name']} airdrop"
         print(message)
         self.logger.add_log(message)
@@ -85,8 +87,9 @@ class AirdropExecution:
         active_actions = [action for action in airdrop_info["actions"] if action["isActivated"]]
 
         if not active_actions:
-            print(
-                f"INFO - No active actions found for {airdrop_info['name']} airdrop.")
+            message = f"INFO - No active actions found for {airdrop_info['name']} airdrop."
+            print(message)
+            self.logger.add_log(message)
             return
 
         for wallet in settings.WALLET_LIST:
@@ -95,8 +98,12 @@ class AirdropExecution:
             for action in active_actions:
                 if self.stop_requested:  # Add this check
                     break
-                print("------------------------")
-                print(f"INFO - Executing action {action['action']} for {airdrop_info['name']} airdrop")
+                message = "------------------------"
+                print(message)
+                self.logger.add_log(message)
+                message = f"INFO - Executing action {action['action']} for {airdrop_info['name']} airdrop"
+                print(message)
+                self.logger.add_log(message)
                 # Add the wallet's public address and private key to the action
                 action["wallet"] = {"address": wallet["address"], "private_key": wallet["private_key"]}
                 platform = action["platform"]
@@ -107,7 +114,7 @@ class AirdropExecution:
                     elif platform == "discord":
                         await self.discord_handler.perform_action(action)
                     elif platform == "defi":
-                        defi_handler = DeFiHandler(action["blockchain"])
+                        defi_handler = DeFiHandler(action["blockchain"], self.logger, self.stop_requested)
                         txn_hash = await defi_handler.perform_action(action)
                         if txn_hash is None:
                             message = f"ERROR - Error in executing action {platform} for {airdrop_info['name']} airdrop, skipping this action."
