@@ -43,6 +43,21 @@ class TelegramBot:
         self.dp.register_message_handler(self.cmd_add_wallet, Command("add_wallet"), content_types=types.ContentTypes.TEXT)
         self.dp.register_callback_query_handler(self.on_menu_button_click)
 
+    async def start_polling(self):
+        async def on_startup(dp):
+            pass
+            # await self.bot.send_message(chat_id=, text="Bot has been started")
+
+        async def on_shutdown(dp):
+            # Remove webhook (if set)
+            await self.bot.delete_webhook()
+
+            # Close db connection (if used)
+            await dp.storage.close()
+            await dp.storage.wait_closed()
+
+        executor.start_polling(self.dp, on_startup=on_startup, on_shutdown=on_shutdown)
+
     async def get_user(self, telegram_id, username=None):
         user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
         if user is None:
@@ -236,21 +251,6 @@ class TelegramBot:
                                              reply_markup=keyboard)
         else:
             await self.bot.send_message(chat_id=chat_id, text=f"{message}", reply_markup=keyboard)
-
-    async def start_polling(self):
-        async def on_startup(dp):
-            pass
-            # await self.bot.send_message(chat_id=, text="Bot has been started")
-
-        async def on_shutdown(dp):
-            # Remove webhook (if set)
-            await self.bot.delete_webhook()
-
-            # Close db connection (if used)
-            await dp.storage.close()
-            await dp.storage.wait_closed()
-
-        executor.start_polling(self.dp, on_startup=on_startup, on_shutdown=on_shutdown)
 
     async def validate_user(self, user_id: int) -> bool:
         if user_id in self.started_users:

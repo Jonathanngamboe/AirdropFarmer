@@ -243,34 +243,28 @@ class DeFiHandler:
         txn_hash_hex = self.web3.toHex(txn_hash)
         start_time = time.time()
 
-        try:
-            print(f"Waiting for transaction to be mined...")
-            txn_receipt = None
-            while txn_receipt is None and time.time() - start_time < timeout:
+        print(f"Waiting for transaction to be mined...")
+        txn_receipt = None
+        while txn_receipt is None and time.time() - start_time < timeout:
+            try:
                 txn_receipt = self.web3.eth.getTransactionReceipt(txn_hash)
-                print(f"Transaction receipt : {txn_receipt}")
-                if txn_receipt is None:
-                    print(f"Transaction not mined yet. Waiting for 1 second...")
-                    await asyncio.sleep(1)  # Sleep for a second before checking again
+            except TransactionNotFound:
+                await asyncio.sleep(1)
 
-            if txn_receipt is None:
-                print(
-                    f"Transaction has not been mined after the timeout. You may want to check the transaction manually : {txn_hash_hex}")
-                return None
-
+        if txn_receipt is None:
             print(
-                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction mined in {round(time.time() - start_time, 2)} seconds.")
-
-            if txn_receipt['status'] == 1:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction succeeded.")
-            else:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction failed.")
-                # Here, you can handle the failure and provide suggestions to the user
-                # based on the error message, for example, if the message contains
-                # "Transaction reverted".
-        except Exception as e:
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Error waiting for transaction receipt:\n{e}")
+                f"Transaction has not been mined after the timeout. You may want to check the transaction manually : {txn_hash_hex}")
             return None
+
+        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction mined in {round(time.time() - start_time, 2)} seconds.")
+
+        if txn_receipt['status'] == 1:
+            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction succeeded.")
+        else:
+            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction failed.")
+            # Here, you can handle the failure and provide suggestions to the user
+            # based on the error message, for example, if the message contains
+            # "Transaction reverted".
 
         return txn_hash_hex
 
