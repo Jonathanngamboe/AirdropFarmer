@@ -1,4 +1,6 @@
 # defi_handler.py
+import asyncio
+
 from web3.exceptions import TimeExhausted, TransactionNotFound
 from web3 import Web3
 import requests
@@ -51,11 +53,11 @@ class DeFiHandler:
             token_abi = json.load(f)
         return token_abi
 
-    def perform_action(self, action):
+    async def perform_action(self, action):
         if action["action"] == "interact_with_contract":
             # Convert address type arguments to checksum address
             function_args = self.convert_args_to_checksum_address(action["function_args"])
-            return self.interact_with_contract(
+            return await self.interact_with_contract(
                 wallet = action["wallet"],
                 contract_address=action["contract_address"],
                 abi = action["abi"],
@@ -65,14 +67,14 @@ class DeFiHandler:
                 **function_args,
             )
         elif action["action"] == "transfer_native_token":
-            return self.transfer_native_token(
+            return await self.transfer_native_token(
                 wallet = action["wallet"],
                 amount_in_wei = int(action["amount_in_wei"]),
                 recipient_address = self.web3.toChecksumAddress(action["recipient_address"].strip('"')),
                 blockchain = action["blockchain"],
             )
         elif action["action"] == "transfer_token":
-            return self.transfer_token(
+            return await self.transfer_token(
                 wallet = action["wallet"],
                 token_address = self.web3.toChecksumAddress(action["token_address"].strip('"')),
                 amount = int(action["amount"]),
@@ -80,7 +82,7 @@ class DeFiHandler:
                 blockchain = action["blockchain"],
             )
         elif action["action"] == "swap_native_token":
-            return self.swap_native_token(
+            return await self.swap_native_token(
                 wallet = action["wallet"],
                 amount = int(action["amount_in_wei"]),
                 token_address = self.web3.toChecksumAddress(action["token_address"].strip('"')),
@@ -91,7 +93,7 @@ class DeFiHandler:
                 blockchain = action["blockchain"]
             )
         elif action["action"] == "swap_tokens":
-            return self.swap_tokens(
+            return await self.swap_tokens(
                 wallet = action["wallet"],
                 token_in_address = self.web3.toChecksumAddress(action["token_in_address"].strip('"')),
                 token_out_address = self.web3.toChecksumAddress(action["token_out_address"].strip('"')),
@@ -178,7 +180,7 @@ class DeFiHandler:
         token_name = token_contract.functions.name().call()
         return token_name
 
-    def build_and_send_transaction(self, wallet, function_call, blockchain, msg_value=None):
+    async def build_and_send_transaction(self, wallet, function_call, blockchain, msg_value=None):
         # Estimate gas_price
         self.web3.eth.setGasPriceStrategy(
             lambda web3, transaction_params=None: self.gas_price_strategy(blockchain, transaction_params))
@@ -222,17 +224,38 @@ class DeFiHandler:
             else:
                 print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Unexpected error occurred while sending transaction: {error_message}")
             return
-        txn_hash_hex = self.wait_for_transaction_mined(blockchain, wallet, txn_hash)
+        txn_hash_hex = await self.async_wait_for_transaction_mined(blockchain, wallet, txn_hash)
 
         return txn_hash_hex
 
-    def wait_for_transaction_mined(self, blockchain, wallet, txn_hash, timeout=settings.DEFAULT_TRANSACTION_TIMEOUT):
+    import asyncio
+
+    async def async_wait_for_transaction_mined(self, blockchain, wallet, txn_hash,
+                                               timeout=settings.DEFAULT_TRANSACTION_TIMEOUT):
         txn_hash_hex = self.web3.toHex(txn_hash)
         start_time = time.time()
 
+        async def get_transaction_receipt(txn_hash, timeout):
+            elapsed_time = 0
+            while elapsed_time < timeout:
+                txn_receipt = self.web3.eth.getTransactionReceipt(txn_hash)
+                if txn_receipt is not None:
+                    return txn_receipt
+                await asyncio.sleep(1)  # Sleep for a second before checking again
+                elapsed_time += 1
+            return None
+
         try:
-            # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Waiting for transaction to be mined...")
-            txn_receipt = self.web3.eth.waitForTransactionReceipt(txn_hash, timeout=timeout)
+            print(f"Waiting for transaction to be mined...")
+            txn_receipt = await asyncio.wait_for(get_transaction_receipt(txn_hash, timeout), timeout)
+
+            if txn_receipt is None:
+                print(
+                    f"Transaction has not been mined after the timeout. You may want to check the transaction manually : {txn_hash_hex}")
+                return None
+
+            print(
+                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction mined in {round(time.time() - start_time, 2)} seconds.")
 
             if txn_receipt['status'] == 1:
                 print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction succeeded.")
@@ -242,7 +265,8 @@ class DeFiHandler:
                 # based on the error message, for example, if the message contains
                 # "Transaction reverted".
         except TimeExhausted:
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Transaction has not been mined after the timeout. You may want to check the transaction manually : {txn_hash_hex}")
+            print(
+                f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Transaction has not been mined after the timeout. You may want to check the transaction manually : {txn_hash_hex}")
             return None
         except TransactionNotFound as e:
             print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Transaction not found: {txn_hash_hex}")
@@ -254,11 +278,13 @@ class DeFiHandler:
                     f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Replacement transaction underpriced. Canceling the previous transaction...")
                 self.cancel_transaction(wallet, txn_hash)
             else:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Unexpected error occurred while waiting for transaction to be mined: {error_message}")
+                print(
+                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Unexpected error occurred while waiting for transaction to be mined: {error_message}")
         except Exception as e:
             pending_txn = self.web3.eth.getTransaction(txn_hash)
             if pending_txn is not None:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction taking too long to mine. Cancelling...")
+                print(
+                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transaction taking too long to mine. Cancelling...")
                 txn_hash_hex = self.cancel_pending_transactions(blockchain, wallet)
             print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Error waiting for transaction receipt:\n{e}")
         return txn_hash_hex
@@ -286,7 +312,7 @@ class DeFiHandler:
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Cancelled original transaction. Sent a new transaction with hash {txn_hash_hex}")
         return txn_hash_hex
 
-    def approve_token_spend(self, wallet, token_address, spender, amount, blockchain):
+    async def approve_token_spend(self, wallet, token_address, spender, amount, blockchain):
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Approving token spend...")
         contract = self.web3.eth.contract(
             address=token_address,
@@ -295,18 +321,18 @@ class DeFiHandler:
 
         function_call = contract.functions.approve(spender, int(amount))
 
-        return self.build_and_send_transaction(wallet, function_call, blockchain)
+        return await self.build_and_send_transaction(wallet, function_call, blockchain)
 
-    def interact_with_contract(self, wallet, contract_address, abi, function_name, blockchain, msg_value=None, *args, **kwargs):
+    async def interact_with_contract(self, wallet, contract_address, abi, function_name, blockchain, msg_value=None, *args, **kwargs):
         contract = self.web3.eth.contract(address=contract_address, abi=abi)
         function = contract.functions[function_name]
         function_call = function(*args, **kwargs) # If gettting error "Function invocation failed due to no matching argument types", try to switch from *args to *kwargs or vice versa in the function call
 
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Interacting with the function '{function_name}' of the contract {contract_address}")
 
-        return self.build_and_send_transaction(wallet, function_call, blockchain, msg_value)
+        return await self.build_and_send_transaction(wallet, function_call, blockchain, msg_value)
 
-    def swap_tokens(self, wallet, token_in_address, token_out_address, amount_in, exchange_address, exchange_abi, blockchain, slippage_tolerance=0.1, deadline_minutes=3):
+    async def swap_tokens(self, wallet, token_in_address, token_out_address, amount_in, exchange_address, exchange_abi, blockchain, slippage_tolerance=0.1, deadline_minutes=3):
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Swapping {self.get_token_name(token_in_address)} for {self.get_token_name(token_out_address)} on contract {exchange_address}")
 
         # Check minimum transfer amount
@@ -335,7 +361,7 @@ class DeFiHandler:
         allowance = self.check_allowance(wallet, token_in_address, exchange_address)
         # print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - The allowance is {self.web3.fromWei(allowance, 'ether')} and the amount to swap is {self.web3.fromWei(amount_in, 'ether')} {self.get_token_name(token_in_address)}.")
         if allowance < amount_in:
-            approval_txn_hash = self.approve_token_spend(
+            approval_txn_hash = await self.approve_token_spend(
                 wallet,
                 token_in_address,
                 exchange_address,
@@ -364,7 +390,7 @@ class DeFiHandler:
         # Set the deadline to a specific number of minutes in the future
         deadline = int(time.time()) + (deadline_minutes * 60)
 
-        txn_hash_hex = self.interact_with_contract(
+        txn_hash_hex = await self.interact_with_contract(
             wallet,
             exchange_address,
             exchange_abi,
@@ -380,11 +406,11 @@ class DeFiHandler:
 
         return txn_hash_hex
 
-    def swap_native_token(self, wallet, token_address, amount, exchange_address, exchange_abi,
+    async def swap_native_token(self, wallet, token_address, amount, exchange_address, exchange_abi,
                           blockchain, slippage_tolerance=0.1, deadline_minutes=3, is_buy=True):
         if is_buy:  # Swap native token for another token
             # Wrap native token
-            wrap_txn_hash = self.wrap_native_token(wallet, amount, blockchain)
+            wrap_txn_hash = await self.wrap_native_token(wallet, amount, blockchain)
             if wrap_txn_hash is None:
                 print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Wrapping native token failed.")
                 return
@@ -392,17 +418,17 @@ class DeFiHandler:
                 f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Wrapping native token transaction hash: {wrap_txn_hash}")
 
             # Perform swap
-            swap_txn_hash = self.swap_tokens(wallet, self.wrapped_native_token_address, token_address, amount, exchange_address,
+            swap_txn_hash = await self.swap_tokens(wallet, self.wrapped_native_token_address, token_address, amount, exchange_address,
                                              exchange_abi, blockchain, slippage_tolerance, deadline_minutes)
             return swap_txn_hash
 
         else:  # Swap another token for the native token
             # Perform swap
-            swap_txn_hash = self.swap_tokens(wallet, token_address, self.wrapped_native_token_address, amount, exchange_address,
+            swap_txn_hash = await self.swap_tokens(wallet, token_address, self.wrapped_native_token_address, amount, exchange_address,
                                              exchange_abi, blockchain, slippage_tolerance, deadline_minutes)
             return swap_txn_hash
 
-    def wrap_native_token(self, wallet, amount, blockchain):
+    async def wrap_native_token(self, wallet, amount, blockchain):
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Wrapping {self.web3.fromWei(amount, 'ether')} native tokens")
 
         # Get the deposit function from the wrapped token contract
@@ -417,7 +443,7 @@ class DeFiHandler:
             return None
 
         # Build and send the deposit transaction
-        txn_hash_hex = self.build_and_send_transaction(wallet, deposit_function, blockchain, msg_value=amount)
+        txn_hash_hex = await self.build_and_send_transaction(wallet, deposit_function, blockchain, msg_value=amount)
         return txn_hash_hex
 
     # This function is used to check the allowance of a spender for a token
@@ -447,7 +473,7 @@ class DeFiHandler:
 
         return token_balance
 
-    def transfer_native_token(self, wallet, recipient_address, amount_in_wei, blockchain):
+    async def transfer_native_token(self, wallet, recipient_address, amount_in_wei, blockchain):
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Transfering {self.web3.fromWei(amount_in_wei, 'ether')} ETH from {wallet['address']} to {recipient_address}.")
         nonce = self.web3.eth.getTransactionCount(wallet["address"])
 
@@ -467,16 +493,16 @@ class DeFiHandler:
             "nonce": nonce,
             "chainId": self.web3.eth.chainId,
         }
-
         signed_txn = self.web3.eth.account.signTransaction(transaction, wallet["private_key"])
         txn_hash = self.web3.eth.sendRawTransaction(signed_txn.rawTransaction)
-        txn_hash_hex = self.wait_for_transaction_mined(blockchain, wallet, txn_hash)
+        txn_hash_hex = await self.async_wait_for_transaction_mined(blockchain, wallet, txn_hash)
+
 
         return txn_hash_hex
 
-    def transfer_token(self, wallet, recipient_address, amount, token_address, blockchain):
+    async def transfer_token(self, wallet, recipient_address, amount, token_address, blockchain):
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Account balance before transfer: {self.web3.fromWei(self.get_token_balance(wallet, token_address), 'ether')} {self.get_token_name(token_address)}")
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Sending {self.web3.fromWei(amount, 'ether')} {self.get_token_name(token_address)} to {recipient_address}")
         contract = self.web3.eth.contract(address=token_address, abi=self.token_abi)
         function_call = contract.functions.transfer(recipient_address, amount)
-        return self.build_and_send_transaction(wallet, function_call, blockchain)
+        return await self.build_and_send_transaction(wallet, function_call, blockchain)

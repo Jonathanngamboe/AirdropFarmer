@@ -3,6 +3,7 @@ import asyncio
 from collections import defaultdict
 from aiogram.utils import executor
 from aiogram import Bot, Dispatcher, types
+from aiogram.utils.exceptions import InvalidQueryID, MessageNotModified
 from aiogram.dispatcher.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ParseMode
 from config import settings
@@ -30,6 +31,8 @@ class TelegramBot:
         self.discord_handler = DiscordHandler(self.airdrop_events)
         self.register_handlers()
         self.welcome_text = None
+        self.MAX_RETRIES = 3
+        self.RETRY_DELAY = 5
 
     def register_handlers(self):
         self.dp.register_message_handler(self.cmd_start, Command(["start", "help"]))
@@ -61,6 +64,7 @@ class TelegramBot:
         action = data[0]
         sub_data = data[1] if len(data) > 1 else None
         if action == 'menu':
+            print(f"Menu button clicked: {sub_data}")
             if sub_data == 'main':
                 username = query.from_user.full_name
                 await self.send_menu(query.from_user.id, sub_data, message=self.welcome_text,
@@ -70,24 +74,47 @@ class TelegramBot:
             else:
                 await self.send_menu(query.from_user.id, sub_data, message_id=query.message.message_id)
         elif action == 'add_airdrop':
+            print(f"Add button clicked: {sub_data}")
             await self.cmd_add_airdrop(query)  # Handle the add_airdrop action
         elif action == 'show_airdrop':  # Add the show_airdrop action
+            print(f"Show button clicked: {sub_data}")
             await self.cmd_show_airdrop_details(query, airdrop_name=sub_data)
         elif action == 'edit_airdrop':
+            print(f"Edit button clicked: {sub_data}")
             await self.cmd_edit_airdrop(query, airdrop_name=sub_data)
         elif action == 'remove_airdrop':
+            print(f"Remove button clicked: {sub_data}")
             await self.cmd_remove_airdrop(query, sub_data)
         elif action == 'edit_wallets':
+            print(f"Edit button clicked: {sub_data}")
             await self.cmd_edit_wallets(query)  # Handle the edit_wallets action
         elif action == 'remove_wallet':
+            print(f"Remove button clicked: {sub_data}")
             await self.cmd_remove_wallet(query, sub_data)
         elif action == 'start_farming':
+            print(f"Start farming button clicked: {sub_data}")
             await self.cmd_start_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
         elif action == "stop_farming":
+            print(f"Stop farming button clicked: {sub_data}")
             await self.cmd_stop_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
         # Add more actions as needed
 
-        await query.answer()
+        await self.retry_request(self.bot.answer_callback_query, query.id)
+
+    async def retry_request(self, func, *args, **kwargs):
+        retries = 0
+        while retries < self.MAX_RETRIES:
+            try:
+                return await func(*args, **kwargs)
+            except InvalidQueryID as e:
+                print(f"WARNING - Query is too old or query ID is invalid: {e}")
+                return None  # Stop retrying as this exception won't likely resolve on its own
+            except Exception as e:
+                retries += 1
+                print(f"WARNING - Retrying request due to error: {e}")
+                await asyncio.sleep(self.RETRY_DELAY)
+        print(f"ERROR - Request failed after {self.MAX_RETRIES} retries.")
+        return None
 
     async def send_menu(self, chat_id, menu, message="Choose an option:",message_id=None):
         user = await self.get_user(chat_id)
@@ -185,17 +212,6 @@ class TelegramBot:
         else:
             await self.bot.send_message(chat_id=chat_id, text=f"{message}", reply_markup=keyboard)
 
-    async def update_keyboard_layout(self, chat_id, message_id, menu='main'):
-        user_id = chat_id  # Assuming the chat_id corresponds to the user_id in this case
-        if menu == 'main':
-            keyboard = types.InlineKeyboardMarkup()
-            if user_id in self.farming_users.keys():
-                keyboard.add(types.InlineKeyboardButton(" 🛑 Stop farming", callback_data="stop_farming"))
-            else:
-                keyboard.add(types.InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"))
-
-            await self.bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=keyboard)
-
     async def start_polling(self):
         async def on_startup(dp):
             pass
@@ -224,7 +240,8 @@ class TelegramBot:
         user_wallets = await user.get_wallets(self.db_manager)
 
         if user_id in self.farming_users.keys():
-            await self.bot.send_message(chat_id,"Airdrop farming is already in progress. Please wait or press the 'Stop farming' button to stop.")
+            await self.bot.send_message(chat_id,
+                                        "Airdrop farming is already in progress. Please wait or press the 'Stop farming' button to stop.")
             return
 
         if not user_airdrops:
@@ -235,55 +252,47 @@ class TelegramBot:
             await self.bot.send_message(chat_id, "You must have at least one wallet registered to start farming.")
             return
 
-        # Create a new AirdropExecution instance for the user
         logger = Logger(user_id, settings.LOG_PATH)
         airdrop_execution = AirdropExecution(self.discord_handler, logger)
         active_airdrops = airdrop_execution.get_active_airdrops()
 
-        # Check if user_airdrops are among active_airdrops
         active_airdrop_names = [airdrop["name"] for airdrop in active_airdrops]
         valid_airdrops = [airdrop for airdrop in user_airdrops if airdrop in active_airdrop_names]
         if not valid_airdrops:
-            await self.bot.send_message(chat_id, "You must have at least one active airdrop registered to start farming.")
+            await self.bot.send_message(chat_id,
+                                        "You must have at least one active airdrop registered to start farming.")
             return
 
-        self.farming_users[user_id] = True  # Add the user to the list of started users
-        await self.bot.send_message(chat_id, "Airdrop farming started.")  # Notify the user about the airdrop farming start
+        self.farming_users[user_id] = True
+        await self.bot.send_message(chat_id, "Airdrop farming started.")
 
-        # Update the keyboard layout with the "Stop farming" button
         await self.update_keyboard_layout(user_id, message_id, menu='main')
 
-        airdrop_execution.airdrops_to_execute = valid_airdrops  # Get the valid airdrops from the user
+        airdrop_execution.airdrops_to_execute = valid_airdrops
 
-        # Call the airdrop_execution method in a separate asynchronous task
         airdrop_execution_task = asyncio.create_task(airdrop_execution.airdrop_execution())
         self.user_airdrop_executions[user_id] = (airdrop_execution, airdrop_execution_task)
 
-        asyncio.create_task(
-            self.notify_airdrop_execution(user_id))  # Notify the user about the airdrop execution status
+        asyncio.create_task(self.notify_airdrop_execution(user_id, message_id))
 
     async def cmd_stop_farming(self, user_id, chat_id, message_id):
-        if user_id in self.farming_users.keys():  # Check if the user is farming
-            if user_id in self.user_airdrop_executions:
-                airdrop_execution, airdrop_execution_task = self.user_airdrop_executions[user_id]
-                airdrop_execution.stop_requested = True  # Stop the airdrop farming
-                del self.farming_users[user_id]
+        if user_id in self.farming_users.keys():
+            airdrop_execution, airdrop_execution_task = self.user_airdrop_executions.get(user_id, (None, None))
+            if airdrop_execution:
+                airdrop_execution.stop_requested = True
                 await self.bot.send_message(chat_id, "Stopping airdrop farming. Please wait...")
-                await self.update_keyboard_layout(chat_id, message_id)
-                await self.send_menu(chat_id, 'main', message=self.welcome_text)  # Send the main menu
-
-                # Use asyncio.gather() to wait for the airdrop_execution_task to complete
                 await asyncio.gather(airdrop_execution_task)
+                await self.update_keyboard_layout(chat_id, message_id)
+                await self.send_menu(chat_id, 'main', message=self.welcome_text)
             else:
                 await self.bot.send_message(chat_id, "Airdrop farming is not running.")
         else:
             await self.bot.send_message(chat_id, "Airdrop farming is not running.")
             return
 
-    async def notify_airdrop_execution(self, user_id):
+    async def notify_airdrop_execution(self, user_id, message_id):
         # Verify if the airdrop execution has finished and notify the user
-        while not self.user_airdrop_executions[user_id][
-            0].finished:  # Access the 'finished' attribute from the airdrop_execution object
+        while not self.user_airdrop_executions[user_id][0].finished:
             await asyncio.sleep(1)
 
         user = await self.get_user(user_id)
@@ -291,17 +300,35 @@ class TelegramBot:
 
         for airdrop_name, status in airdrop_results.items():
             if status:
-                await self.bot.send_message(user.telegram_id, f"Airdrop '{airdrop_name}' executed successfully. Check the logs for more details.")
+                await self.bot.send_message(user.telegram_id,
+                                            f"Airdrop '{airdrop_name}' executed successfully. Check the logs for more details.")
             else:
-                await self.bot.send_message(user.telegram_id, f"Error executing airdrop '{airdrop_name}'. Check the logs for more details.")
+                await self.bot.send_message(user.telegram_id,
+                                            f"Error executing airdrop '{airdrop_name}'. Check the logs for more details.")
 
-        # Message to inform the user that the farming has stopped completely
         if self.user_airdrop_executions[user_id][0].stop_requested:
             await self.bot.send_message(user.telegram_id, "Airdrop farming has been successfully stopped.")
 
         del self.user_airdrop_executions[user_id]
         del self.farming_users[user_id]
-        await self.send_menu(user_id, 'main', message=self.welcome_text)  # Send the main menu
+        await self.update_keyboard_layout(user_id, message_id)
+        await self.send_menu(user_id, 'main', message=self.welcome_text)
+
+    async def update_keyboard_layout(self, chat_id, message_id, menu='main'):
+        user_id = chat_id  # Assuming the chat_id corresponds to the user_id in this case
+        if menu == 'main':
+            keyboard = types.InlineKeyboardMarkup()
+            if user_id in self.farming_users.keys():
+                print("Adding Stop farming button")
+                keyboard.add(types.InlineKeyboardButton("🛑 Stop farming", callback_data="stop_farming"))
+            else:
+                print("Adding Start farming button")
+                keyboard.add(types.InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"))
+
+            try:
+                await self.bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=keyboard)
+            except MessageNotModified:
+                print("Message not modified: new keyboard layout is the same as the current one.")
 
     async def cmd_show_airdrop_details(self, query: CallbackQuery, airdrop_name: str):
         # Replace this with the actual airdrop descriptions
