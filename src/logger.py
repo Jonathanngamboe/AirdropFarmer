@@ -4,6 +4,9 @@ from pathlib import Path
 import os
 from datetime import timedelta
 
+from config import settings
+
+
 class Logger:
     def __init__(self, user_id=None, log_dir='logs', app_log=False):
         self.user_id = user_id
@@ -69,7 +72,7 @@ class Logger:
                 log_dates.append(date_str)
         return log_dates
 
-    def delete_old_logs(self, max_age_days=7):
+    def delete_old_logs(self, max_age_days=settings.LOG_MAX_AGE_DAYS):
         log_directory = Path(self.log_dir)
         if log_directory.exists():
             for log_file in log_directory.glob("*.log"):

@@ -137,7 +137,7 @@ class DeFiHandler:
         current_directory = os.path.dirname(os.path.abspath(__file__))
 
         # Construct the path to the erc20_abi.json file
-        token_abi_path = os.path.join(current_directory, '..', 'data', filename)
+        token_abi_path = os.path.join(current_directory, '..', 'resources', filename)
 
         # Read the token_abi.json file
         with open(token_abi_path, 'r') as f:

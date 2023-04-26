@@ -1,5 +1,6 @@
 # telegram_bot.py
 import asyncio
+import os
 from collections import defaultdict
 from aiogram.utils import executor
 from aiogram import Bot, Dispatcher, types
@@ -38,7 +39,7 @@ class TelegramBot:
 
     def register_handlers(self):
         self.dp.register_message_handler(self.cmd_start, Command(["start", "help"]))
-        self.dp.register_message_handler(self.cmd_show_menu, Command(["menu"]))
+        self.dp.register_message_handler(self.cmd_show_main_menu, Command(["menu"]))
         self.dp.register_message_handler(self.cmd_add_wallet, Command("add_wallet"), content_types=types.ContentTypes.TEXT)
         self.dp.register_callback_query_handler(self.on_menu_button_click)
 
@@ -63,7 +64,7 @@ class TelegramBot:
 
         await self.send_menu(message.chat.id, 'main', message=self.welcome_text) # Send the main menu
 
-    async def cmd_show_menu(self, message: types.Message):
+    async def cmd_show_main_menu(self, message: types.Message):
         await self.send_menu(message.chat.id, 'main',message=self.welcome_text) # Send the main menu
 
     async def on_menu_button_click(self, query: CallbackQuery):
@@ -146,9 +147,9 @@ class TelegramBot:
                     await user.remove_airdrop(airdrop, self.db_manager)
 
             keyboard.add(
-                InlineKeyboardButton("➕ Add new airdrop", callback_data="menu:add_airdrop"),
                 InlineKeyboardButton("✏️ Edit my airdrops", callback_data="menu:edit_airdrops"),
-                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
+                InlineKeyboardButton("➕ Add new airdrop", callback_data="menu:add_airdrop"),
+                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main"),
             )
         elif menu == 'add_airdrop':
             # Create a temporary instance to get the active airdrops
@@ -197,9 +198,12 @@ class TelegramBot:
                 keyboard.add(InlineKeyboardButton(wallet['name'], callback_data=f"remove_wallet:{wallet['name']}"))
 
             keyboard.add(
+                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main"),
                 InlineKeyboardButton("➕ Add wallet", callback_data="menu:add_wallet"),
-                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
             )
+        elif menu == 'show_tips':
+            await self.bot.send_message(chat_id, self.load_tips())
+            await self.send_menu(chat_id, 'main', message=self.welcome_text)
         elif menu == 'show_logs':
             user_logger = self.get_user_logger(chat_id)
             log_dates = user_logger.get_log_dates()
@@ -556,6 +560,17 @@ class TelegramBot:
 
         message = "Select the airdrop you want to edit:"
         await self.bot.send_message(chat_id=telegram_id, text=message, reply_markup=keyboard)
+
+    def load_tips(self, file_path=None):
+        if file_path is None:
+            current_file_dir = os.path.dirname(os.path.abspath(__file__))
+            parent_dir = os.path.dirname(current_file_dir)
+            file_path = os.path.join(parent_dir, "resources/tips.txt")
+
+        with open(file_path, "r", encoding="utf-8") as tips_file:
+            tips_content = tips_file.read()
+
+        return tips_content
 
     async def stop(self):
         await self.bot.close()
