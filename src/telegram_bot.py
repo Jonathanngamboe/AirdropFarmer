@@ -314,7 +314,7 @@ class TelegramBot:
             if airdrop_execution:
                 airdrop_execution.stop_requested = True
                 self.user_loggers[user_id].add_log("WARNING - Stop farming requested.")
-                await self.bot.send_message(chat_id, "Stopping airdrop farming. Please wait...")
+                await self.bot.send_message(chat_id, "Stopping airdrop farming. This may take a few minutes.\nPlease wait...")
                 await asyncio.gather(airdrop_execution_task)
                 await self.update_keyboard_layout(chat_id, message_id)
             else:
