@@ -34,9 +34,15 @@ class Logger:
     def ensure_log_file_exists(self):
         log_path = self.log_dir / self.log_filename
 
+        # Create the log directory if it does not exist
+        if not self.log_dir.exists():
+            os.makedirs(self.log_dir)
+
+        # Create the log file if it does not exist
         if not log_path.exists():
             with open(log_path, 'w') as log_file:
-                log_file.write(f"--- Log file created on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n\n")
+                log_file.write(
+                    f"--- Log file created on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n\n")
 
     def add_log(self, log_message):
         log_path = self.log_dir / self.log_filename

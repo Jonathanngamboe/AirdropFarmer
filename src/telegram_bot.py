@@ -68,7 +68,6 @@ class TelegramBot:
         telegram_id = message.from_user.id
         username = message.from_user.full_name
         user = await self.get_user(telegram_id, username) # Get the user from the database and create a new one if it doesn't exist
-
         # Add user to the started_users set
         self.started_users.add(message.from_user.id)
 
