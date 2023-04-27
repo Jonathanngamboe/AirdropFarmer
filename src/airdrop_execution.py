@@ -1,15 +1,13 @@
 # airdrop_execution.py
 import asyncio
 import traceback
-
 from src.defi_handler import DeFiHandler
 from src.twitter_handler import TwitterHandler
-from config import settings
 import os
 import importlib.util
 
 class AirdropExecution:
-    def __init__(self, discord_handler, logger):
+    def __init__(self, discord_handler, logger, wallets):
         self.last_executed = {}  # Dictionary to store the last execution time
         self.airdrop_info = self.load_airdrop_files() # Load the airdrop files
         # Check if there is at least one Discord action
@@ -21,6 +19,7 @@ class AirdropExecution:
         self.airdrops_to_execute = []
         self.airdrop_statuses = {}
         self.stop_requested = False
+        self.wallets = wallets
 
 
     # Function to load airdrop files
@@ -83,7 +82,6 @@ class AirdropExecution:
 
     async def execute_airdrop_actions(self, airdrop_info):
         success = True  # Initialize success as True
-        message = ""
         active_actions = [action for action in airdrop_info["actions"] if action["isActivated"]]
 
         if not active_actions:
@@ -92,7 +90,7 @@ class AirdropExecution:
             self.logger.add_log(message)
             return
 
-        for wallet in settings.WALLET_LIST:
+        for wallet in self.wallets:
             if self.stop_requested:  # Add this check
                 break
             for action in active_actions:
@@ -105,7 +103,7 @@ class AirdropExecution:
                 print(message)
                 self.logger.add_log(message)
                 # Add the wallet's public address and private key to the action
-                action["wallet"] = {"address": wallet["address"], "private_key": wallet["private_key"]}
+                action["wallet"] = {"address": wallet["public_key"], "private_key": wallet["private_key"]}
                 platform = action["platform"]
 
                 try:

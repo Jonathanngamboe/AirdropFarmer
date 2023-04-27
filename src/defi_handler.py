@@ -51,6 +51,10 @@ class DeFiHandler:
         return web3
 
     async def perform_action(self, action):
+        # Print the wallet balance before start
+        message = f"INFO - Wallet : {action['wallet']['address']}\nINFO - Native token Balance : {self.get_token_balance(action['wallet'], native=True)}"
+        self.logger.add_log(message)
+        print(message)
         # Cancel all pending transactions before performing a new action
         #pending_transactions = self.get_pending_transactions(action["wallet"]["address"])
         #if pending_transactions:
@@ -519,25 +523,34 @@ class DeFiHandler:
         # print(f"INFO - Allowance for contract {spender} : {self.web3.fromWei(allowance, 'ether')} {self.get_token_name(token_address)}")
         return allowance
 
-    def get_token_balance(self, wallet, token_address):
+    def get_token_balance(self, wallet, token_address=None, native=False):
         """
-        Get the balance of the specified token for the given wallet index.
+        Get the balance of the specified token or native token for the given wallet index.
 
         Args:
             wallet : A dict with the wallet public and private key.
-            token_address (str): The address of the token contract.
+            token_address (str, optional): The address of the token contract. Defaults to None.
+            native (bool, optional): If True, return the native token balance. Defaults to False.
 
         Returns:
             Decimal: The token balance of the wallet.
         """
 
-        # Create a contract object for the token using its address and ABI
-        token_contract = self.web3.eth.contract(address=Web3.toChecksumAddress(token_address), abi=self.token_abi)
+        if native:
+            # Get the native token balance
+            native_balance = self.web3.eth.getBalance(wallet["address"])
+            return native_balance
+        else:
+            if token_address is None:
+                raise ValueError("Token address is required if not fetching native token balance.")
 
-        # Call the 'balanceOf' function of the token contract to get the balance
-        token_balance = token_contract.functions.balanceOf(wallet["address"]).call()
+            # Create a contract object for the token using its address and ABI
+            token_contract = self.web3.eth.contract(address=Web3.toChecksumAddress(token_address), abi=self.token_abi)
 
-        return token_balance
+            # Call the 'balanceOf' function of the token contract to get the balance
+            token_balance = token_contract.functions.balanceOf(wallet["address"]).call()
+
+            return token_balance
 
     async def transfer_native_token(self, wallet, recipient_address, amount_in_wei, blockchain):
         message = f"INFO - Transfering {self.web3.fromWei(amount_in_wei, 'ether')} ETH from wallet {wallet['address']} to {recipient_address}."
@@ -545,12 +558,18 @@ class DeFiHandler:
         self.logger.add_log(message)
         nonce = self.web3.eth.getTransactionCount(wallet["address"])
 
-        # Estimate the gas required for the transaction
-        gas_limit = self.web3.eth.estimateGas({
-            'from': wallet["address"],
-            'to': recipient_address,
-            'value': amount_in_wei
-        })
+        try:
+            # Estimate the gas required for the transaction
+            gas_limit = self.web3.eth.estimateGas({
+                'from': wallet["address"],
+                'to': recipient_address,
+                'value': amount_in_wei
+            })
+        except Exception as e:
+            message = f"ERROR - Error estimating gas limit : {e}"
+            self.logger.add_log(message)
+            print(message)
+            return None
 
         transaction = {
             "from": wallet["address"],

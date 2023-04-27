@@ -287,7 +287,7 @@ class TelegramBot:
             await self.bot.send_message(chat_id, "You must have at least one wallet registered to start farming.")
             return
 
-        airdrop_execution = AirdropExecution(self.discord_handler, self.user_loggers[user_id])
+        airdrop_execution = AirdropExecution(self.discord_handler, self.user_loggers[user_id], user_wallets)
         active_airdrops = airdrop_execution.get_active_airdrops()
 
         active_airdrop_names = [airdrop["name"] for airdrop in active_airdrops]
@@ -314,7 +314,7 @@ class TelegramBot:
             if airdrop_execution:
                 airdrop_execution.stop_requested = True
                 self.user_loggers[user_id].add_log("WARNING - Stop farming requested.")
-                await self.bot.send_message(chat_id, "Stopping airdrop farming. This may take a few minutes.\nPlease wait...")
+                await self.bot.send_message(chat_id, "Stopping airdrop farming. This may take a few minutes.Please wait...")
                 await asyncio.gather(airdrop_execution_task)
                 await self.update_keyboard_layout(chat_id, message_id)
             else:
