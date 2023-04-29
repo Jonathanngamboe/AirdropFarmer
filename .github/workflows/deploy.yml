@@ -18,11 +18,6 @@ jobs:
         with:
           node-version: 16
 
-      - name: Set up SSH agent
-        uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: ${{ secrets.YOUR_PRIVATE_KEY_SECRET }}
-
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
