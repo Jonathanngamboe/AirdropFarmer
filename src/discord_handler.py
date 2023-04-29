@@ -1,9 +1,14 @@
 # discord_handler.py
+import discord
 from discord.ext import commands
 
 class DiscordHandler:
     def __init__(self, connected_to_discord_event):
-        self.client = commands.Bot(command_prefix=".", self_bot=True, help_command=None)
+        intents = discord.Intents.default()
+        intents.typing = False
+        intents.presences = False
+
+        self.client = commands.Bot(command_prefix=".", self_bot=True, help_command=None, intents=intents)
         self.connected_to_discord = connected_to_discord_event
 
         @self.client.event
