@@ -23,12 +23,15 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Set up ssh-agent
+      - name: Set up SSH agent
         run: |
           eval "$(ssh-agent -s)"
-          echo "$PRIVATE_KEY" | ssh-add -
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          ssh-add private_key.pem
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+
 
       - name: Install dependencies
         run: |
