@@ -37,5 +37,6 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
-          rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/root/AirdropFarmer/
-          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "cd /root/AirdropFarmer/ && python3 main.py"
+          rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT -vvv" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/***/AirdropFarmer/
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT -vvv $SERVER_USER@$SERVER_IP "cd /***/AirdropFarmer/ && python3 main.py"
+      
