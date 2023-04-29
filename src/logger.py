@@ -1,9 +1,7 @@
 import datetime
 import os
 from pathlib import Path
-import os
 from datetime import timedelta
-
 from config import settings
 
 

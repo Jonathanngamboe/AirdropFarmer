@@ -1,7 +1,5 @@
 from datetime import datetime
 import asyncio
-import discord
-import traceback
 from src.discord_handler import DiscordHandler
 from src.telegram_bot import TelegramBot
 import config.settings as settings

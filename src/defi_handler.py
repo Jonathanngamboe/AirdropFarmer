@@ -1,11 +1,9 @@
 # defi_handler.py
 import asyncio
-
-from web3.exceptions import TimeExhausted, TransactionNotFound
+from web3.exceptions import TransactionNotFound
 from web3 import Web3
 import requests
 import json
-from datetime import datetime
 import time
 import os
 import config.settings as settings
