@@ -1,6 +1,7 @@
 # requirements.txt
 tweepy==3.10.0
 discord.py
+discord
 web3==5.23.0
 eth-account==0.5.6
 eth-abi==2.1.1
