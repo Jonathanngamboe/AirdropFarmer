@@ -33,12 +33,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Print private key
-        run: echo "${{ secrets.SERVER_SSH_PRIVATE_KEY }}"
-
-      - name: Print public key
-        run: echo "$(ssh-keygen -y -f ~/.ssh/id_rsa)"
-
       - name: Deploy to server
         env:
           PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
