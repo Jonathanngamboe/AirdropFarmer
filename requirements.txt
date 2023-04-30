@@ -13,5 +13,6 @@ tenacity
 eth-keys
 cryptography
 python-decouple
+ecdsa
 
 
