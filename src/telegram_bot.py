@@ -318,17 +318,20 @@ class TelegramBot:
             await self.bot.send_message(chat_id, "You must have at least one active airdrop registered to start farming.")
             return
 
-        self.farming_users[user_id] = True
+        self.farming_users[user_id] = {
+            'status': True,
+            'message_id': message_id
+        }
         await self.bot.send_message(chat_id, "Airdrop farming started.")
 
-        await self.update_keyboard_layout(user_id, message_id, menu='main')
+        await self.update_keyboard_layout(user_id)
 
         airdrop_execution.airdrops_to_execute = valid_airdrops
 
         airdrop_execution_task = asyncio.create_task(airdrop_execution.airdrop_execution())
         self.user_airdrop_executions[user_id] = (airdrop_execution, airdrop_execution_task)
 
-        asyncio.create_task(self.notify_airdrop_execution(user_id, message_id))
+        asyncio.create_task(self.notify_airdrop_execution(user_id))
 
     async def cmd_stop_farming(self, user_id, chat_id, message_id):
         if user_id in self.farming_users.keys():
@@ -338,14 +341,14 @@ class TelegramBot:
                 self.get_user_logger(user_id).add_log("WARNING - Stop farming requested.")
                 await self.bot.send_message(chat_id, "Stopping airdrop farming. This may take a few minutes. Please wait...")
                 await asyncio.gather(airdrop_execution_task)
-                await self.update_keyboard_layout(chat_id, message_id)
+                await self.update_keyboard_layout(chat_id)
             else:
                 await self.bot.send_message(chat_id, "Airdrop farming is not running.")
         else:
             await self.bot.send_message(chat_id, "Airdrop farming is not running.")
             return
 
-    async def notify_airdrop_execution(self, user_id, message_id):
+    async def notify_airdrop_execution(self, user_id):
         # Verify if the airdrop execution has finished and notify the user
         while not self.user_airdrop_executions[user_id][0].finished:
             await asyncio.sleep(1)
@@ -366,17 +369,19 @@ class TelegramBot:
             await self.bot.send_message(user.telegram_id, "Airdrop farming has been successfully stopped.")
             await asyncio.sleep(1)  # Add a short delay before updating the keyboard layout and displaying the menu
 
-        await self.update_keyboard_layout(user_id, message_id)
+        self.farming_users[user_id]['status'] = False
+        await self.update_keyboard_layout(user_id)
         await self.send_menu(user_id, 'main', message=self.welcome_text)
 
         del self.user_airdrop_executions[user_id]
         del self.farming_users[user_id]
 
-    async def update_keyboard_layout(self, chat_id, message_id, menu='main'):
+    async def update_keyboard_layout(self, chat_id, menu='main'):
         user_id = chat_id  # Assuming the chat_id corresponds to the user_id in this case
+        message_id = self.farming_users[user_id]['message_id']  # Get the old stored message_id
         if menu == 'main':
             keyboard = types.InlineKeyboardMarkup()
-            if user_id in self.farming_users.keys():
+            if self.farming_users[user_id]['status']: # If the user is farming, show the 'Stop farming' button
                 keyboard.add(types.InlineKeyboardButton("🛑 Stop farming", callback_data="stop_farming"))
             else:
                 keyboard.add(types.InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"))
