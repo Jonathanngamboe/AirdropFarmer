@@ -40,5 +40,5 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
-          rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT -vvv" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/***/AirdropFarmer/
-          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT -vvv $SERVER_USER@$SERVER_IP "cd /***/AirdropFarmer/ && echo 'TELEGRAM_TOKEN=$TELEGRAM_TOKEN' > .env && echo 'ENCRYPTION_KEY=$ENCRYPTION_KEY' >> .env && echo 'AIRDROP_FARMER_DATABASE_URL=$AIRDROP_FARMER_DATABASE_URL' >> .env && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && sudo systemctl restart airdropfarmer.service"
+          rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT -vvv" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/home/airdropfarmer/AirdropFarmer/
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT -vvv $SERVER_USER@$SERVER_IP "cd /home/airdropfarmer/AirdropFarmer/ && echo 'TELEGRAM_TOKEN=$TELEGRAM_TOKEN' > .env && echo 'ENCRYPTION_KEY=$ENCRYPTION_KEY' >> .env && echo 'AIRDROP_FARMER_DATABASE_URL=$AIRDROP_FARMER_DATABASE_URL' >> .env && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && sudo systemctl restart airdropfarmer.service"

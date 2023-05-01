@@ -39,14 +39,24 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    pip install -r requirements.txt
    ```
 
-4. Install PostgreSQL on your server:
+4. Generate an encryption key:
+
+   Run the `generate_key.py` script in the `src` folder:
+
+   ```
+   python src/generate_key.py
+   ```
+
+   The script will output a generated encryption key. Make a note of this key, as you will need it for configuring the environment variables in the next step.
+
+5. Install PostgreSQL on your server:
 
    ```
    sudo apt-get update
    sudo apt-get install postgresql postgresql-contrib
    ```
 
-5. Set up the PostgreSQL database and user:
+6. Set up the PostgreSQL database and user:
 
    Replace `your_user`, `your_new_password`, and `your_database` with the desired values.
 
@@ -60,14 +70,14 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    exit
    ```
 
-6. Set up environment variables:
+7. Set up environment variables:
 
    Copy the `.env.example` file to a new file called `.env`:
    ```
    cp .env.example .env
    ```
 
-   Open the `.env` file and replace the placeholders with the appropriate values for `TELEGRAM_TOKEN`, `ENCRYPTION_KEY`, and `AIRDROP_FARMER_DATABASE_URL`. Save the file.
+   Open the `.env` file and replace the placeholders with the appropriate values for `TELEGRAM_TOKEN`, `ENCRYPTION_KEY`, and `AIRDROP_FARMER_DATABASE_URL`. Use the encryption key generated in step 4. Save the file.
 
    Example:
    ```
@@ -76,7 +86,7 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    AIRDROP_FARMER_DATABASE_URL=your_database_url
    ```
 
-7. Configure the systemd service on your server:
+8. Configure the systemd service on your server:
 
    Create a new service file on your server:
 
@@ -111,51 +121,23 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    sudo systemctl start airdropfarmer.service
    ```
 
-8. Configure GitHub Actions for deployment:
+9. Configure GitHub Actions for deployment:
 
-   Update the `deploy.yml` file in your repository as shown in the previous answer.
+Update the `deploy.yml` file in your repository as shown in the previous answer.
 
-   Add the necessary secrets to your GitHub repository by going to "Settings" > "Secrets" and creating the following secrets:
+Add the necessary secrets to your GitHub repository by going to "Settings" > "Secrets" and creating the following secrets:
 
-   - `SERVER_SSH_PRIVATE_KEY`
-   - `SERVER_USER`
-   - `SERVER_IP`
-   - `PORT`
-   - `TELEGRAM_TOKEN`
-   - `ENCRYPTION_KEY`
-   - `AIRDROP_FARMER_DATABASE_URL`
+- `SERVER_SSH_PRIVATE_KEY`
+- `SERVER_USER`
+- `SERVER_IP`
+- `PORT`
+- `TELEGRAM_TOKEN`
+- `ENCRYPTION_KEY`
+- `AIRDROP_FARMER_DATABASE_URL`
 
-   These secrets will be used by the GitHub Actions workflow to securely deploy your application to the server.
+These secrets will be used by the GitHub Actions workflow to securely deploy your application to the server.
 
-9. Push your changes to the repository:
+10. Push your changes to the repository:
 
-   Whenever you push changes to the `master` branch, the GitHub Actions workflow will automatically deploy the updated code to your server.
+Whenever you push changes to the `master` branch, the GitHub Actions workflow will automatically deploy the updated code to your server.
 
-   ```
-   git add .
-   git commit -m "Updated deployment configuration"
-   git push origin master
-   ```
-
-10. Monitor the bot:
-
-   To check the status of the AirdropFarmer service on your server, you can use the following command:
-
-   ```
-   sudo systemctl status airdropfarmer.service
-   ```
-
-   To view the logs for the AirdropFarmer service, use:
-
-   ```
-   sudo journalctl -u airdropfarmer.service -f
-   ```
-
-## Usage
-
-1. Search for your bot on Telegram using its username.
-2. Start a conversation with the bot and follow the prompts to manage and participate in airdrop events.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
