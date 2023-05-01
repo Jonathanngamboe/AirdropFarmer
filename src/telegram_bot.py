@@ -82,12 +82,11 @@ class TelegramBot:
         await self.bot.send_message(user_id, "Goodbye! The bot has been stopped. If you want to start again, just type /start")
         # Remove the user from the current state
 
-    async def cmd_contact(self, user_id = None, message = None):
-        if message is not None and isinstance(message, types.Message):
-            user_id = message.from_user.id
+    from aiogram.utils.exceptions import ChatNotFound
 
+    async def cmd_contact(self, message: types.Message, user_id: int = None):
         if user_id is None:
-            raise ValueError("cmd_contact requires either a user_id or a message parameter")
+            user_id = message.from_user.id
 
         keyboard = InlineKeyboardMarkup().add(
             InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"),
@@ -247,7 +246,7 @@ class TelegramBot:
                 InlineKeyboardButton("➕ Add wallet", callback_data="menu:add_wallet"),
             )
         elif menu == 'contact':
-            await self.cmd_contact(chat_id)
+            await self.cmd_contact(user_id=chat_id)
         elif menu == 'show_logs':
             user_logger = self.get_user_logger(chat_id)
             log_dates = user_logger.get_log_dates()
