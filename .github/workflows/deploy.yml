@@ -40,5 +40,6 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "mkdir -p /***/AirdropFarmer"
           rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/***/AirdropFarmer/
           ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "cd /***/AirdropFarmer/ && rm -rf venv && python3 -m venv venv && echo 'TELEGRAM_TOKEN=$TELEGRAM_TOKEN' > .env && echo 'ENCRYPTION_KEY=$ENCRYPTION_KEY' >> .env && echo 'AIRDROP_FARMER_DATABASE_URL=$AIRDROP_FARMER_DATABASE_URL' >> .env && source venv/bin/activate && pip install -r requirements.txt && sudo systemctl restart ***.service"
