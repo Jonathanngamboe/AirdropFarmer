@@ -46,32 +46,33 @@ LOG_MAX_AGE_DAYS = 7
 ENCRYPTION_KEY = config("ENCRYPTION_KEY")
 AIRDROP_FARMER_DATABASE_URL = config("AIRDROP_FARMER_DATABASE_URL")
 LOG_PATH = 'logs'
-SUBSCRIPTION_LEVELS = [
-            {
-                'level': 'Basic',
-                'features': ['Feature 1', 'Feature 2'],
-                'price': '0',
-                'wallets': '1',
-            },
-            {
-                'level': 'Standard',
-                'features': ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'],
-                'price': '0.1',
-                'wallets': '100',
-            },
-            {
-                'level': 'Premium',
-                'features': ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5', 'Feature 6'],
-                'price': '0.2',
-                'wallets': '1000',
-            },
-            {
-                'level': 'Custom',
-                'features': ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5', 'Feature 6', 'Feature 7', 'Feature 8'],
-                'price': '0.3',
-                'wallets': 'Unlimited',
-            },
-        ]
+SUBSCRIPTION_PLANS = [
+    {
+        'level': 'Explorer (Free Plan)',
+        'features': ['Access to basic airdrops', 'Single wallet'],
+        'price': 0,
+        'wallets': 1,
+    },
+    {
+        'level': 'Adventurer (Basic Plan)',
+        'features': ['Access to premium airdrops', 'Multiple wallets (up to 5 wallets)', 'Access to detailed log files', 'Basic Discord and Twitter automation', 'Priority support'],
+        'price': 9.99,
+        'wallets': 5,
+    },
+    {
+        'level': 'Conqueror (Pro Plan)',
+        'features': ['Priority access to new airdrops', 'Multiple wallets (up to 100 wallets)', 'Access to detailed log files', 'Advanced Discord and Twitter automation', 'Priority support'],
+        'price': 19.99,
+        'wallets': 100,
+        'most_popular': True,
+    },
+    {
+        'level': 'Elite (Enterprise Plan)',
+        'features': ['Exclusive airdrops and promotions', 'Unlimited wallets', 'Access to detailed log files', 'Priority access to new features', 'Dedicated support'],
+        'price': 'Custom',
+        'wallets': '♾ (Unlimited)',
+    },
+]
 
 # Waiting time between actions for each platform
 PLATEFORM_WAIT_TIMES = {

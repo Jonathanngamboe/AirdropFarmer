@@ -133,7 +133,7 @@ class User:
         user_data = {
             'telegram_id': telegram_id,
             'username': username,
-            'subscription_level': 'free',
+            'subscription_level': 'Explorer (Free Plan)',
         }
         user = cls(**user_data)
         try:
