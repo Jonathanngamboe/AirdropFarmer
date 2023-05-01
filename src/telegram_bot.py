@@ -36,10 +36,13 @@ class TelegramBot:
         self.welcome_text = None
         self.MAX_RETRIES = 3
         self.RETRY_DELAY = 5
+        self.contact_text = "If you need help using the bot, please visit our wiki. \n\nWiki :https://defi-bots.gitbook.io/airdrop-farmer/\n\nIf you have a specific question or want to discuss your suscription plan, click the button below."
 
     def register_handlers(self):
         self.dp.register_message_handler(self.cmd_start, Command(["start", "help"]))
         self.dp.register_message_handler(self.cmd_show_main_menu, Command(["menu"]))
+        self.dp.register_message_handler(self.cmd_stop, commands=['stop'], commands_prefix='/', state='*')
+        self.dp.register_message_handler(self.cmd_contact, commands=['contact'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_add_wallet, Command("add_wallet"), content_types=types.ContentTypes.TEXT)
         self.dp.register_callback_query_handler(self.on_menu_button_click)
 
@@ -74,9 +77,32 @@ class TelegramBot:
         user_logger = self.get_user_logger(telegram_id)  # This will create the logger instance for the user if it doesn't already exist
         user_logger.add_log(f"User {username} (ID: {telegram_id}) started the bot.")
 
-        self.welcome_text = f"🤖 Hey {username}, welcome on board!\n\nHow to use the bot?\n📚 Detailed Guide: Guide\n\n📩 If you have any questions, suggestions, or need assistance, please contact our support team at @support. We're always here to help!"
+        self.welcome_text = f"🤖 Hey {username}, welcome on board!\n\nHow to use the bot?\n\n📚 Detailed Guide: https://defi-bots.gitbook.io/airdrop-farmer/\n\n📤 If you have any questions, suggestions, or need assistance, please type /contact to reach us. We're always here to help!"
 
         await self.send_menu(message.chat.id, 'main', message=self.welcome_text) # Send the main menu
+
+    async def cmd_stop(self, message: types.Message):
+        user_id = message.from_user.id
+        await self.bot.send_message(user_id, "Goodbye! The bot has been stopped. If you want to start again, just type /start")
+        # Remove the user from the current state
+        self.started_users.remove(user_id)
+
+    async def cmd_contact(self, message: types.Message):
+        user_id = message.from_user.id
+        contact_kb = InlineKeyboardMarkup().add(InlineKeyboardButton("💬 Write us here", callback_data="contact_us"))
+        await self.bot.send_message(user_id, self.contact_text, reply_markup=contact_kb)
+
+    async def cmd_send_contact_message(self, message: types.Message):
+        user_id = message.from_user.id
+        admin_id = settings.ADMIN_TELEGRAM_ID
+        user_message = message.text
+        if user_message.lower() == "cancel":
+            await self.bot.send_message(user_id, "Contact request canceled.")
+        else:
+            await self.bot.send_message(admin_id,
+                                        f"Message from {message.from_user.full_name} (ID: {user_id}): {user_message}")
+            await self.bot.send_message(user_id, "Your message has been sent to our support team. We will get back to you as soon as possible.")
+        await self.send_menu(user_id, 'main', message=self.welcome_text)
 
     async def cmd_show_main_menu(self, message: types.Message):
         await self.send_menu(message.chat.id, 'main',message=self.welcome_text) # Send the main menu
@@ -115,7 +141,11 @@ class TelegramBot:
             await self.cmd_stop_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
         elif action == "display_log":
             await self.cmd_display_log(query.from_user.id, query.message.chat.id, sub_data, query.message.message_id)
-
+        elif action == "contact_us":  # Add this new block to handle the contact_us action
+            user_id = query.from_user.id
+            await self.bot.send_message(user_id, "Please type your message in the chat or type 'cancel' to cancel:")
+            # Register the cmd_send_contact_message handler for the user's next message
+            self.dp.register_message_handler(self.cmd_send_contact_message, lambda msg: msg.from_user.id == user_id)
         # Add more actions as needed
 
         await self.retry_request(self.bot.answer_callback_query, query.id)
@@ -144,9 +174,9 @@ class TelegramBot:
             keyboard.add(
                 InlineKeyboardButton("💸 My airdrops", callback_data="menu:manage_airdrops"),
                 InlineKeyboardButton("👛 My wallets", callback_data="menu:manage_wallets"),
-                InlineKeyboardButton("💡 Tips", callback_data="menu:show_tips"),
-                InlineKeyboardButton("📋 Logs", callback_data="menu:show_logs"),
                 InlineKeyboardButton("💳 Subscription", callback_data="menu:manage_subscription"),
+                InlineKeyboardButton("📋 Logs", callback_data="menu:show_logs"),
+                InlineKeyboardButton("📤 Contact", callback_data="menu:contact"),
                 InlineKeyboardButton("⚙️ Settings", callback_data="menu:settings"),
                 InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"),
             )
@@ -215,9 +245,14 @@ class TelegramBot:
                 InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main"),
                 InlineKeyboardButton("➕ Add wallet", callback_data="menu:add_wallet"),
             )
-        elif menu == 'show_tips':
-            await self.bot.send_message(chat_id, self.load_tips())
-            await self.send_menu(chat_id, 'main', message=self.welcome_text)
+        elif menu == 'contact':
+            message = self.contact_text
+            keyboard.add(
+                InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")
+            )
+            keyboard.add(
+                InlineKeyboardButton("💬 Write us here", callback_data="contact_us")
+            )
         elif menu == 'show_logs':
             user_logger = self.get_user_logger(chat_id)
             log_dates = user_logger.get_log_dates()
