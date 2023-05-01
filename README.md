@@ -11,11 +11,12 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
 ## Prerequisites
 
-- Python 3.6 or higher
+- Python 3.10
 - PostgreSQL 9.5 or higher
 - A Telegram bot token
 - An encryption key for securing user data
 - A server with SSH access and systemd (for deployment)
+- GitHub Actions (for automated deployment)
 
 ## Installation and Setup
 

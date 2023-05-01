@@ -152,7 +152,7 @@ class TelegramBot:
             )
         elif menu == 'manage_airdrops':
             # Create a temporary instance to get the active airdrops
-            temp_airdrop_execution = AirdropExecution(None, None)
+            temp_airdrop_execution = AirdropExecution(None, None, None)
             available_airdrops = temp_airdrop_execution.get_active_airdrops()
             available_airdrop_names = [airdrop["name"] for airdrop in available_airdrops]
             # Remove user airdrops that are no longer active from the database
@@ -167,7 +167,7 @@ class TelegramBot:
             )
         elif menu == 'add_airdrop':
             # Create a temporary instance to get the active airdrops
-            temp_airdrop_execution = AirdropExecution(None, None)
+            temp_airdrop_execution = AirdropExecution(None, None, None)
             available_airdrops = temp_airdrop_execution.get_active_airdrops()
 
             available_airdrop_names = [airdrop["name"] for airdrop in available_airdrops]
