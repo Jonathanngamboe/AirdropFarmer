@@ -82,8 +82,6 @@ class TelegramBot:
         await self.bot.send_message(user_id, "Goodbye! The bot has been stopped. If you want to start again, just type /start")
         # Remove the user from the current state
 
-    from aiogram.utils.exceptions import ChatNotFound
-
     async def cmd_contact(self, message: types.Message, user_id: int = None):
         if user_id is None:
             user_id = message.from_user.id
