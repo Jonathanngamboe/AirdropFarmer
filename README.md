@@ -8,13 +8,16 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 - Secure user data management with encryption
 - User participation tracking
 - Easy-to-use Telegram interface
+- CoinPayments integration for transactions
 
 ## Prerequisites
 
-- Python 3.10
+- Python 3.7 or newer
 - PostgreSQL 9.5 or higher
 - A Telegram bot token
 - An encryption key for securing user data
+- A CoinPayments API key, API secret, merchant ID, and IPN secret
+- An admin email address
 - A server with SSH access and systemd (for deployment)
 - GitHub Actions (for automated deployment)
 
@@ -30,8 +33,8 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 2. Create a Python virtual environment and activate it:
 
    ```
-   python3 -m venv venv
-   source venv/bin/activate
+   python -m venv venv
+   .\venv\Scripts\activate
    ```
 
 3. Install the required Python packages:
@@ -50,95 +53,73 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
    The script will output a generated encryption key. Make a note of this key, as you will need it for configuring the environment variables in the next step.
 
-5. Install PostgreSQL on your server:
+5. Set up the PostgreSQL database and user:
 
-   ```
-   sudo apt-get update
-   sudo apt-get install postgresql postgresql-contrib
-   ```
+   Follow the instructions for your operating system to install and configure PostgreSQL. Create a new database and user, and grant the user all privileges on the database.
 
-6. Set up the PostgreSQL database and user:
-
-   Replace `your_user`, `your_new_password`, and `your_database` with the desired values.
-
-   ```
-   sudo su - postgres
-   psql
-   CREATE DATABASE your_database;
-   CREATE USER your_user WITH PASSWORD 'your_new_password';
-   GRANT ALL PRIVILEGES ON DATABASE your_database TO your_user;
-   \q
-   exit
-   ```
-
-7. Set up environment variables:
+6. Set up environment variables:
 
    Copy the `.env.example` file to a new file called `.env`:
    ```
    cp .env.example .env
    ```
 
-   Open the `.env` file and replace the placeholders with the appropriate values for `TELEGRAM_TOKEN`, `ENCRYPTION_KEY`, and `AIRDROP_FARMER_DATABASE_URL`. Use the encryption key generated in step 4. Save the file.
+   Open the `.env` file and replace the placeholders with the appropriate values for `TELEGRAM_TOKEN`, `ENCRYPTION_KEY`, `AIRDROP_FARMER_DATABASE_URL`, `COINPAYMENTS_API_KEY`, `COINPAYMENTS_API_SECRET`, `ADMIN_EMAIL`, `COINPAYMENTS_MERCHANT_ID`, and `COINPAYMENTS_IPN_SECRET`. Use the encryption key generated in step 4. Save the file.
 
    Example:
    ```
    TELEGRAM_TOKEN=your_telegram_token
    ENCRYPTION_KEY=your_encryption_key
    AIRDROP_FARMER_DATABASE_URL=your_database_url
+   COINPAYMENTS_API_KEY=your_coinpayments_api_public_key
+   COINPAYMENTS_API_SECRET=your_coinpayments_api_private_key
+   ADMIN_EMAIL=your_admin_email
+   COINPAYMENTS_MERCHANT_ID=your_coinpayments_merchant_id
+   COINPAYMENTS_IPN_SECRET=your_coinpayments_ipn_secret
    ```
 
-8. Configure the systemd service on your server:
-
-   Create a new service file on your server:
+7. Run the application:
 
    ```
-   sudo nano /etc/systemd/system/airdropfarmer.service
+   python main.py
    ```
 
-   Add the following content to the file, replacing `<your_server_user>`, `<your_server_group>`, and `/path/to/AirdropFarmer` with the appropriate values:
+   This command will start the AirdropFarmer Telegram bot and the Quart app to listen for IPN requests at http://localhost:5000/ipn.
 
-   ```
-   [Unit]
-   Description=AirdropFarmer Telegram Bot
-   After=network.target
+8. Configure the systemd service on your server (optional):
 
-   [Service]
-   User=<your_server_user>
-   Group=<your_server_group>
-   WorkingDirectory=/path/to/AirdropFarmer
-   ExecStart=/path/to/AirdropFarmer/venv/bin/python /path/to/AirdropFarmer/main.py
-   Restart=always
+   If you are deploying your application to a server and want to use systemd to manage the service, follow the instructions in the previous version of the README.md file.
 
-   [Install]
-   WantedBy=multi-user.target
-   ```
+9. Configure GitHub Actions for deployment (optional):
 
-   Save and exit the editor.
+   If you want to use GitHub Actions for automated deployment, follow the instructions in the previous version of the README.md file.
 
-   Enable and start the service:
+## Usage
 
-   ```
-   sudo systemctl enable airdropfarmer.service
-   sudo systemctl start airdropfarmer.service
-   ```
+Interact with the AirdropFarmer Telegram bot using the Telegram app. You can use the bot to manage and participate in airdrop events, receive notifications, and track user participation.
 
-9. Configure GitHub Actions for deployment:
+To receive IPN notifications from CoinPayments, make sure your application is running and accessible at the IPN URL (http://localhost:5000/ipn by default). Configure your CoinPayments account to send IPN notifications to this URL.
 
-Update the `deploy.yml` file in your repository as shown in the previous answer.
+## Troubleshooting
 
-Add the necessary secrets to your GitHub repository by going to "Settings" > "Secrets" and creating the following secrets:
+If you encounter any issues while setting up or running the AirdropFarmer Telegram bot, please follow these steps:
 
-- `SERVER_SSH_PRIVATE_KEY`
-- `SERVER_USER`
-- `SERVER_IP`
-- `PORT`
-- `TELEGRAM_TOKEN`
-- `ENCRYPTION_KEY`
-- `AIRDROP_FARMER_DATABASE_URL`
+1. Check the logs for any error messages or warnings. You can find the logs in the same directory as your main.py file.
 
-These secrets will be used by the GitHub Actions workflow to securely deploy your application to the server.
+2. Make sure that your environment variables are correctly set in the `.env` file.
 
-10. Push your changes to the repository:
+3. Ensure that your PostgreSQL database is running and properly configured.
 
-Whenever you push changes to the `master` branch, the GitHub Actions workflow will automatically deploy the updated code to your server.
+4. Verify that your CoinPayments account is correctly set up with the correct API keys, merchant ID, and IPN secret.
 
+5. Make sure your application is running and accessible at the IPN URL.
+
+If you still encounter issues, feel free to ask for help or submit an issue on the GitHub repository.
+
+## Contributing
+
+If you would like to contribute to the AirdropFarmer project, please feel free to fork the repository, make your changes, and submit a pull request. We appreciate any contributions and improvements to the project.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.

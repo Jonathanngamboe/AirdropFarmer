@@ -16,7 +16,9 @@ from src.discord_handler import DiscordHandler
 from src.logger import Logger
 from src.user import User
 from aiogram.types import InputFile
+from coinpayments import CoinPaymentsAPI
 import re
+from quart import Quart, request
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,6 +39,8 @@ class TelegramBot:
         self.MAX_RETRIES = 3
         self.RETRY_DELAY = 5
         self.contact_text = "If you need help using the bot, please visit our wiki:\n\nhttps://defi-bots.gitbook.io/airdrop-farmer/\n\n📤 If you have a specific question or want to discuss your suscription plan, click the button below."
+        self.cp = CoinPaymentsAPI(public_key=settings.COINPAYMENTS_PUBLIC_KEY, private_key=settings.COINPAYMENTS_PRIVATE_KEY)
+
 
     def register_handlers(self):
         self.dp.register_message_handler(self.cmd_start, Command(["start", "help"]))
@@ -87,7 +91,7 @@ class TelegramBot:
         user_id = message.from_user.id
         await self.bot.send_message(user_id,
                                     "Goodbye! The bot has been stopped. If you want to start again, just type /start")
-        # Remove the user from the current state
+        # Delete all the messages
 
     async def cmd_contact(self, message: types.Message = None, user_id: int = None, message_id=None):
         if user_id is None:
@@ -137,9 +141,9 @@ class TelegramBot:
         message_text += "Choose your plan:"
 
         keyboard = InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🤓 Adventurer", callback_data="suscription_adventurer"),
-            InlineKeyboardButton("🧐 Conqueror", callback_data="suscription_explorer"),
-            InlineKeyboardButton("🤑 Elite", callback_data="suscription_hero"),
+            InlineKeyboardButton("🤓 Adventurer", callback_data="subscription_plan:Adventurer"),
+            InlineKeyboardButton("🧐 Conqueror", callback_data="subscription_plan:Conqueror"),
+            InlineKeyboardButton("🤑 Elite", callback_data="subscription_plan:Elite"),
             InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"),
         )
 
@@ -158,6 +162,44 @@ class TelegramBot:
                 reply_markup=keyboard,
                 parse_mode=types.ParseMode.MARKDOWN
             )
+
+    async def process_subscription_payment(self, user_id, plan):
+        # Get the subscription plan details
+        print(f"Processing subscription payment for user {user_id} for plan {plan}")
+        plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if p['level'].split()[0] == plan), None)
+        if not plan_details:
+            return None
+
+        plan_details['currency'] = 'LTCT' # TODO: Add support for other currencies and remove LTCT TEST
+        # Create a CoinPayments transaction
+        response = self.cp.create_transaction(amount=float(plan_details['price']),
+                                              currency1='USD',
+                                              currency2=plan_details['currency'],
+                                              buyer_email=settings.ADMIN_EMAIL,
+                                              item_name=plan_details['level'],
+                                              ipn_url=settings.COINPAYMENTS_IPN_URL,
+                                              )
+
+        if response and response['error'] == 'ok':
+            transaction_id = response['result']['txn_id']
+
+            # Send the payment details to the user
+            payment_details = (
+                f"💵 *Subscription Payment*\n\n"
+                f"• User ID: `{user_id}`\n"
+                f"• Plan: `{plan_details['level']}`\n"
+                f"• Amount: `{response['result']['amount']}` {plan_details['currency']}\n"
+                f"• Transaction ID: `{transaction_id}`\n"
+                f"• Payment Address:\n\n`{response['result']['address']}`\n\n"
+                f"Please send the exact amount to the provided address and wait for the confirmation. "
+                f"Your subscription will be activated once the payment is confirmed."
+            )
+
+            await self.bot.send_message(user_id, payment_details, parse_mode='Markdown')
+            return transaction_id
+        else:
+            print(f"Error creating transaction: {response['error']}")
+            return None
 
     async def cmd_show_main_menu(self, message: types.Message):
         await self.send_menu(message.chat.id, 'main', message=self.welcome_text,
@@ -202,6 +244,16 @@ class TelegramBot:
             await self.bot.send_message(user_id, "Please type your message in the chat or type 'cancel' to cancel:")
             # Register the cmd_send_contact_message handler for the user's next message
             self.dp.register_message_handler(self.cmd_send_contact_message, lambda msg: msg.from_user.id == user_id)
+        elif action == "subscription_plan":
+            if sub_data == 'Elite':
+                await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
+            else:
+                transaction_id = await self.process_subscription_payment(query.from_user.id, sub_data)
+                if transaction_id:
+                    await self.bot.answer_callback_query(query.id, f"Payment details sent. Your transaction ID is {transaction_id}.")
+                else:
+                    await self.bot.answer_callback_query(query.id, "Error processing payment. Please try again later.")
+                # await self.send_menu(query.from_user.id, 'main', message=self.welcome_text, parse_mode='Markup') # Commented to let the user see the payment details
         # Add more actions as needed
 
         await self.retry_request(self.bot.answer_callback_query, query.id)

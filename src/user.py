@@ -5,7 +5,8 @@ from cryptography.fernet import Fernet
 
 class User:
     def __init__(self, telegram_id, username, subscription_level, airdrops=None,
-                 twitter_credentials=None, discord_credentials=None, session_logs=None, encrypted_wallets=None):
+                 twitter_credentials=None, discord_credentials=None, session_logs=None,
+                 encrypted_wallets=None, subscription_expiry=None):  # Add this line
         self.telegram_id = telegram_id
         self.username = username
         self.subscription_level = subscription_level
@@ -14,6 +15,7 @@ class User:
         self.discord_credentials = discord_credentials
         self.session_logs = session_logs if session_logs is not None else []
         self.encrypted_wallets = encrypted_wallets if encrypted_wallets is not None else []
+        self.subscription_expiry = subscription_expiry
 
     async def add_airdrop(self, airdrop, db_manager):
         existing_airdrops = await db_manager.fetch_query(

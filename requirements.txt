@@ -14,5 +14,6 @@ eth-keys
 cryptography
 python-decouple
 ecdsa
-
-
+coinpayments-py
+quart
+hypercorn
