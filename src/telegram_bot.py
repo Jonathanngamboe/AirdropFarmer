@@ -47,10 +47,8 @@ class TelegramBot:
         self.dp.register_message_handler(self.cmd_show_main_menu, Command(["menu"]))
         self.dp.register_message_handler(self.cmd_stop, commands=['stop'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_contact, commands=['contact'], commands_prefix='/', state='*')
-        self.dp.register_message_handler(self.cmd_add_wallet, Command("add_wallet"),
-                                         content_types=types.ContentTypes.TEXT)
-        self.dp.register_message_handler(self.cmd_subscription, commands=['subscription'], commands_prefix='/',
-                                         state='*')
+        self.dp.register_message_handler(self.cmd_add_wallet, Command("add_wallet"), content_types=types.ContentTypes.TEXT)
+        self.dp.register_message_handler(self.cmd_show_subscriptions_plans, commands=['subscription'], commands_prefix='/', state='*')
         self.dp.register_callback_query_handler(self.on_menu_button_click)
 
     async def start_polling(self):
@@ -120,17 +118,18 @@ class TelegramBot:
                                         "Your message has been sent to our support team. We will get back to you as soon as possible.")
         await self.send_menu(user_id, 'main', message=self.welcome_text, parse_mode='Markdown')
 
-    async def cmd_subscription(self, message: types.Message = None, user_id: int = None, message_id=None):
+    async def cmd_show_subscriptions_plans(self, message: types.Message = None, user_id: int = None, message_id=None):
         if user_id is None:
             user_id = message.from_user.id
         message_text = "🚀 *Airdrop Farmer Subscription Plans*\n\n"
         for plan in settings.SUBSCRIPTION_PLANS:
             message_text += f"🔹 *{plan['level']}*\n"
             if isinstance(plan['price'], (int, float)):
-                message_text += f"Price (Monthly): ${plan['price']}\n"
+                message_text += f"Price (Monthly): ${plan['price']} Excl. fees\n"
             else:
                 message_text += f"Price: {plan['price']}\n"
             message_text += f"Wallets: {plan['wallets']}\n"
+            message_text += f"Max. Airdrops: {plan['airdrop_limit']}\n"
             message_text += "Features:\n"
             for feature in plan['features']:
                 message_text += f"  • {feature}\n"
@@ -141,9 +140,9 @@ class TelegramBot:
         message_text += "Choose your plan:"
 
         keyboard = InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🤓 Adventurer", callback_data="subscription_plan:Adventurer"),
-            InlineKeyboardButton("🧐 Conqueror", callback_data="subscription_plan:Conqueror"),
-            InlineKeyboardButton("🤑 Elite", callback_data="subscription_plan:Elite"),
+            InlineKeyboardButton("🤓 Adventurer", callback_data="menu:choose_currency:Adventurer"),
+            InlineKeyboardButton("🧐 Conqueror", callback_data="menu:choose_currency:Conqueror"),
+            InlineKeyboardButton("🤑 Elite", callback_data="send_transaction_details:Elite"),
             InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"),
         )
 
@@ -163,14 +162,89 @@ class TelegramBot:
                 parse_mode=types.ParseMode.MARKDOWN
             )
 
-    async def process_subscription_payment(self, user_id, plan):
+    async def choose_currency(self, user_id, message_id, plan):
+        message_text = "Choose the currency you want to pay with:"
+
+        # Get available coins
+        coins = await self.get_available_coins()
+
+        # Remove duplicate coin names
+        unique_coins = {}
+        for coin_code in coins:
+            name = coin_code.split('.')[0]
+            if name not in unique_coins:
+                unique_coins[name] = coin_code
+
+        # Generate the inline keyboard
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        for coin in unique_coins:
+            keyboard.add(InlineKeyboardButton(f"{coin}", callback_data=f"menu:choose_network:{plan}:{coin}"))
+
+        keyboard.add(InlineKeyboardButton("🔙 Back to subscription", callback_data="menu:manage_subscription"))
+
+        if message_id:
+            await self.bot.edit_message_text(
+                chat_id=user_id,
+                message_id=message_id,
+                text=message_text,
+                reply_markup=keyboard,
+                parse_mode=types.ParseMode.MARKDOWN
+            )
+        else:
+            await self.bot.send_message(
+                user_id,
+                message_text,
+                reply_markup=keyboard,
+                parse_mode=types.ParseMode.MARKDOWN
+            )
+
+    async def choose_network(self, user_id, message_id, plan, coin_name):
+        message_text = f"Choose the network for {coin_name}:"
+
+        # Get available coins
+        coins = await self.get_available_coins()
+
+        # Filter coins by the selected coin name
+        selected_coins = {coin_code: coin_data for coin_code, coin_data in coins.items() if
+                          coin_code.split('.')[0] == coin_name}
+
+        # Generate the inline keyboard
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        for code, data in selected_coins.items():
+            if '.' in code:
+                code = code.split('.')[-1]
+                if code == 'BSC':
+                    network_to_show = 'BEP20'
+                network = code
+            elif code == 'USDC' or code == 'ETH':
+                network_to_show = 'ERC20'
+                network = code
+            elif code == 'BNB':
+                network_to_show = 'BEP2'
+                network = code
+            else:
+                network_to_show = code
+                network = code
+            keyboard.add(InlineKeyboardButton(f"{network_to_show}", callback_data=f"send_transaction_details:{plan}:{coin_name}:{network}"))
+
+        keyboard.add(InlineKeyboardButton("🔙 Back to choose currency", callback_data=f"menu:choose_currency:{plan}"))
+
+        await self.bot.edit_message_text(
+            chat_id=user_id,
+            message_id=message_id,
+            text=message_text,
+            reply_markup=keyboard,
+            parse_mode=types.ParseMode.MARKDOWN
+        )
+
+    async def send_transaction_details(self, user_id, chosen_plan, chosen_coin, chosen_network):
         # Get the subscription plan details
-        print(f"Processing subscription payment for user {user_id} for plan {plan}")
-        plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if p['level'].split()[0] == plan), None)
+        print(f"Processing subscription payment for user {user_id} for plan {chosen_plan} with {chosen_coin} on {chosen_network}")
+        plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if p['level'].split()[0] == chosen_plan), None)
         if not plan_details:
             return None
 
-        plan_details['currency'] = 'LTCT' # TODO: Add support for other currencies and remove LTCT TEST
+        plan_details['currency'] = chosen_coin
         # Create a CoinPayments transaction
         response = self.cp.create_transaction(amount=float(plan_details['price']),
                                               currency1='USD',
@@ -178,7 +252,9 @@ class TelegramBot:
                                               buyer_email=settings.ADMIN_EMAIL,
                                               item_name=plan_details['level'],
                                               ipn_url=settings.COINPAYMENTS_IPN_URL,
+                                              network=chosen_network,
                                               )
+        print(f"CoinPayments response: {response}")
 
         if response and response['error'] == 'ok':
             transaction_id = response['result']['txn_id']
@@ -201,60 +277,67 @@ class TelegramBot:
             print(f"Error creating transaction: {response['error']}")
             return None
 
-    async def cmd_show_main_menu(self, message: types.Message):
-        await self.send_menu(message.chat.id, 'main', message=self.welcome_text,
-                             parse_mode='Markdown')  # Send the main menu
+    async def get_available_coins(self):
+        accepted_coins = {}
+        coins_response = self.cp.rates(short=1, accepted=2)
+        print(f"CoinPayments response: {coins_response}")
+        if coins_response['error'] == 'ok':
+            for coin, coin_data in coins_response["result"].items():
+                if coin_data["accepted"] == 1:
+                    accepted_coins[coin] = coin_data
+            return accepted_coins
+        else:
+            return None
 
     async def on_menu_button_click(self, query: CallbackQuery):
         data = query.data.split(':')
         action = data[0]
-        sub_data = data[1] if len(data) > 1 else None
+        params = data[1:]
+
         if action == 'menu':
-            if sub_data == 'main':
-                await self.send_menu(query.from_user.id, sub_data, message=self.welcome_text,
+            if params[0] == 'main':
+                await self.send_menu(query.from_user.id, params[0], message=self.welcome_text,
                                      message_id=query.message.message_id, parse_mode='Markdown')
-            elif sub_data == 'add_wallet':
-                await self.display_wallet_warning(query.message)  # Display the warning message before adding a wallet
-            elif sub_data == 'show_logs':
-                await self.send_menu(query.from_user.id, sub_data, message_id=query.message.message_id)
-            elif sub_data == 'contact':
+            elif params[0] == 'add_wallet':
+                await self.display_wallet_warning(query.message)
+            elif params[0] == 'show_logs':
+                await self.send_menu(query.from_user.id, params[0], message_id=query.message.message_id)
+            elif params[0] == 'contact':
                 await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
-            elif sub_data == 'manage_subscription':
-                await self.cmd_subscription(user_id=query.from_user.id, message_id=query.message.message_id)
+            elif params[0] == 'manage_subscription':
+                await self.cmd_show_subscriptions_plans(user_id=query.from_user.id, message_id=query.message.message_id)
+            elif params[0] == 'choose_currency':
+                await self.choose_currency(user_id=query.from_user.id, plan=params[1], message_id=query.message.message_id)
+            elif params[0] == 'choose_network':
+                await self.choose_network(user_id=query.from_user.id, message_id=query.message.message_id, plan=params[1],
+                                          coin_name=params[2])
             else:
-                await self.send_menu(query.from_user.id, sub_data, message_id=query.message.message_id)
+                await self.send_menu(query.from_user.id, params[0], message_id=query.message.message_id)
         elif action == 'add_airdrop':
-            await self.cmd_add_airdrop(query)  # Handle the add_airdrop action
-        elif action == 'show_airdrop':  # Add the show_airdrop action
-            await self.cmd_show_airdrop_details(query, airdrop_name=sub_data)
+            await self.cmd_add_airdrop(query)
+        elif action == 'show_airdrop':
+            await self.cmd_show_airdrop_details(query, airdrop_name=params[0])
         elif action == 'edit_airdrop':
-            await self.cmd_edit_airdrop(query, airdrop_name=sub_data)
+            await self.cmd_edit_airdrop(query, airdrop_name=params[0])
         elif action == 'remove_airdrop':
-            await self.cmd_remove_airdrop(query, sub_data)
+            await self.cmd_remove_airdrop(query, params[0])
         elif action == 'remove_wallet':
-            await self.cmd_remove_wallet(query, sub_data)
+            await self.cmd_remove_wallet(query, params[0])
         elif action == 'start_farming':
             await self.cmd_start_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
         elif action == "stop_farming":
             await self.cmd_stop_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
         elif action == "display_log":
-            await self.cmd_display_log(query.from_user.id, query.message.chat.id, sub_data, query.message.message_id)
-        elif action == "contact_us":  # Add this new block to handle the contact_us action
+            await self.cmd_display_log(query.from_user.id, query.message.chat.id, params[0], query.message.message_id)
+        elif action == "contact_us":
             user_id = query.from_user.id
             await self.bot.send_message(user_id, "Please type your message in the chat or type 'cancel' to cancel:")
-            # Register the cmd_send_contact_message handler for the user's next message
             self.dp.register_message_handler(self.cmd_send_contact_message, lambda msg: msg.from_user.id == user_id)
-        elif action == "subscription_plan":
-            if sub_data == 'Elite':
+        elif action == "send_transaction_details":
+            if params[0] == 'Elite':
                 await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
             else:
-                transaction_id = await self.process_subscription_payment(query.from_user.id, sub_data)
-                if transaction_id:
-                    await self.bot.answer_callback_query(query.id, f"Payment details sent. Your transaction ID is {transaction_id}.")
-                else:
-                    await self.bot.answer_callback_query(query.id, "Error processing payment. Please try again later.")
-                # await self.send_menu(query.from_user.id, 'main', message=self.welcome_text, parse_mode='Markup') # Commented to let the user see the payment details
-        # Add more actions as needed
+                await self.send_transaction_details(query.from_user.id, chosen_plan=params[0], chosen_coin=params[1], chosen_network=params[2])
 
         await self.retry_request(self.bot.answer_callback_query, query.id)
 
@@ -272,6 +355,10 @@ class TelegramBot:
                 await asyncio.sleep(self.RETRY_DELAY)
         print(f"ERROR - Request failed after {self.MAX_RETRIES} retries.")
         return None
+
+    async def cmd_show_main_menu(self, message: types.Message):
+        await self.send_menu(message.chat.id, 'main', message=self.welcome_text,
+                             parse_mode='Markdown')  # Send the main menu
 
     async def send_menu(self, chat_id, menu, message="Choose an option:", message_id=None, parse_mode=None):
         user = await self.get_user(chat_id)
@@ -371,7 +458,9 @@ class TelegramBot:
 
             message = "Select a date to view the logs:"
         elif menu == 'manage_subscription':
-            await self.cmd_subscription(user_id=chat_id)
+            await self.cmd_show_subscriptions_plans(user_id=chat_id)
+        elif menu == 'choose_currency':
+            await self.choose_currency(user_id=chat_id, message_id=message_id)
         elif menu == 'settings':
             keyboard.add(
                 InlineKeyboardButton("🔙 Back to main menu", callback_data="menu:main")

@@ -9,6 +9,7 @@ from src.db_manager import DBManager
 from asyncpg.exceptions import ConnectionDoesNotExistError
 import json
 from quart import Quart, request
+import hypercorn
 from hypercorn.asyncio import serve
 
 class AirdropFarmer:
@@ -40,7 +41,10 @@ async def handle_ipn():
     return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
 
 async def run_flask_app():
-    await serve(app, host='127.0.0.1', port=settings.IPN_PORT)
+    config = hypercorn.Config()
+    config.bind = [
+        "127.0.0.1:{}".format(settings.IPN_PORT)]  # Replace 127.0.0.1 with 0.0.0.0 to receive requests from outside
+    await serve(app, config)
 
 async def main():
     global ipn_handler_instance
@@ -70,20 +74,13 @@ async def main():
     # Create an IPNHandler instance
     ipn_handler_instance = ipn_handler.IPNHandler(db_manager)
 
-    # Run the Quart app in a separate thread
-    quart_thread = asyncio.create_task(to_thread(run_flask_app))
-
-    # Construct the IPN URL and print it out
-    print(f"IPN URL: {settings.COINPAYMENTS_IPN_URL}")
-
     try:
-        # Run the airdrop_execution coroutine concurrently with the Telegram bot
-        await asyncio.gather(telegram_bot.dp.start_polling())
+        # Run the Quart app concurrently with the Telegram bot
+        await asyncio.gather(run_flask_app(), telegram_bot.dp.start_polling())
     except KeyboardInterrupt:
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Keyboard interrupt detected. Exiting...")
     finally:
         await airdrop_farmer.close()
         await telegram_bot.stop()  # Stop the Telegram bot
-        quart_thread.join()  # Wait for the Flask thread to finish
 
 asyncio.run(main())

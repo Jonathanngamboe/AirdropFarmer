@@ -77,6 +77,11 @@ class IPNHandler:
         # Update user's plan in the database.
         await self.db_manager.update_user_subscription(user_id, plan_name, duration)
 
+    async def notify_payment_timeout(self, user_id, transaction_id, ipn_data):
+        # Notify the user of the payment timeout
+        message = f"Your payment has timed out without us receiving the required funds. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
+        pass
+
     async def notify_payment_error(self, user_id, transaction_id, ipn_data):
         # Notify the user of the payment error
         pass
