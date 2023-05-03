@@ -34,9 +34,14 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
           PORT: ${{ secrets.PORT }}
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           AIRDROP_FARMER_DATABASE_URL: ${{ secrets.AIRDROP_FARMER_DATABASE_URL }}
+          COINPAYMENTS_PUBLIC_KEY: ${{ secrets.COINPAYMENTS_PUBLIC_KEY }}
+          COINPAYMENTS_PRIVATE_KEY: ${{ secrets.COINPAYMENTS_PRIVATE_KEY }}
+          COINPAYMENTS_MERCHANT_ID: ${{ secrets.COINPAYMENTS_MERCHANT_ID }}
+          COINPAYMENTS_IPN_SECRET: ${{ secrets.COINPAYMENTS_IPN_SECRET }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
         run: |
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem

@@ -282,7 +282,8 @@ class TelegramBot:
     async def get_available_coins(self):
         accepted_coins = {}
         coins_response = self.cp.rates(short=1, accepted=2)
-        print(f"CoinPayments response: {coins_response}")
+        # TODO: make this method faster by directly catching accepted coins
+        #print(f"CoinPayments response: {coins_response}")
         if coins_response['error'] == 'ok':
             for coin, coin_data in coins_response["result"].items():
                 if coin_data["accepted"] == 1:
