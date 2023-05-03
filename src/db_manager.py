@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 class DBManager:
     def __init__(self):
         self.db_connection = None
+        await self.init_db()
 
     async def init_db(self):
         self.db_connection = await asyncpg.connect(settings.AIRDROP_FARMER_DATABASE_URL, timeout=settings.DB_TIMEOUT)
@@ -50,9 +51,10 @@ class DBManager:
         try:
             result = await self.db_connection.execute(query, *args, **kwargs)
             return result
+        except asyncpg.exceptions.UndefinedTableError:
+            await self.init_db()
         except asyncpg.exceptions.InterfaceError:
             # Reconnect and retry if a connection error occurs
-            await self.init_db()
             result = await self.db_connection.execute(query, *args, **kwargs)
             return result
         except Exception as e:
@@ -63,9 +65,10 @@ class DBManager:
         try:
             result = await self.db_connection.fetchrow(query, *args, **kwargs)
             return result
+        except asyncpg.exceptions.UndefinedTableError:
+            await self.init_db()
         except asyncpg.exceptions.InterfaceError:
             # Reconnect and retry if a connection error occurs
-            await self.init_db()
             result = await self.db_connection.fetchrow(query, *args, **kwargs)
             return result
         except Exception as e:
