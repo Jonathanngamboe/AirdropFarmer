@@ -55,13 +55,11 @@ class TelegramBot:
         async def on_startup(dp):
             # Set bot commands in the chat menu
             bot_commands = [
-                types.BotCommand(command="start", description="Show the welcome message and help"),
-                types.BotCommand(command="help", description="Show help"),
                 types.BotCommand(command="menu", description="Show the main menu"),
-                types.BotCommand(command="stop", description="Stop the bot"),
-                types.BotCommand(command="contact", description="Contact support"),
-                types.BotCommand(command="add_wallet", description="Add a wallet"),
                 types.BotCommand(command="subscription", description="Show subscription plans"),
+                types.BotCommand(command="add_wallet", description="Add a wallet"),
+                types.BotCommand(command="help", description="Show help"),
+                types.BotCommand(command="contact", description="Contact support"),
             ]
             await self.bot.set_my_commands(bot_commands)
 
