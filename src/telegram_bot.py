@@ -215,6 +215,8 @@ class TelegramBot:
                 code = code.split('.')[-1]
                 if code == 'BSC':
                     network_to_show = 'BEP20'
+                else:
+                    network_to_show = code
                 network = code
             elif code == 'USDC' or code == 'ETH':
                 network_to_show = 'ERC20'
