@@ -225,23 +225,19 @@ class TelegramBot:
         # Generate the inline keyboard
         keyboard = InlineKeyboardMarkup(row_width=2)
         for code, data in selected_coins.items():
-            if '.' in code:
-                code = code.split('.')[-1]
-                if code == 'BSC':
+            token, network = (code.split('.') + [None])[:2]
+
+            if network is not None:
+                if token == 'BNB' and network == 'BSC':
                     network_to_show = 'BEP20'
                 else:
-                    network_to_show = code
-                network = code
-            elif code == 'USDC' or code == 'ETH':
+                    network_to_show = network
+            elif token == 'USDC' or token == 'ETH':
                 network_to_show = 'ERC20'
-                network = code
-            elif code == 'BNB':
-                network_to_show = 'BEP2'
-                network = code
             else:
-                network_to_show = code
-                network = code
-            keyboard.add(InlineKeyboardButton(f"{network_to_show}", callback_data=f"send_transaction_details:{plan}:{coin_name}:{network}"))
+                network_to_show = token
+
+            keyboard.add(InlineKeyboardButton(f"{network_to_show}", callback_data=f"send_transaction_details:{plan}:{code}"))
 
         keyboard.add(InlineKeyboardButton("🔙 Back to choose currency", callback_data=f"menu:choose_currency:{plan}"))
 
@@ -253,7 +249,7 @@ class TelegramBot:
             parse_mode=types.ParseMode.MARKDOWN
         )
 
-    async def send_transaction_details(self, user_id, chosen_plan, chosen_coin, chosen_network):
+    async def send_transaction_details(self, user_id, chosen_plan, chosen_coin):
         # Get the subscription plan details
         plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if p['level'].split()[0] == chosen_plan), None)
         print(f"Plan price: {plan_details['price']}")
@@ -269,7 +265,6 @@ class TelegramBot:
                                               buyer_email=settings.ADMIN_EMAIL,
                                               item_name=plan_details['level'],
                                               ipn_url=settings.COINPAYMENTS_IPN_URL,
-                                              network=chosen_network,
                                               )
         if response and response['error'] != 'ok':
             print(f"CoinPayments error: {response['error']}")
@@ -361,7 +356,7 @@ class TelegramBot:
             if params[0] == 'Elite':
                 await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
             else:
-                await self.send_transaction_details(query.from_user.id, chosen_plan=params[0], chosen_coin=params[1], chosen_network=params[2])
+                await self.send_transaction_details(query.from_user.id, chosen_plan=params[0], chosen_coin=params[1])
 
         await self.retry_request(self.bot.answer_callback_query, query.id)
 

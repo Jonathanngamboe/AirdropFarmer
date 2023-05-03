@@ -54,13 +54,13 @@ SUBSCRIPTION_PLANS = [
         'level': 'Explorer (Free Plan)',
         'features': ['Access to basic airdrops', 'Single wallet'],
         'price': 0,
-        'wallets': 1, # TODO: Change this to 9.99
+        'wallets': 1,
         'airdrop_limit': 1,
     },
     {
         'level': 'Adventurer (Basic Plan)',
         'features': ['Access to premium airdrops', 'Multiple wallets (up to 5 wallets)', 'Access to detailed log files', 'Priority support'],
-        'price': 1,
+        'price': 9.99,
         'wallets': 5,
         'airdrop_limit': 10,
     },
