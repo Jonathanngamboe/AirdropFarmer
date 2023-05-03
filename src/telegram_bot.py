@@ -52,9 +52,18 @@ class TelegramBot:
         self.dp.register_callback_query_handler(self.on_menu_button_click)
 
     async def start_polling(self):
-        async def on_startup():
-            pass
-            # await self.bot.send_message(chat_id=, text="Bot has been started")
+        async def on_startup(dp):
+            # Set bot commands in the chat menu
+            bot_commands = [
+                types.BotCommand(command="start", description="Show the welcome message and help"),
+                types.BotCommand(command="help", description="Show help"),
+                types.BotCommand(command="menu", description="Show the main menu"),
+                types.BotCommand(command="stop", description="Stop the bot"),
+                types.BotCommand(command="contact", description="Contact support"),
+                types.BotCommand(command="add_wallet", description="Add a wallet"),
+                types.BotCommand(command="subscription", description="Show subscription plans"),
+            ]
+            await self.bot.set_my_commands(bot_commands)
 
         async def on_shutdown(dp):
             # Remove webhook (if set)
@@ -64,7 +73,14 @@ class TelegramBot:
             await dp.storage.close()
             await dp.storage.wait_closed()
 
-        executor.start_polling(self.dp, on_startup=on_startup, on_shutdown=on_shutdown)
+        # Schedule on_startup and on_shutdown coroutines
+        loop = asyncio.get_running_loop()
+        loop.create_task(on_startup(self.dp))
+
+        try:
+            await self.dp.start_polling()
+        finally:
+            await on_shutdown(self.dp)
 
     async def get_user(self, telegram_id, username=None):
         user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
@@ -113,7 +129,7 @@ class TelegramBot:
             await self.bot.send_message(user_id, "Contact request canceled.")
         else:
             await self.bot.send_message(admin_id,
-                                        f"Message from {message.from_user.full_name} (ID: {user_id}): {user_message}")
+                                        f"Message from @{message.from_user.username} (ID: {user_id}): {user_message}")
             await self.bot.send_message(user_id,
                                         "Your message has been sent to our support team. We will get back to you as soon as possible.")
         await self.send_menu(user_id, 'main', message=self.welcome_text, parse_mode='Markdown')
@@ -241,9 +257,10 @@ class TelegramBot:
 
     async def send_transaction_details(self, user_id, chosen_plan, chosen_coin, chosen_network):
         # Get the subscription plan details
-        print(f"Processing subscription payment for user {user_id} for plan {chosen_plan} with {chosen_coin} on {chosen_network}")
         plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if p['level'].split()[0] == chosen_plan), None)
-        if not plan_details:
+        print(f"Plan price: {plan_details['price']}")
+        if not plan_details or plan_details.get('price') is None:
+            self.bot.send_message(user_id, "Invalid subscription plan. Go back and try again.")
             return None
 
         plan_details['currency'] = chosen_coin
@@ -256,7 +273,13 @@ class TelegramBot:
                                               ipn_url=settings.COINPAYMENTS_IPN_URL,
                                               network=chosen_network,
                                               )
-        print(f"CoinPayments response: {response}")
+        if response and response['error'] != 'ok':
+            print(f"CoinPayments error: {response['error']}")
+            try:
+                await self.bot.answer_callback_query(user_id, response['error'], show_alert=True)
+            except:
+                await self.bot.send_message(user_id, response['error'])
+            return None
 
         if response and response['error'] == 'ok':
             transaction_id = response['result']['txn_id']

@@ -76,7 +76,7 @@ async def main():
 
     try:
         # Run the Quart app concurrently with the Telegram bot
-        await asyncio.gather(run_flask_app(), telegram_bot.dp.start_polling())
+        await asyncio.gather(run_flask_app(), telegram_bot.start_polling())
     except KeyboardInterrupt:
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Keyboard interrupt detected. Exiting...")
     finally:
