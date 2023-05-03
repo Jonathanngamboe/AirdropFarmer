@@ -68,6 +68,7 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
    Example:
    ```
+   SERVER_IP=your_server_ip
    TELEGRAM_TOKEN=your_telegram_token
    ENCRYPTION_KEY=your_encryption_key
    AIRDROP_FARMER_DATABASE_URL=your_database_url
