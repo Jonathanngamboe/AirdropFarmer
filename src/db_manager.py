@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 class DBManager:
     def __init__(self):
         self.db_connection = None
-        await self.init_db()
+        self.init_db()
 
     async def init_db(self):
         self.db_connection = await asyncpg.connect(settings.AIRDROP_FARMER_DATABASE_URL, timeout=settings.DB_TIMEOUT)
