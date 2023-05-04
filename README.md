@@ -1,3 +1,5 @@
+You're right; the sequence of steps can be improved for better logic and ease of setup. Let's reorganize the steps so that the user is created before cloning the repository and setting up the project:
+
 # AirdropFarmer
 
 AirdropFarmer is a Telegram bot that helps users manage and participate in airdrop events. It provides notifications for upcoming events, tracks user participation, and ensures the security of user data using encryption.
@@ -23,27 +25,40 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
 ## Installation and Setup
 
-1. Clone the repository:
+1. Create a new user and add it to the necessary groups:
+
+   ```
+   sudo adduser airdropfarmer
+   sudo usermod -aG sudo airdropfarmer
+   ```
+
+2. Switch to the new user:
+
+   ```
+   sudo su - airdropfarmer
+   ```
+
+3. Clone the repository:
 
    ```
    git clone https://github.com/yourusername/AirdropFarmer.git
    cd AirdropFarmer
    ```
 
-2. Create a Python virtual environment and activate it:
+4. Create a Python virtual environment and activate it:
 
    ```
    python -m venv venv
    .\venv\Scripts\activate
    ```
 
-3. Install the required Python packages:
+5. Install the required Python packages:
 
    ```
    pip install -r requirements.txt
    ```
 
-4. Generate an encryption key:
+6. Generate an encryption key:
 
    Run the `generate_key.py` script in the `src` folder:
 
@@ -53,18 +68,18 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
    The script will output a generated encryption key. Make a note of this key, as you will need it for configuring the environment variables in the next step.
 
-5. Set up the PostgreSQL database and user:
+7. Set up the PostgreSQL database and user:
 
    Follow the instructions for your operating system to install and configure PostgreSQL. Create a new database and user, and grant the user all privileges on the database.
 
-6. Set up environment variables:
+8. Set up environment variables:
 
    Copy the `.env.example` file to a new file called `.env`:
    ```
    cp .env.example .env
    ```
 
-   Open the `.env` file and replace the placeholders with the appropriate values for `TELEGRAM_TOKEN`, `ENCRYPTION_KEY`, `AIRDROP_FARMER_DATABASE_URL`, `COINPAYMENTS_API_KEY`, `COINPAYMENTS_API_SECRET`, `ADMIN_EMAIL`, `COINPAYMENTS_MERCHANT_ID`, and `COINPAYMENTS_IPN_SECRET`. Use the encryption key generated in step 4. Save the file.
+   Open the `.env` file and replace the placeholders with the appropriate values for `TELEGRAM_TOKEN`, `ENCRYPTION_KEY`, `AIRDROP_FARMER_DATABASE_URL`, `COINPAYMENTS_API_KEY`, `COINPAYMENTS_API_SECRET`, `ADMIN_EMAIL`, `COINPAYMENTS_MERCHANT_ID`, and `COINPAYMENTS_IPN_SECRET`. Use the encryption key generated in step 6. Save the file.
 
    Example:
    ```
@@ -79,7 +94,7 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    COINPAYMENTS_IPN_SECRET=your_coinpayments_ipn_secret
    ```
 
-7. Run the application:
+9. Run the application:
 
    ```
    python main.py
@@ -87,11 +102,51 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
    This command will start the AirdropFarmer Telegram bot and the Quart app to listen for IPN requests at http://localhost:5000/ipn.
 
-8. Configure the systemd service on your server (optional):
+10. Configure the systemd service on your server (optional):
 
-   If you are deploying your application to a server and want to use systemd to manage the service, follow the instructions in the previous version of the README.md file.
+   If you are deploying your application to a server and want to use systemd to manage the service, follow these instructions:
 
-9. Configure GitHub Actions for deployment (optional):
+   a. Create a systemd service file with the new user and paths:
+
+      ```
+      sudo nano /etc/systemd/system/airdropfarmer.service
+      ```
+
+      Create the content as follows:
+
+      ```ini
+      [Unit]
+      Description=AirdropFarmer Telegram Bot
+      After=network.target
+
+      [Service]
+      User=airdropfarmer
+      WorkingDirectory=/home/airdropfarmer/AirdropFarmer/
+      EnvironmentFile=/home/airdropfarmer/AirdropFarmer/.env
+      ExecStart=/home/airdropfarmer/AirdropFarmer/venv/bin/python main.py
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+      ```
+
+      Save and exit the editor.
+
+   b. Reload the systemd configuration and restart the AirdropFarmer service:
+
+      ```
+      sudo systemctl daemon-reload
+      sudo systemctl restart airdropfarmer.service
+      ```
+
+   c. Check the status of the service and view the logs again to see if the issue is resolved:
+
+      ```
+      sudo systemctl status airdropfarmer.service
+      sudo journalctl -u airdropfarmer.service -f
+      ```
+
+11. Configure GitHub Actions for deployment (optional):
 
    If you want to use GitHub Actions for automated deployment, follow the instructions in the previous version of the README.md file.
 
