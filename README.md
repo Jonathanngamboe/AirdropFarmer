@@ -109,7 +109,7 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    a. Create a systemd service file with the new user and paths:
 
       ```
-      sudo nano /etc/systemd/system/airdropfarmer.service
+      sudo nano ~/.config/systemd/user/airdropfarmer.service
       ```
 
       Create the content as follows:
