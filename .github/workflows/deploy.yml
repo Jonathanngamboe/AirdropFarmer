@@ -25,6 +25,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -43,6 +45,7 @@ jobs:
           COINPAYMENTS_IPN_SECRET: ${{ secrets.COINPAYMENTS_IPN_SECRET }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
         run: |
+          set -e
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
           ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "mkdir -p /home/$SERVER_USER/AirdropFarmer"
