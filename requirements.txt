@@ -17,4 +17,3 @@ ecdsa
 coinpayments-py
 quart
 hypercorn
-python-decouple
