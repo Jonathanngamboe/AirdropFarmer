@@ -214,7 +214,8 @@ class TelegramBot:
 
     async def choose_network(self, user_id, message_id, plan, coin_name):
         message_text = f"Choose the network for {coin_name}:"
-
+        # TODO: Only add networks that will avoid the error "Amount too small, there would be nothing left!" due to transaction fees
+        # TODO: Retrieve the full token name directly to avoid calling the Coinpayment API twice in a row
         # Get available coins
         coins = await self.get_available_coins()
 
@@ -252,7 +253,6 @@ class TelegramBot:
     async def send_transaction_details(self, user_id, chosen_plan, chosen_coin):
         # Get the subscription plan details
         plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if p['level'].split()[0] == chosen_plan), None)
-        print(f"Plan price: {plan_details['price']}")
         if not plan_details or plan_details.get('price') is None:
             self.bot.send_message(user_id, "Invalid subscription plan. Go back and try again.")
             return None
