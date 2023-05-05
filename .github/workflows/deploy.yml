@@ -57,6 +57,19 @@ jobs:
           ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "cd /home/$SERVER_USER/AirdropFarmer/ && rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && systemctl --user enable /tmp/airdropfarmer.service --now"
           rm -f private_key.pem
 
+      - name: Check service status and logs
+        env:
+          PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          PORT: ${{ secrets.PORT }}
+        run: |
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -p $PORT -i private_key.pem -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "systemctl --user status ***.service || true"
+          ssh -p $PORT -i private_key.pem -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "journalctl --user --unit ***.service || true"
+          rm -f private_key.pem
+
       - name: Deploy Nginx configuration
         env:
           PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
