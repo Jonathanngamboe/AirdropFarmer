@@ -55,7 +55,7 @@ jobs:
           envsubst < systemd/airdropfarmer.service | sed 's/%i/$SERVER_USER/g' > airdropfarmer.service.tmp
           scp -P $PORT -i private_key.pem -o StrictHostKeyChecking=no airdropfarmer.service.tmp $SERVER_USER@$SERVER_IP:/tmp/airdropfarmer.service
           rm airdropfarmer.service.tmp
-          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "cd /home/$SERVER_USER/AirdropFarmer/ && rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && systemctl --user enable /tmp/airdropfarmer.service --now"
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "cd /home/$SERVER_USER/AirdropFarmer/ && rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && sudo mv /tmp/airdropfarmer.service /etc/systemd/system/ && sudo systemctl enable airdropfarmer.service --now"
           rm -f private_key.pem
 
       - name: Deploy Nginx configuration

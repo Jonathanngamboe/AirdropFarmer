@@ -3,8 +3,8 @@ Description=Airdrop Farmer Service
 
 [Service]
 User=airdropfarmer
+ExecStart=/home/airdropfarmer/AirdropFarmer/venv/bin/python /home/airdropfarmer/AirdropFarmer/main.py
 WorkingDirectory=/home/airdropfarmer/AirdropFarmer
-ExecStart=/home/airdropfarmer/AirdropFarmer/venv/bin/python -m airdropfarmer
 Environment="TELEGRAM_TOKEN=${TELEGRAM_TOKEN}"
 Environment="ENCRYPTION_KEY=${ENCRYPTION_KEY}"
 Environment="AIRDROP_FARMER_DATABASE_URL=${AIRDROP_FARMER_DATABASE_URL}"
