@@ -1,5 +1,3 @@
-You're right; the sequence of steps can be improved for better logic and ease of setup. Let's reorganize the steps so that the user is created before cloning the repository and setting up the project:
-
 # AirdropFarmer
 
 AirdropFarmer is a Telegram bot that helps users manage and participate in airdrop events. It provides notifications for upcoming events, tracks user participation, and ensures the security of user data using encryption.
@@ -21,6 +19,7 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 - A CoinPayments API key, API secret, merchant ID, and IPN secret
 - An admin email address
 - A server with SSH access and systemd (for deployment)
+- Nginx web server (for reverse proxy)
 - GitHub Actions (for automated deployment)
 
 ## Installation and Setup
@@ -49,7 +48,7 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
    ```
    python -m venv venv
-   .\venv\Scripts\activate
+   source venv/bin/activate
    ```
 
 5. Install the required Python packages:
@@ -100,7 +99,8 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    python main.py
    ```
 
-   This command will start the AirdropFarmer Telegram bot and the Quart app to listen for IPN requests at http://localhost:5000/ipn.
+   This command will start the AirdropFarmer Telegram bot and the Quart app to listen for IPN requests at http://localhost:8000/ipn.
+
 
 10. Configure the systemd service on your server (optional):
 
@@ -135,18 +135,69 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    b. Reload the systemd configuration and restart the AirdropFarmer service:
 
       ```
-      sudo systemctl daemon-reload
-      sudo systemctl restart airdropfarmer.service
+      sudo systemctl --user daemon-reload
+      sudo systemctl --user restart airdropfarmer.service
       ```
 
    c. Check the status of the service and view the logs again to see if the issue is resolved:
 
       ```
-      sudo systemctl status airdropfarmer.service
-      sudo journalctl -u airdropfarmer.service -f
+      sudo systemctl --user status airdropfarmer.service
+      sudo journalctl --user-unit=airdropfarmer.service -f
       ```
 
-11. Configure GitHub Actions for deployment (optional):
+11. Configure Nginx as a reverse proxy:
+
+   a. Install Nginx on your server.
+
+   b. Create a new Nginx configuration file for AirdropFarmer:
+
+      ```
+      sudo nano /etc/nginx/sites-available/AirdropFarmer
+      ```
+
+   c. Add the following configuration to the file, replacing `airdropfarmer.com` and `www.airdropfarmer.com` with your domain name, and update the SSL certificate and key paths as necessary:
+
+      ```
+      server {
+          listen 80;
+          server_name airdropfarmer.com www.airdropfarmer.com;
+          return 301 https://$host$request_uri;
+      }
+
+      server {
+          listen 443 ssl http2;
+          server_name airdropfarmer.com www.airdropfarmer.com;
+
+          ssl_certificate /etc/letsencrypt/live/airdropfarmer.com/fullchain.pem;
+          ssl_certificate_key /etc/letsencrypt/live/airdropfarmer.com/privkey.pem;
+          ssl_protocols TLSv1.2 TLSv1.3;
+          ssl_ciphers 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384';
+
+          location / {
+              proxy_pass http://127.0.0.1:8000;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+          }
+      }
+      ```
+
+   d. Create a symbolic link to the configuration file in the `sites-enabled` directory:
+
+      ```
+      sudo ln -sf /etc/nginx/sites-available/AirdropFarmer /etc/nginx/sites-enabled/
+      ```
+
+   e. Test the Nginx configuration and restart the service:
+
+      ```
+      sudo nginx -t
+      sudo systemctl restart nginx
+      ```
+
+12. Configure GitHub Actions for deployment (optional):
 
    If you want to use GitHub Actions for automated deployment, follow the instructions in the previous version of the README.md file.
 
@@ -154,7 +205,7 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
 Interact with the AirdropFarmer Telegram bot using the Telegram app. You can use the bot to manage and participate in airdrop events, receive notifications, and track user participation.
 
-To receive IPN notifications from CoinPayments, make sure your application is running and accessible at the IPN URL (http://localhost:5000/ipn by default). Configure your CoinPayments account to send IPN notifications to this URL.
+To receive IPN notifications from CoinPayments, make sure your application is running and accessible at the IPN URL (https://yourdomain.com/ipn by default). Configure your CoinPayments account to send IPN notifications to this URL.
 
 ## Troubleshooting
 
@@ -169,6 +220,8 @@ If you encounter any issues while setting up or running the AirdropFarmer Telegr
 4. Verify that your CoinPayments account is correctly set up with the correct API keys, merchant ID, and IPN secret.
 
 5. Make sure your application is running and accessible at the IPN URL.
+
+6. If you are using Nginx as a reverse proxy, check the Nginx configuration, logs, and ensure that the service is running.
 
 If you still encounter issues, feel free to ask for help or submit an issue on the GitHub repository.
 
