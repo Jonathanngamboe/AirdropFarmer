@@ -30,18 +30,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Stop running instances on the server
-        env:
-          PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_IP: ${{ secrets.SERVER_IP }}
-          PORT: ${{ secrets.PORT }}
-        run: |
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          ssh -v -p $PORT -i private_key.pem -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "pids=\$(pgrep -f 'python.*AirdropFarmer') && if [ ! -z \"\$pids\" ]; then sudo kill \$pids; fi"
-          rm -f private_key.pem
-
       - name: Deploy to server
         env:
           PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
