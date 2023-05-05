@@ -55,13 +55,13 @@ jobs:
 
       - name: Deploy Nginx configuration
         env:
-          PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+          ROOT_PRIVATE_KEY: ${{ secrets.ROOT_SERVER_SSH_PRIVATE_KEY }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
           PORT: ${{ secrets.PORT }}
         run: |
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          scp -P $PORT -i private_key.pem -o StrictHostKeyChecking=no nginx/AirdropFarmer.conf $SERVER_USER@$SERVER_IP:/tmp/AirdropFarmer.conf
-          ssh -p $PORT -i private_key.pem -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "sudo mv /tmp/AirdropFarmer.conf /etc/nginx/sites-available/AirdropFarmer && sudo ln -sf /etc/nginx/sites-available/AirdropFarmer /etc/nginx/sites-enabled/ && sudo systemctl restart nginx"
-          rm -f private_key.pem
+          echo "$ROOT_PRIVATE_KEY" > root_private_key.pem
+          chmod 600 root_private_key.pem
+          scp -P $PORT -i root_private_key.pem -o StrictHostKeyChecking=no nginx/AirdropFarmer.conf $SERVER_USER@$SERVER_IP:/tmp/AirdropFarmer.conf
+          ssh -p $PORT -i root_private_key.pem -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "mv /tmp/AirdropFarmer.conf /etc/nginx/sites-available/AirdropFarmer && ln -sf /etc/nginx/sites-available/AirdropFarmer /etc/nginx/sites-enabled/ && systemctl restart nginx"
+          rm -f root_private_key.pem
