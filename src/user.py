@@ -158,7 +158,8 @@ class User:
         )
 
         if user_data:
-            user_data = dict(user_data)  # Convert the asyncpg.Record object to a dictionary
+            user_data = {key: value for key, value in
+                         user_data.items()}  # Properly convert the asyncpg.Record object to a dictionary
             user_data.pop('id', None)  # Remove 'id' from the user_data dictionary, this id is only used in the database
             user_data.pop('created_at',
                           None)  # Remove 'created_at' from the user_data dictionary, this is only used in the database
