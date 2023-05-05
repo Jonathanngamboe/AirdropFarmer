@@ -51,7 +51,7 @@ jobs:
           chmod 600 private_key.pem
           ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "mkdir -p /home/$SERVER_USER/AirdropFarmer"
           rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/home/$SERVER_USER/AirdropFarmer/
-          envsubst < airdropfarmer.service > airdropfarmer.service.tmp
+          envsubst < systemd/airdropfarmer.service > airdropfarmer.service.tmp
           scp -P $PORT -i private_key.pem -o StrictHostKeyChecking=no airdropfarmer.service.tmp $SERVER_USER@$SERVER_IP:/tmp/airdropfarmer.service
           rm airdropfarmer.service.tmp
           ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "cd /home/$SERVER_USER/AirdropFarmer/ && rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && systemctl --user enable /tmp/airdropfarmer.service --now"
