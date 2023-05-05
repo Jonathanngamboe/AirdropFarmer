@@ -7,11 +7,12 @@ from datetime import datetime, timedelta
 
 class DBManager:
     def __init__(self):
-        self.db_connection = None
-        self.init_db()
+        self.dsn = settings.AIRDROP_FARMER_DATABASE_URL
+        self.timeout = settings.DB_TIMEOUT
+        self.pool = None
 
     async def init_db(self):
-        self.db_connection = await asyncpg.connect(settings.AIRDROP_FARMER_DATABASE_URL, timeout=settings.DB_TIMEOUT)
+        self.pool = await asyncpg.create_pool(dsn=self.dsn, min_size=1, max_size=5, timeout=self.timeout)
         await self.create_tables()
 
     async def create_tables(self):
@@ -44,49 +45,52 @@ class DBManager:
         return await self.fetch_query("SELECT * FROM users;")
 
     async def close_db(self):
-        if self.db_connection:
-            await self.db_connection.close()
+        if self.pool:
+            await self.pool.close()
 
     async def execute_query(self, query, *args, **kwargs):
-        try:
-            result = await self.db_connection.execute(query, *args, **kwargs)
-            return result
-        except asyncpg.exceptions.UndefinedTableError:
-            await self.init_db()
-        except asyncpg.exceptions.InterfaceError:
-            # Reconnect and retry if a connection error occurs
-            result = await self.db_connection.execute(query, *args, **kwargs)
-            return result
-        except Exception as e:
-            # Handle other exceptions as appropriate
-            raise e
+        async with self.pool.acquire() as connection:
+            try:
+                result = await connection.execute(query, *args, **kwargs)
+                return result
+            except asyncpg.exceptions.UndefinedTableError:
+                await self.init_db()
+            except asyncpg.exceptions.InterfaceError:
+                # Reconnect and retry if a connection error occurs
+                result = await connection.execute(query, *args, **kwargs)
+                return result
+            except Exception as e:
+                # Handle other exceptions as appropriate
+                raise e
 
     async def fetch_query(self, query, *args, **kwargs):
-        try:
-            result = await self.db_connection.fetchrow(query, *args, **kwargs)
-            return result
-        except asyncpg.exceptions.UndefinedTableError:
-            await self.init_db()
-        except asyncpg.exceptions.InterfaceError:
-            # Reconnect and retry if a connection error occurs
-            result = await self.db_connection.fetchrow(query, *args, **kwargs)
-            return result
-        except Exception as e:
-            # Handle other exceptions as appropriate
-            raise e
+        async with self.pool.acquire() as connection:
+            try:
+                result = await connection.fetchrow(query, *args, **kwargs)
+                return result
+            except asyncpg.exceptions.UndefinedTableError:
+                await self.init_db()
+            except asyncpg.exceptions.InterfaceError:
+                # Reconnect and retry if a connection error occurs
+                result = await connection.fetchrow(query, *args, **kwargs)
+                return result
+            except Exception as e:
+                # Handle other exceptions as appropriate
+                raise e
 
     async def fetchval_query(self, query, *args, **kwargs):
-        try:
-            result = await self.db_connection.fetchval(query, *args, **kwargs)
-            return result
-        except asyncpg.exceptions.InterfaceError:
-            # Reconnect and retry if a connection error occurs
-            await self.init_db()
-            result = await self.db_connection.fetchval(query, *args, **kwargs)
-            return result
-        except Exception as e:
-            # Handle other exceptions as appropriate
-            raise e
+        async with self.pool.acquire() as connection:
+            try:
+                result = await connection.fetchval(query, *args, **kwargs)
+                return result
+            except asyncpg.exceptions.InterfaceError:
+                # Reconnect and retry if a connection error occurs
+                await self.init_db()
+                result = await connection.fetchval(query, *args, **kwargs)
+                return result
+            except Exception as e:
+                # Handle other exceptions as appropriate
+                raise e
 
     async def save_transaction_details(self, user_id, transaction_id, ipn_data):
         # Save transaction details in your database
