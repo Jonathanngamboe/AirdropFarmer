@@ -39,7 +39,7 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
-          ssh -p $PORT -i private_key.pem -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "pids=\$(pgrep -f 'python.*AirdropFarmer') && if [ ! -z \"\$pids\" ]; then sudo kill \$pids; fi"
+          ssh -v -p $PORT -i private_key.pem -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "pids=\$(pgrep -f 'python.*AirdropFarmer') && if [ ! -z \"\$pids\" ]; then sudo kill \$pids; fi"
           rm -f private_key.pem
 
       - name: Deploy to server
