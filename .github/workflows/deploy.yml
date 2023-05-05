@@ -31,24 +31,17 @@ jobs:
           pip install -r requirements.txt
 
       - name: Deploy to server
+        # Your existing deployment steps
+
+      - name: Deploy Nginx configuration
         env:
           PRIVATE_KEY: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
           PORT: ${{ secrets.PORT }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          AIRDROP_FARMER_DATABASE_URL: ${{ secrets.AIRDROP_FARMER_DATABASE_URL }}
-          COINPAYMENTS_PUBLIC_KEY: ${{ secrets.COINPAYMENTS_PUBLIC_KEY }}
-          COINPAYMENTS_PRIVATE_KEY: ${{ secrets.COINPAYMENTS_PRIVATE_KEY }}
-          COINPAYMENTS_MERCHANT_ID: ${{ secrets.COINPAYMENTS_MERCHANT_ID }}
-          COINPAYMENTS_IPN_SECRET: ${{ secrets.COINPAYMENTS_IPN_SECRET }}
-          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
         run: |
-          set -e
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
-          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "mkdir -p /home/$SERVER_USER/AirdropFarmer"
-          rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/home/$SERVER_USER/AirdropFarmer/
-          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "cd /home/$SERVER_USER/AirdropFarmer/ && rm -rf venv && python3 -m venv venv && echo 'SERVER_IP=$SERVER_IP' > .env && echo 'TELEGRAM_TOKEN=$TELEGRAM_TOKEN' >> .env && echo 'ENCRYPTION_KEY=$ENCRYPTION_KEY' >> .env && echo 'AIRDROP_FARMER_DATABASE_URL=$AIRDROP_FARMER_DATABASE_URL' >> .env && echo 'COINPAYMENTS_PUBLIC_KEY=$COINPAYMENTS_PUBLIC_KEY' >> .env && echo 'COINPAYMENTS_PRIVATE_KEY=$COINPAYMENTS_PRIVATE_KEY' >> .env && echo 'COINPAYMENTS_MERCHANT_ID=$COINPAYMENTS_MERCHANT_ID' >> .env && echo 'COINPAYMENTS_IPN_SECRET=$COINPAYMENTS_IPN_SECRET' >> .env && echo 'ADMIN_EMAIL=$ADMIN_EMAIL' >> .env && source venv/bin/activate && pip install -r requirements.txt && systemctl --user restart airdropfarmer.service"
+          scp -P $PORT -i private_key.pem -o StrictHostKeyChecking=no nginx/AirdropFarmer.conf $SERVER_USER@$SERVER_IP:/tmp/AirdropFarmer.conf
+          ssh -p $PORT -i private_key.pem -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "sudo mv /tmp/AirdropFarmer.conf /etc/nginx/sites-available/AirdropFarmer && sudo ln -sf /etc/nginx/sites-available/AirdropFarmer /etc/nginx/sites-enabled/ && sudo systemctl restart nginx"
           rm -f private_key.pem
