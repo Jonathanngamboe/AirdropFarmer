@@ -89,14 +89,15 @@ class User:
             # print(f"Wallet not found: {wallet}") # Debug
 
     async def get_wallets(self, db_manager):
-        encrypted_wallets_json = await db_manager.fetch_query(
+        result = await db_manager.fetch_query(
             "SELECT encrypted_wallets FROM users WHERE telegram_id = $1", self.telegram_id
         )
 
-        if encrypted_wallets_json is None or encrypted_wallets_json['encrypted_wallets'] is None:
+        if not result or result[0]['encrypted_wallets'] is None:
             return []
 
-        encrypted_wallets = json.loads(encrypted_wallets_json['encrypted_wallets'])
+        encrypted_wallets_json = result[0]['encrypted_wallets']
+        encrypted_wallets = json.loads(encrypted_wallets_json)
         fernet = Fernet(settings.ENCRYPTION_KEY)
         decrypted_wallets = [json.loads(fernet.decrypt(wallet.encode()).decode()) for wallet in encrypted_wallets]
 
@@ -158,7 +159,8 @@ class User:
         )
 
         if user_data:
-            user_data = dict(user_data)  # Convert the asyncpg.Record object to a dictionary
+            record = user_data[0]  # Extract the asyncpg.Record object from the list
+            user_data = dict(record)  # Properly convert the asyncpg.Record object to a dictionary
             user_data.pop('id', None)  # Remove 'id' from the user_data dictionary, this id is only used in the database
             user_data.pop('created_at',
                           None)  # Remove 'created_at' from the user_data dictionary, this is only used in the database
