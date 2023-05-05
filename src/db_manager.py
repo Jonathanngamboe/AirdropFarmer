@@ -66,13 +66,13 @@ class DBManager:
     async def fetch_query(self, query, *args, **kwargs):
         async with self.pool.acquire() as connection:
             try:
-                result = await connection.fetchrow(query, *args, **kwargs)
+                result = await connection.fetch(query, *args, **kwargs)
                 return result
             except asyncpg.exceptions.UndefinedTableError:
                 await self.init_db()
             except asyncpg.exceptions.InterfaceError:
                 # Reconnect and retry if a connection error occurs
-                result = await connection.fetchrow(query, *args, **kwargs)
+                result = await connection.fetch(query, *args, **kwargs)
                 return result
             except Exception as e:
                 # Handle other exceptions as appropriate
