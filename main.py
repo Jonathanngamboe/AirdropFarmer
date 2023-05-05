@@ -43,7 +43,7 @@ async def handle_ipn():
 async def run_flask_app():
     config = hypercorn.Config()
     config.bind = [
-        "127.0.0.1:{}".format(settings.IPN_PORT)]  # Replace 127.0.0.1 with 0.0.0.0 to receive requests from outside
+        "0.0.0.0:{}".format(settings.IPN_PORT)]  # Replace 127.0.0.1 with 0.0.0.0 to receive requests from outside
     await serve(app, config)
 
 async def main():
