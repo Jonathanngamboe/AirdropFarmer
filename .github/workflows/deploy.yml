@@ -27,6 +27,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y rsync
+          sudo apt-get install -y rsync gettext
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -50,7 +51,10 @@ jobs:
           chmod 600 private_key.pem
           ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "mkdir -p /home/$SERVER_USER/AirdropFarmer"
           rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/home/$SERVER_USER/AirdropFarmer/
-          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "cd /home/$SERVER_USER/AirdropFarmer/ && rm -rf venv && python3 -m venv venv && echo 'SERVER_IP=$SERVER_IP' > .env && echo 'TELEGRAM_TOKEN=$TELEGRAM_TOKEN' >> .env && echo 'ENCRYPTION_KEY=$ENCRYPTION_KEY' >> .env && echo 'AIRDROP_FARMER_DATABASE_URL=$AIRDROP_FARMER_DATABASE_URL' >> .env && echo 'COINPAYMENTS_PUBLIC_KEY=$COINPAYMENTS_PUBLIC_KEY' >> .env && echo 'COINPAYMENTS_PRIVATE_KEY=$COINPAYMENTS_PRIVATE_KEY' >> .env && echo 'COINPAYMENTS_MERCHANT_ID=$COINPAYMENTS_MERCHANT_ID' >> .env && echo 'COINPAYMENTS_IPN_SECRET=$COINPAYMENTS_IPN_SECRET' >> .env && echo 'ADMIN_EMAIL=$ADMIN_EMAIL' >> .env && source venv/bin/activate && pip install -r requirements.txt && systemctl --user restart airdropfarmer.service"
+          envsubst < airdropfarmer.service > airdropfarmer.service.tmp
+          scp -P $PORT -i private_key.pem -o StrictHostKeyChecking=no airdropfarmer.service.tmp $SERVER_USER@$SERVER_IP:/tmp/airdropfarmer.service
+          rm airdropfarmer.service.tmp
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "cd /home/$SERVER_USER/AirdropFarmer/ && rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && systemctl --user enable /tmp/airdropfarmer.service --now"
           rm -f private_key.pem
 
       - name: Deploy Nginx configuration
