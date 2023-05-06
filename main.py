@@ -41,6 +41,8 @@ async def handle_ipn():
     global telegram_bot
 
     ipn_data = await request.form
+    print(f"Received IPN data: {ipn_data}")
+    system_logger.add_log(f"Received IPN data: {ipn_data}", logging.INFO)
     await ipn_handler_instance.handle_ipn(ipn_data, telegram_bot=telegram_bot)
     return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
 
