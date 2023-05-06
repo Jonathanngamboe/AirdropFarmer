@@ -52,13 +52,23 @@ class IPNHandler:
             if transaction_saved:
                 await self.update_user_subscription(user_id, ipn_data.get('item_name'), settings.SUBSCRIPTION_DURATION_DAYS)
                 # Send payment received notification
-                await self.on_payment_received(user_id, transaction_id, telegram_bot)
+                await self.process_ipn_request(transaction_id, ipn_data, telegram_bot)
         elif status < 0:  # Payment error
             await self.notify_payment_error(user_id, transaction_id, telegram_bot)
         else:  # Payment is pending
             transaction_saved = await self.save_transaction_details(user_id, transaction_id, ipn_data)
             if transaction_saved:
-                await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
+                await self.process_ipn_request(transaction_id, ipn_data, telegram_bot)
+
+    async def process_ipn_request(self, transaction_id, ipn_data, telegram_bot):
+        # Check if the transaction has already been processed
+        transaction = await self.db_manager.get_transaction_by_id(transaction_id)
+        if transaction:
+            self.sys_logger.add_log(f"Duplicate IPN request for transaction {transaction_id} - ignoring.", logging.WARNING)
+            return
+
+        # Process the IPN request
+        await self.handle_ipn(ipn_data, telegram_bot)
 
     async def save_transaction_details(self, user_id, transaction_id, ipn_data):
         if user_id is None:
@@ -90,13 +100,13 @@ class IPNHandler:
 
     async def notify_payment_timeout(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the payment timeout
-        message = f"Your payment has timed out without us receiving the required funds. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
+        message = f"Your payment has timed out without us receiving the required funds. If you need help, please type /contact to contact the support team and send your transaction ID: {transaction_id}"
         await self.send_payment_notification(user_id, message, telegram_bot)
 
     async def notify_payment_error(self, user_id, transaction_id, telegram_bot):
         self.sys_logger.add_log(f"Payment error for transaction {transaction_id} for user {user_id}", logging.ERROR)
         # Notify the user of the payment error
-        message = f"Your payment encountered an error. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
+        message = f"Your payment encountered an error. If you need help, please type /contact to contact the support team and send your transaction ID: {transaction_id}"
         await self.send_payment_notification(user_id, message, telegram_bot)
 
     async def notify_pending_payment(self, user_id, transaction_id, telegram_bot):
