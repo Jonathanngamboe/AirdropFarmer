@@ -46,11 +46,11 @@ async def run_flask_app(app, ipn_handler_instance, telegram_bot):
 
 async def main():
     # Initialize the database
-    db_manager = DBManager()
+    db_manager = DBManager(system_logger)
 
     # Initialize instances
     ipn_handler_instance = IPNHandler(db_manager, system_logger)
-    telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN, db_manager)
+    telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN, db_manager, system_logger)
 
     for i in range(settings.MAX_DB_RETRIES):  # Try to connect to the database
         try:

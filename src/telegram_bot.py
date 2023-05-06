@@ -1,5 +1,6 @@
 # telegram_bot.py
 import asyncio
+import json
 import os
 from collections import defaultdict
 from aiogram import Bot, Dispatcher, types
@@ -22,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class TelegramBot:
-    def __init__(self, token, db_manager):
+    def __init__(self, token, db_manager, system_logger):
         self.bot = Bot(token=token)
         self.db_manager = db_manager
         self.dp = Dispatcher(self.bot)
@@ -38,6 +39,7 @@ class TelegramBot:
         self.RETRY_DELAY = 5
         self.contact_text = "If you need help using the bot, please visit our wiki:\n\nhttps://defi-bots.gitbook.io/airdrop-farmer/\n\n📤 If you have a specific question or want to discuss your suscription plan, click the button below."
         self.cp = CoinPaymentsAPI(public_key=settings.COINPAYMENTS_PUBLIC_KEY, private_key=settings.COINPAYMENTS_PRIVATE_KEY)
+        self.sys_logger = system_logger
 
 
     def register_handlers(self):
@@ -265,7 +267,8 @@ class TelegramBot:
                                               ipn_url=settings.COINPAYMENTS_IPN_URL,
                                               )
         if response and response['error'] != 'ok':
-            print(f"CoinPayments error: {response['error']}")
+            self.sys_logger.add_log(f'CoinPayments error: {response["error"]}', logging.ERROR)
+
             try:
                 await self.bot.answer_callback_query(user_id, response['error'], show_alert=True)
             except:
@@ -289,21 +292,20 @@ class TelegramBot:
 
             # Save the transaction details to the database
             try:
-                await self.db_manager.save_transaction_details(user_id, transaction_id, response['result'])
+                await self.db_manager.save_transaction_details(user_id, transaction_id, json.dumps(response['result']))
                 await self.bot.send_message(user_id, payment_details, parse_mode='Markdown')
             except Exception as e:
-                print(f"Error saving transaction details: {e}")
+                self.sys_logger.add_log(f"Error saving transaction details: {e}", logging.ERROR)
                 return None
             return transaction_id
         else:
-            print(f"Error creating transaction: {response['error']}")
+            self.sys_logger.add_log(f"Error creating transaction: {response['error']}", logging.ERROR)
             return None
 
     async def get_available_coins(self):
         accepted_coins = {}
         coins_response = self.cp.rates(short=1, accepted=2)
         # TODO: make this method faster by directly catching accepted coins
-        #print(f"CoinPayments response: {coins_response}")
         if coins_response['error'] == 'ok':
             for coin, coin_data in coins_response["result"].items():
                 if coin_data["accepted"] == 1:
@@ -370,13 +372,13 @@ class TelegramBot:
             try:
                 return await func(*args, **kwargs)
             except InvalidQueryID as e:
-                print(f"WARNING - Query is too old or query ID is invalid: {e}")
+                self.sys_logger.add_log(f"WARNING - Query is too old or query ID is invalid: {e}", logging.WARNING)
                 return None  # Stop retrying as this exception won't likely resolve on its own
             except Exception as e:
                 retries += 1
-                print(f"WARNING - Retrying request due to error: {e}")
+                self.sys_logger.add_log(f"WARNING - Retrying request due to error: {e}", logging.WARNING)
                 await asyncio.sleep(self.RETRY_DELAY)
-        print(f"ERROR - Request failed after {self.MAX_RETRIES} retries.")
+        self.sys_logger.add_log(f"ERROR - Request failed after {self.MAX_RETRIES} retries.", logging.ERROR)
         return None
 
     async def cmd_show_main_menu(self, message: types.Message):
@@ -609,7 +611,7 @@ class TelegramBot:
             try:
                 await self.bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=keyboard)
             except MessageNotModified:
-                print("Message not modified: new keyboard layout is the same as the current one.")
+                self.sys_logger.add_log("WARNING - Message not modified: new keyboard layout is the same as the current one.")
 
     def get_user_logger(self, user_id):
         if user_id not in self.user_loggers:

@@ -6,10 +6,11 @@ from datetime import datetime, timedelta
 
 
 class DBManager:
-    def __init__(self):
+    def __init__(self, logger):
         self.dsn = settings.AIRDROP_FARMER_DATABASE_URL
         self.timeout = settings.DB_TIMEOUT
         self.pool = None
+        self.sys_logger = logger
 
     async def init_db(self):
         self.pool = await asyncpg.create_pool(dsn=self.dsn, min_size=1, max_size=5, timeout=self.timeout)
@@ -114,7 +115,7 @@ class DBManager:
                 )
 
         except Exception as e:
-            self.logger.error(f"Failed to save transaction details for transaction {transaction_id}: {e}")
+            self.sys_logger.add_log(f"Failed to save transaction details for transaction {transaction_id}: {e}")
             raise e
 
     async def update_user_subscription(self, user_id, plan_name, duration):
