@@ -27,9 +27,6 @@ class AirdropFarmer:
         if self.discord_handler.is_connected:
             await self.discord_handler.disconnect()
 
-ipn_handler_instance = None
-telegram_bot = None
-
 app = Quart(__name__)
 
 # Create an instance of the Logger class for system logs
@@ -37,9 +34,6 @@ system_logger = Logger(app_log=True)
 
 @app.route('/ipn', methods=['POST'])
 async def handle_ipn():
-    global ipn_handler_instance
-    global telegram_bot
-
     ipn_data = await request.form
     print(f"Received IPN data: {ipn_data}")
     system_logger.add_log(f"Received IPN data: {ipn_data}", logging.INFO)
@@ -52,11 +46,18 @@ async def run_flask_app():
         "0.0.0.0:{}".format(settings.IPN_PORT)]  # Replace 127.0.0.1 with 0.0.0.0 to receive requests from outside
     await serve(app, config)
 
+
 async def main():
     global ipn_handler_instance
     global telegram_bot
+
     # Initialize the database
     db_manager = DBManager()
+
+    # Initialize global variables
+    ipn_handler_instance = ipn_handler.IPNHandler(db_manager)
+    telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN, db_manager)
+
     for i in range(settings.MAX_DB_RETRIES):  # Try to connect to the database
         try:
             await db_manager.init_db()
@@ -65,23 +66,22 @@ async def main():
             break
         except ConnectionDoesNotExistError as e:
             if i < settings.MAX_DB_RETRIES - 1:  # Check if it's not the last retry
-                system_logger.add_log(f"Failed to connect to the database: {e}. Retrying in 5 seconds...", logging.WARNING)
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} WARNING - Failed to connect to the database: {e}. Retrying in 5 seconds...")
+                system_logger.add_log(f"Failed to connect to the database: {e}. Retrying in 5 seconds...",
+                                      logging.WARNING)
+                print(
+                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} WARNING - Failed to connect to the database: {e}. Retrying in 5 seconds...")
                 await asyncio.sleep(5)
             else:
-                system_logger.add_log(f"Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...", logging.ERROR)
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...")
+                system_logger.add_log(
+                    f"Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...",
+                    logging.ERROR)
+                print(
+                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...")
                 return
 
     # Create an AirdropFarmer instance
     airdrop_farmer = AirdropFarmer()
     await airdrop_farmer.initialize()
-
-    # Create a TelegramBot instance
-    telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN, db_manager)
-
-    # Create an IPNHandler instance
-    ipn_handler_instance = ipn_handler.IPNHandler(db_manager)
 
     try:
         # Run the Quart app concurrently with the Telegram bot
