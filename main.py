@@ -1,16 +1,16 @@
-from datetime import datetime
 import asyncio
-from src.ipn_handler import IPNHandler
-from src.discord_handler import DiscordHandler
-from src.telegram_bot import TelegramBot
-import config.settings as settings
-from src.db_manager import DBManager
-from asyncpg.exceptions import ConnectionDoesNotExistError
-import json
 from quart import Quart, request
-import hypercorn
-from hypercorn.asyncio import serve
+from src.db_manager import DBManager
+from src.discord_handler import DiscordHandler
+from src.ipn_handler import IPNHandler
 from src.logger import Logger
+from src.telegram_bot import TelegramBot
+from asyncpg.exceptions import ConnectionDoesNotExistError
+from hypercorn.asyncio import serve
+import hypercorn
+import config.settings as settings
+from datetime import datetime
+import json
 import logging
 
 class AirdropFarmer:
@@ -21,7 +21,7 @@ class AirdropFarmer:
 
     async def initialize(self):
         message = f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Welcome to the Airdrop Farming Bot!"
-        print(message)
+        system_logger.add_log(message, logging.INFO)
 
     async def close(self):
         if self.discord_handler.is_connected:
@@ -32,62 +32,63 @@ app = Quart(__name__)
 # Create an instance of the Logger class for system logs
 system_logger = Logger(app_log=True)
 
-@app.route('/ipn', methods=['POST'])
-async def handle_ipn():
-    ipn_data = await request.form
-    system_logger.add_log(f"IPN received: {ipn_data}", logging.INFO)
-    await ipn_handler_instance.handle_ipn(ipn_data, telegram_bot=telegram_bot)
-    return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
+async def run_flask_app(app, ipn_handler_instance, telegram_bot):
+    @app.route('/ipn', methods=['POST'])
+    async def handle_ipn_route():
+        ipn_data = await request.form
+        await ipn_handler_instance.handle_ipn(ipn_data, telegram_bot=telegram_bot)
+        return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
 
-async def run_flask_app():
     config = hypercorn.Config()
     config.bind = [
         "0.0.0.0:{}".format(settings.IPN_PORT)]  # Replace 127.0.0.1 with 0.0.0.0 to receive requests from outside
     await serve(app, config)
 
-
 async def main():
-    global ipn_handler_instance
-    global telegram_bot
-
     # Initialize the database
     db_manager = DBManager()
 
-    # Initialize global variables
-    ipn_handler_instance = IPNHandler(db_manager)
+    # Initialize instances
+    ipn_handler_instance = IPNHandler(db_manager, system_logger)
     telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN, db_manager)
 
     for i in range(settings.MAX_DB_RETRIES):  # Try to connect to the database
         try:
             await db_manager.init_db()
             system_logger.add_log("Successfully connected to the database.", logging.INFO)
-            print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Successfully connected to the database.")
             break
         except ConnectionDoesNotExistError as e:
             if i < settings.MAX_DB_RETRIES - 1:  # Check if it's not the last retry
                 system_logger.add_log(f"Failed to connect to the database: {e}. Retrying in 5 seconds...",
                                       logging.WARNING)
-                print(
-                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} WARNING - Failed to connect to the database: {e}. Retrying in 5 seconds...")
                 await asyncio.sleep(5)
             else:
-                system_logger.add_log(
-                    f"Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...",
+                system_logger.add_log(f"Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...",
                     logging.ERROR)
-                print(
-                    f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...")
                 return
 
     # Create an AirdropFarmer instance
     airdrop_farmer = AirdropFarmer()
     await airdrop_farmer.initialize()
 
+    tasks = []
     try:
         # Run the Quart app concurrently with the Telegram bot
-        await asyncio.gather(run_flask_app(), telegram_bot.start_polling())
+        tasks.append(asyncio.create_task(run_flask_app(app, ipn_handler_instance, telegram_bot)))
+        tasks.append(asyncio.create_task(telegram_bot.start_polling()))
+        await asyncio.gather(*tasks)
     except KeyboardInterrupt:
-        print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Keyboard interrupt detected. Exiting...")
+        system_logger.add_log("Keyboard interrupt detected. Exiting...", logging.INFO)
+    except Exception as e:
+        system_logger.add_log(f"An unexpected error occurred: {e}", logging.ERROR)
     finally:
+        for task in tasks:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
         await airdrop_farmer.close()
         await telegram_bot.stop()  # Stop the Telegram bot
 

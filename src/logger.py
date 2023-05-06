@@ -6,7 +6,6 @@ from config import settings
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
-
 class Logger:
     def __init__(self, user_id=None, log_dir='logs', app_log=False):
         self.user_id = user_id
@@ -14,15 +13,18 @@ class Logger:
         if app_log:
             log_dir = Path(__file__).resolve().parent.parent / log_dir
         else:
-            log_dir = Path(__file__).resolve().parent.parent / log_dir / str(self.user_id)  # Include user_id in the log_dir
+            log_dir = Path(__file__).resolve().parent.parent / log_dir / str(
+                self.user_id)  # Include user_id in the log_dir
         self.log_dir = Path(log_dir) if isinstance(log_dir, str) else log_dir
         self.log_filename = self.get_log_filename()
         self.ensure_log_file_exists()
 
         # Set up logging
-        self.logger = logging.getLogger(f"{self.user_id}_logger")
+        logger_name = "sys_log" if app_log else f"{self.user_id}_logger"
+        self.logger = logging.getLogger(logger_name)
         self.logger.setLevel(logging.INFO)
-        log_handler = TimedRotatingFileHandler(self.log_dir / self.log_filename, when="midnight", interval=1, backupCount=settings.LOG_MAX_AGE_DAYS)
+        log_handler = TimedRotatingFileHandler(self.log_dir / self.log_filename, when="midnight", interval=1,
+                                               backupCount=settings.LOG_MAX_AGE_DAYS)
         log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         log_handler.setFormatter(log_formatter)
         self.logger.addHandler(log_handler)
