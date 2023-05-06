@@ -2,7 +2,6 @@
 import asyncio
 import os
 from collections import defaultdict
-from aiogram.utils import executor
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils.exceptions import InvalidQueryID, MessageNotModified
 from aiogram.dispatcher.filters import Command
@@ -18,7 +17,6 @@ from src.user import User
 from aiogram.types import InputFile
 from coinpayments import CoinPaymentsAPI
 import re
-from quart import Quart, request
 
 logging.basicConfig(level=logging.INFO)
 

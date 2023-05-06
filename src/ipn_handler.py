@@ -71,7 +71,7 @@ class IPNHandler:
     async def on_payment_received(self, user_telegram_id: int, payment_details: str, telegram_bot):
         await self.send_payment_notification(user_telegram_id, payment_details, telegram_bot)
         try:
-            await telegram_bot.send_message(
+            await telegram_bot.bot.send_message(
                 chat_id=user_telegram_id,
                 text=f"Your payment has been received! Details: {payment_details}",
             )
@@ -105,7 +105,7 @@ class IPNHandler:
 
     async def send_payment_notification(self, user_telegram_id, message, telegram_bot):
         try:
-            await telegram_bot.send_message(
+            await telegram_bot.bot.send_message(
                 chat_id=user_telegram_id,
                 text=message,
             )
