@@ -139,7 +139,7 @@ class TelegramBot:
         for plan in settings.SUBSCRIPTION_PLANS:
             message_text += f"🔹 *{plan['level']}*\n"
             if isinstance(plan['price'], (int, float)):
-                message_text += f"Price (Monthly): ${plan['price']} Excl. fees\n"
+                message_text += f"Price (Monthly): ${plan['price']} (Excl. fees)\n"
             else:
                 message_text += f"Price: {plan['price']}\n"
             message_text += f"Wallets: {plan['wallets']}\n"
