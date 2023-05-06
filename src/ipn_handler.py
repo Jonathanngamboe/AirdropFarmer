@@ -21,7 +21,7 @@ class IPNHandler:
             self.sys_logger.add_log("IPN Error: IPN Mode is not HMAC", logging.ERROR)
 
         # Verify HMAC signature
-        hmac_signature = request.headers.get("HTTP_HMAC")
+        hmac_signature = request.headers.get("HMAC")  # Change "HTTP_HMAC" to "HMAC"
         if not hmac_signature:
             self.sys_logger.add_log("IPN Error: No HMAC signature sent.", logging.ERROR)
             return "IPN Error: No HMAC signature sent."
