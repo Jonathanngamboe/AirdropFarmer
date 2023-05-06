@@ -53,8 +53,7 @@ class IPNHandler:
                                                 settings.SUBSCRIPTION_DURATION_DAYS)
 
             # Send payment received notification
-            user_telegram_id = await self.db_manager.get_user_telegram_id(user_id)
-            await self.on_payment_received(user_telegram_id, telegram_bot)
+            await self.on_payment_received(user_id, telegram_bot)
         elif status < 0:  # Payment error
             await self.notify_payment_error(user_id, transaction_id, telegram_bot)
         else:  # Payment is pending

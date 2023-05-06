@@ -127,10 +127,11 @@ class DBManager:
         ''', plan_name, subscription_expiry, user_id)
 
     async def get_user_id_from_txn_id(self, txn_id):
-        return await self.fetchval_query('''
+        user_id_record = await self.fetch_query('''
             SELECT user_id FROM transactions
             WHERE transaction_id=$1
         ''', txn_id)
+        return user_id_record[0]['user_id'] if user_id_record else None
 
     async def get_user_telegram_id(self, user_id):
         return await self.fetchval_query('''
