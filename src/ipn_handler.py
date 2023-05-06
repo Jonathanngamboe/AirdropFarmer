@@ -59,6 +59,9 @@ class IPNHandler:
             await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
 
     async def save_transaction_details(self, user_id, transaction_id, ipn_data):
+        if user_id is None:
+            self.sys_logger.add_log(f"User ID not found for transaction {transaction_id}", logging.ERROR)
+            return
         self.sys_logger.add_log(f"Saving transaction details for transaction {transaction_id} for user {user_id}", logging.INFO)
         # Convert the ipn_data to a JSON string
         ipn_data_json = json.dumps(dict(ipn_data))
