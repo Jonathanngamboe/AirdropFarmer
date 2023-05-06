@@ -14,6 +14,7 @@ class IPNHandler:
         self.cp_merchant_id = settings.COINPAYMENTS_MERCHANT_ID
         self.cp_ipn_secret = settings.COINPAYMENTS_IPN_SECRET
         self.cp_debug_email = settings.ADMIN_EMAIL
+        sys_logger.add_log(f"IPN Handler initialized with merchant ID {self.cp_merchant_id}", logging.INFO)
 
     async def handle_ipn(self, ipn_data, telegram_bot):
         print(f"IPN received: {ipn_data}")

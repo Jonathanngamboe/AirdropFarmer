@@ -35,8 +35,8 @@ system_logger = Logger(app_log=True)
 @app.route('/ipn', methods=['POST'])
 async def handle_ipn():
     ipn_data = await request.form
-    print(f"Received IPN data: {ipn_data}")
-    system_logger.add_log(f"Received IPN data: {ipn_data}", logging.INFO)
+    print(f"IPN Handler instance: {ipn_handler_instance}")
+    system_logger.add_log(f"IPN Handler instance: {ipn_handler_instance}", logging.INFO)
     await ipn_handler_instance.handle_ipn(ipn_data, telegram_bot=telegram_bot)
     return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
 
@@ -57,6 +57,8 @@ async def main():
     # Initialize global variables
     ipn_handler_instance = ipn_handler.IPNHandler(db_manager)
     telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN, db_manager)
+    print(f"IPNHandler instance created in main: {ipn_handler_instance}")
+    system_logger.add_log(f"IPNHandler instance created in main: {ipn_handler_instance}", logging.INFO)
 
     for i in range(settings.MAX_DB_RETRIES):  # Try to connect to the database
         try:
