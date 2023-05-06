@@ -54,12 +54,12 @@ class IPNHandler:
 
             # Send payment received notification
             user_telegram_id = await self.db_manager.get_user_telegram_id(user_id)
-            await self.on_payment_received(user_telegram_id, ipn_data, telegram_bot)
+            await self.on_payment_received(user_telegram_id, telegram_bot)
         elif status < 0:  # Payment error
-            await self.notify_payment_error(user_id, transaction_id, ipn_data)
+            await self.notify_payment_error(user_id, transaction_id, telegram_bot)
         else:  # Payment is pending
             await self.save_transaction_details(user_id, transaction_id, ipn_data)
-            await self.notify_pending_payment(user_id, transaction_id, ipn_data)
+            await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
 
     async def save_transaction_details(self, user_id, transaction_id, ipn_data):
         self.sys_logger.add_log(f"Saving transaction details for transaction {transaction_id} for user {user_id}", logging.INFO)
@@ -85,19 +85,19 @@ class IPNHandler:
         # Update user's subscription in the database.
         await self.db_manager.update_user_subscription(user_id, plan_name, duration)
 
-    async def notify_payment_timeout(self, user_id, transaction_id, ipn_data, telegram_bot):
+    async def notify_payment_timeout(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the payment timeout
         message = f"Your payment has timed out without us receiving the required funds. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
         user_telegram_id = await self.db_manager.get_user_telegram_id(user_id)
         await self.send_payment_notification(user_telegram_id, message, telegram_bot)
 
-    async def notify_payment_error(self, user_id, transaction_id, ipn_data, telegram_bot):
+    async def notify_payment_error(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the payment error
         message = f"Your payment encountered an error. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
         user_telegram_id = await self.db_manager.get_user_telegram_id(user_id)
         await self.send_payment_notification(user_telegram_id, message, telegram_bot)
 
-    async def notify_pending_payment(self, user_id, transaction_id, ipn_data, telegram_bot):
+    async def notify_pending_payment(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the pending payment
         message = f"Your payment is pending. We'll notify you once the payment is complete. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
         user_telegram_id = await self.db_manager.get_user_telegram_id(user_id)
