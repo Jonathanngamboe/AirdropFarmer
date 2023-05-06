@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from config import settings
+import logging
+from logging.handlers import TimedRotatingFileHandler
 
 
 class Logger:
@@ -16,6 +18,14 @@ class Logger:
         self.log_dir = Path(log_dir) if isinstance(log_dir, str) else log_dir
         self.log_filename = self.get_log_filename()
         self.ensure_log_file_exists()
+
+        # Set up logging
+        self.logger = logging.getLogger(f"{self.user_id}_logger")
+        self.logger.setLevel(logging.INFO)
+        log_handler = TimedRotatingFileHandler(self.log_dir / self.log_filename, when="midnight", interval=1, backupCount=settings.LOG_MAX_AGE_DAYS)
+        log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        log_handler.setFormatter(log_formatter)
+        self.logger.addHandler(log_handler)
 
     def get_log_filename(self):
         today = datetime.datetime.now()
@@ -42,12 +52,15 @@ class Logger:
                 log_file.write(
                     f"--- Log file created on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n\n")
 
-    def add_log(self, log_message):
-        log_path = self.log_dir / self.log_filename
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        with log_path.open('a') as log_file:
-            log_file.write(f"[{timestamp}] {log_message}\n")
-        self.delete_old_logs()
+    def add_log(self, log_message, log_level=logging.INFO):
+        if self.app_log:
+            self.logger.log(log_level, log_message)
+        else:
+            log_path = self.log_dir / self.log_filename
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            with log_path.open('a') as log_file:
+                log_file.write(f"[{timestamp}] {log_message}\n")
+            self.delete_old_logs()
 
     def get_logs(self, log_date=None):
         if log_date:

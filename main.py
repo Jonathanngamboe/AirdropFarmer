@@ -1,5 +1,4 @@
 from datetime import datetime
-from asyncio import to_thread
 import asyncio
 from src import ipn_handler
 from src.discord_handler import DiscordHandler
@@ -11,11 +10,8 @@ import json
 from quart import Quart, request
 import hypercorn
 from hypercorn.asyncio import serve
+from src.logger import Logger
 import logging
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 
 class AirdropFarmer:
     def __init__(self):
@@ -35,6 +31,9 @@ ipn_handler_instance = None
 telegram_bot = None
 
 app = Quart(__name__)
+
+# Create an instance of the Logger class for system logs
+system_logger = Logger(app_log=True)
 
 @app.route('/ipn', methods=['POST'])
 async def handle_ipn():
@@ -59,17 +58,17 @@ async def main():
     for i in range(settings.MAX_DB_RETRIES):  # Try to connect to the database
         try:
             await db_manager.init_db()
+            system_logger.add_log("Successfully connected to the database.", logging.INFO)
             print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Successfully connected to the database.")
-            logger.info(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Successfully connected to the database.")
             break
         except ConnectionDoesNotExistError as e:
             if i < settings.MAX_DB_RETRIES - 1:  # Check if it's not the last retry
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database: {e}. Retrying in 5 seconds...")
-                logger.info(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database: {e}. Retrying in 5 seconds...")
+                system_logger.add_log(f"Failed to connect to the database: {e}. Retrying in 5 seconds...", logging.WARNING)
+                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} WARNING - Failed to connect to the database: {e}. Retrying in 5 seconds...")
                 await asyncio.sleep(5)
             else:
-                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...")
-                logger.info(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...")
+                system_logger.add_log(f"Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...", logging.ERROR)
+                print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} ERROR - Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...")
                 return
 
     # Create an AirdropFarmer instance
@@ -87,7 +86,6 @@ async def main():
         await asyncio.gather(run_flask_app(), telegram_bot.start_polling())
     except KeyboardInterrupt:
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Keyboard interrupt detected. Exiting...")
-        logger.info(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Keyboard interrupt detected. Exiting...")
     finally:
         await airdrop_farmer.close()
         await telegram_bot.stop()  # Stop the Telegram bot
