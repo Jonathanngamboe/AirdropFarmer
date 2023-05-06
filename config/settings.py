@@ -42,6 +42,7 @@ IPN_ROUTE = '/ipn'
 SERVER_IP = config("SERVER_IP")
 COINPAYMENTS_IPN_URL = f'http://{SERVER_IP}:{IPN_PORT}{IPN_ROUTE}'
 ADMIN_EMAIL = config("ADMIN_EMAIL")
+FAKE_EMAIL = "airdropfarmer@airdropfarmer.com"
 
 # App
 LOG_MAX_AGE_DAYS = 7

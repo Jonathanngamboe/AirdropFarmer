@@ -262,7 +262,7 @@ class TelegramBot:
         response = self.cp.create_transaction(amount=float(plan_details['price']),
                                               currency1='USD',
                                               currency2=plan_details['currency'],
-                                              buyer_email=settings.ADMIN_EMAIL,
+                                              buyer_email=settings.FAKE_EMAIL,
                                               item_name=plan_details['level'],
                                               ipn_url=settings.COINPAYMENTS_IPN_URL,
                                               )

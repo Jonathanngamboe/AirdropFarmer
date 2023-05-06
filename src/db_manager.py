@@ -112,7 +112,7 @@ class DBManager:
             # If the transaction_id exists, update the existing record
             if existing_transaction:
                 self.sys_logger.add_log(
-                    f"Transaction {existing_transaction} already exists in the database. Updating record.")
+                    f"Transaction {existing_transaction} found in the database. Updating record.")
                 await self.execute_query(
                     '''UPDATE transactions SET user_id = $1, ipn_data = $2 WHERE transaction_id = $3''', user_id,
                     ipn_data_json, transaction_id)
@@ -123,10 +123,11 @@ class DBManager:
                     transaction_id, ipn_data_json)
                 self.sys_logger.add_log(
                     f"Successfully saved transaction {transaction_id} for user {await self.get_user_id_from_txn_id(transaction_id)}")
+            return True
 
         except Exception as e:
             self.sys_logger.add_log(f"Failed to save transaction details for transaction {transaction_id}: {e}")
-            raise e
+            return False
 
     async def update_user_subscription(self, user_id, plan_name, duration):
         # Update the user's subscription in your database

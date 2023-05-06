@@ -48,37 +48,40 @@ class IPNHandler:
         self.sys_logger.add_log(f'IPN received for transaction {transaction_id} with status {status} for user {user_id}', logging.INFO)
 
         if status >= 100 or status == 2:  # Payment is complete or queued for nightly payout
-            await self.save_transaction_details(user_id, transaction_id, ipn_data)
-            await self.update_user_subscription(user_id, ipn_data.get('item_name'), settings.SUBSCRIPTION_DURATION_DAYS)
-            # Send payment received notification
-            await self.on_payment_received(user_id, transaction_id, telegram_bot)
+            transaction_saved = await self.save_transaction_details(user_id, transaction_id, ipn_data)
+            if transaction_saved:
+                await self.update_user_subscription(user_id, ipn_data.get('item_name'), settings.SUBSCRIPTION_DURATION_DAYS)
+                # Send payment received notification
+                await self.on_payment_received(user_id, transaction_id, telegram_bot)
         elif status < 0:  # Payment error
             await self.notify_payment_error(user_id, transaction_id, telegram_bot)
         else:  # Payment is pending
-            await self.save_transaction_details(user_id, transaction_id, ipn_data)
-            await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
+            transaction_saved = await self.save_transaction_details(user_id, transaction_id, ipn_data)
+            if transaction_saved:
+                await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
 
     async def save_transaction_details(self, user_id, transaction_id, ipn_data):
         if user_id is None:
             self.sys_logger.add_log(f"User ID not found for transaction {transaction_id}", logging.ERROR)
-            return
+            return False
         self.sys_logger.add_log(f"Saving transaction details for transaction {transaction_id} for user {user_id}", logging.INFO)
         # Convert the ipn_data to a JSON string
         ipn_data_json = json.dumps(dict(ipn_data))
         # Save transaction details to the database
         await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json)
+        return True
 
-    async def on_payment_received(self, user_telegram_id: int, payment_details: str, telegram_bot):
-        await self.send_payment_notification(user_telegram_id, payment_details, telegram_bot)
+    async def on_payment_received(self, user_id: int, payment_details: str, telegram_bot):
+        await self.send_payment_notification(user_id, payment_details, telegram_bot)
         try:
             await telegram_bot.bot.send_message(
-                chat_id=user_telegram_id,
+                chat_id=user_id,
                 text=f"Your payment for the transaction {payment_details} has been received! Your subscription has been activated.",
             )
-            print(f"Payment notification sent to user {user_telegram_id}")
-            self.sys_logger.add_log(f"Payment notification sent to user {user_telegram_id}", logging.INFO)
+            print(f"Payment notification sent to user {user_id}")
+            self.sys_logger.add_log(f"Payment notification sent to user {user_id}", logging.INFO)
         except Exception as e:
-            self.sys_logger.add_log(f"Error sending payment notification to user {user_telegram_id}: {e}", logging.ERROR)
+            self.sys_logger.add_log(f"Error sending payment notification to user {user_id}: {e}", logging.ERROR)
 
     async def update_user_subscription(self, user_id, plan_name, duration):
         self.sys_logger.add_log(f"Updating user {user_id} subscription to {plan_name} for {duration} days", logging.INFO)
@@ -88,27 +91,26 @@ class IPNHandler:
     async def notify_payment_timeout(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the payment timeout
         message = f"Your payment has timed out without us receiving the required funds. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
-        user_telegram_id = await self.db_manager.get_user_telegram_id(user_id)
-        await self.send_payment_notification(user_telegram_id, message, telegram_bot)
+        await self.send_payment_notification(user_id, message, telegram_bot)
 
     async def notify_payment_error(self, user_id, transaction_id, telegram_bot):
+        self.sys_logger.add_log(f"Payment error for transaction {transaction_id} for user {user_id}", logging.ERROR)
         # Notify the user of the payment error
         message = f"Your payment encountered an error. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
-        user_telegram_id = await self.db_manager.get_user_telegram_id(user_id)
-        await self.send_payment_notification(user_telegram_id, message, telegram_bot)
+        await self.send_payment_notification(user_id, message, telegram_bot)
 
     async def notify_pending_payment(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the pending payment
         message = f"Your payment is pending. We'll notify you once the payment is complete. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
-        user_telegram_id = await self.db_manager.get_user_telegram_id(user_id)
-        await self.send_payment_notification(user_telegram_id, message, telegram_bot)
+        await self.send_payment_notification(user_id, message, telegram_bot)
 
-    async def send_payment_notification(self, user_telegram_id, message, telegram_bot):
+    async def send_payment_notification(self, user_id, message, telegram_bot):
+        self.sys_logger.add_log(f"Sending payment notification to user {user_id}: {message}", logging.INFO)
         try:
             await telegram_bot.bot.send_message(
-                chat_id=user_telegram_id,
+                chat_id=user_id,
                 text=message,
             )
-            self.sys_logger.add_log(f"Payment notification sent to user {user_telegram_id}: {message}", logging.INFO)
+            self.sys_logger.add_log(f"Payment notification sent to user {user_id}: {message}", logging.INFO)
         except Exception as e:
-            self.sys_logger.add_log(f"Error sending payment notification to user {user_telegram_id}: {e}", logging.ERROR)
+            self.sys_logger.add_log(f"Error sending payment notification to user {user_id}: {e}", logging.ERROR)
