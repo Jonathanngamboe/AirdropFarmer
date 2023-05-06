@@ -1,5 +1,7 @@
 # user.py
 import json
+import logging
+
 from config import settings
 from cryptography.fernet import Fernet
 
@@ -132,7 +134,7 @@ class User:
         return subscription_levels[self.subscription_level]
 
     @classmethod
-    async def create_user(cls, telegram_id, username, db_manager):
+    async def create_user(cls, telegram_id, username, db_manager, logger):
         user_data = {
             'telegram_id': telegram_id,
             'username': username,
@@ -141,14 +143,11 @@ class User:
         user = cls(**user_data)
         try:
             await db_manager.execute_query(
-                "INSERT INTO users (telegram_id, username, subscription_level) VALUES ($1, $2, $3)",
-                telegram_id,
-                username,
-                user_data['subscription_level'],
-            )
-            print(f"INFO - User {telegram_id} inserted successfully")  # Debug message
+                "INSERT INTO users (telegram_id, username, subscription_level) VALUES ($1, $2, $3)", telegram_id,
+                username, user_data['subscription_level'])
+            logger.add_log(f"User {telegram_id} inserted successfully", logging.INFO)
         except Exception as e:
-            print(f"ERROR - Error during user insertion: {e}")  # Debug message
+            logger.add_log(f"Error during user insertion: {e}", logging.ERROR)
             raise e
         return user
 

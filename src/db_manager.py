@@ -3,6 +3,7 @@ import datetime
 import asyncpg
 from config import settings
 from datetime import datetime, timedelta
+from src.user import User
 
 
 class DBManager:
@@ -96,25 +97,30 @@ class DBManager:
     async def save_transaction_details(self, user_id, transaction_id, ipn_data_json):
         self.sys_logger.add_log(f"Saving transaction {transaction_id} for user {user_id}")
         try:
+            # Check if the user_id exists in the users table
+            existing_user = await self.fetchval_query('''SELECT telegram_id FROM users WHERE telegram_id = $1''',
+                                                      user_id)
+
+            # If the user_id does not exist, create a new user
+            if not existing_user:
+                user = await User.create_user(user_id, None, self, self.sys_logger)
+
             # Check if the transaction_id already exists in the database
-            existing_transaction = await self.execute_query(
-                '''SELECT transaction_id FROM transactions WHERE transaction_id = $1''',
-                transaction_id
-            )
+            existing_transaction = await self.fetchval_query(
+                '''SELECT transaction_id FROM transactions WHERE transaction_id = $1''', transaction_id)
 
             # If the transaction_id exists, update the existing record
-            if existing_transaction is transaction_id:
-                self.sys_logger.add_log(f"Transaction {existing_transaction} already exists in the database. Updating record.")
+            if existing_transaction:
+                self.sys_logger.add_log(
+                    f"Transaction {existing_transaction} already exists in the database. Updating record.")
                 await self.execute_query(
-                    '''UPDATE transactions SET user_id = $1, ipn_data = $2 WHERE transaction_id = $3''',
-                    user_id, ipn_data_json, transaction_id
-                )
+                    '''UPDATE transactions SET user_id = $1, ipn_data = $2 WHERE transaction_id = $3''', user_id,
+                    ipn_data_json, transaction_id)
             # If the transaction_id does not exist, insert a new record
             else:
                 await self.execute_query(
-                    '''INSERT INTO transactions (user_id, transaction_id, ipn_data) VALUES ($1, $2, $3)''',
-                    user_id, transaction_id, ipn_data_json
-                )
+                    '''INSERT INTO transactions (user_id, transaction_id, ipn_data) VALUES ($1, $2, $3)''', user_id,
+                    transaction_id, ipn_data_json)
                 self.sys_logger.add_log(
                     f"Successfully saved transaction {transaction_id} for user {await self.get_user_id_from_txn_id(transaction_id)}")
 
