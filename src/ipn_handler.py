@@ -49,11 +49,9 @@ class IPNHandler:
 
         if status >= 100 or status == 2:  # Payment is complete or queued for nightly payout
             await self.save_transaction_details(user_id, transaction_id, ipn_data)
-            await self.update_user_subscription(user_id, ipn_data.get('item_name'),
-                                                settings.SUBSCRIPTION_DURATION_DAYS)
-
+            await self.update_user_subscription(user_id, ipn_data.get('item_name'), settings.SUBSCRIPTION_DURATION_DAYS)
             # Send payment received notification
-            await self.on_payment_received(user_id, telegram_bot)
+            await self.on_payment_received(user_id, transaction_id, telegram_bot)
         elif status < 0:  # Payment error
             await self.notify_payment_error(user_id, transaction_id, telegram_bot)
         else:  # Payment is pending
@@ -72,7 +70,7 @@ class IPNHandler:
         try:
             await telegram_bot.bot.send_message(
                 chat_id=user_telegram_id,
-                text=f"Your payment has been received! Details: {payment_details}",
+                text=f"Your payment for the transaction {payment_details} has been received! Your subscription has been activated.",
             )
             print(f"Payment notification sent to user {user_telegram_id}")
             self.sys_logger.add_log(f"Payment notification sent to user {user_telegram_id}", logging.INFO)

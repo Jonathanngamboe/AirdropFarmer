@@ -285,7 +285,7 @@ class TelegramBot:
                 f"• Plan: `{plan_details['level']}`\n"
                 f"• Amount: `{response['result']['amount']}` {plan_details['currency']}\n"
                 f"• Transaction ID: `{transaction_id}`\n"
-                f"• Payment Address:\n\n`{response['result']['address']}`\n\n"
+                f"• Payment Address: `{response['result']['address']}`\n\n"
                 f"Please send the exact amount to the provided address and wait for the confirmation. "
                 f"Your subscription will be activated once the payment is confirmed."
             )
