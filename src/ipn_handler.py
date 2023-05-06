@@ -3,6 +3,7 @@ import hmac
 import hashlib
 from quart import request
 import logging
+import json
 
 
 class IPNHandler:
@@ -61,8 +62,10 @@ class IPNHandler:
             await self.notify_pending_payment(user_id, transaction_id, ipn_data)
 
     async def save_transaction_details(self, user_id, transaction_id, ipn_data):
+        # Convert the ipn_data to a JSON string
+        ipn_data_json = json.dumps(dict(ipn_data))
         # Save transaction details to the database
-        await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data)
+        await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json)
 
     async def on_payment_received(self, user_telegram_id: int, payment_details: str, telegram_bot):
         try:
