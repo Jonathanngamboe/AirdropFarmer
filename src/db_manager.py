@@ -92,12 +92,30 @@ class DBManager:
                 # Handle other exceptions as appropriate
                 raise e
 
-    async def save_transaction_details(self, user_id, transaction_id, ipn_data):
-        # Save transaction details in your database
-        await self.execute_query('''
-            INSERT INTO transactions (user_id, transaction_id, ipn_data)
-            VALUES ($1, $2, $3)
-        ''', user_id, transaction_id, ipn_data)
+    async def save_transaction_details(self, user_id, transaction_id, ipn_data_json):
+        try:
+            # Check if the transaction_id already exists in the database
+            existing_transaction = await self.execute_query(
+                '''SELECT transaction_id FROM transactions WHERE transaction_id = $1''',
+                transaction_id
+            )
+
+            # If the transaction_id exists, update the existing record
+            if existing_transaction:
+                await self.execute_query(
+                    '''UPDATE transactions SET user_id = $1, ipn_data = $2 WHERE transaction_id = $3''',
+                    user_id, ipn_data_json, transaction_id
+                )
+            # If the transaction_id does not exist, insert a new record
+            else:
+                await self.execute_query(
+                    '''INSERT INTO transactions (user_id, transaction_id, ipn_data) VALUES ($1, $2, $3)''',
+                    user_id, transaction_id, ipn_data_json
+                )
+
+        except Exception as e:
+            self.logger.error(f"Failed to save transaction details for transaction {transaction_id}: {e}")
+            raise e
 
     async def update_user_subscription(self, user_id, plan_name, duration):
         # Update the user's subscription in your database
