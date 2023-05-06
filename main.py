@@ -1,6 +1,6 @@
 from datetime import datetime
 import asyncio
-from src import ipn_handler
+from src.ipn_handler import IPNHandler
 from src.discord_handler import DiscordHandler
 from src.telegram_bot import TelegramBot
 import config.settings as settings
@@ -55,7 +55,7 @@ async def main():
     db_manager = DBManager()
 
     # Initialize global variables
-    ipn_handler_instance = ipn_handler.IPNHandler(db_manager)
+    ipn_handler_instance = IPNHandler(db_manager)
     telegram_bot = TelegramBot(settings.TELEGRAM_TOKEN, db_manager)
     print(f"IPNHandler instance created in main: {ipn_handler_instance}")
     system_logger.add_log(f"IPNHandler instance created in main: {ipn_handler_instance}", logging.INFO)
