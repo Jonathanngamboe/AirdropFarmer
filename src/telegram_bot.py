@@ -287,7 +287,13 @@ class TelegramBot:
                 f"Your subscription will be activated once the payment is confirmed."
             )
 
-            await self.bot.send_message(user_id, payment_details, parse_mode='Markdown')
+            # Save the transaction details to the database
+            try:
+                await self.db_manager.save_transaction_details(user_id, transaction_id, response['result'])
+                await self.bot.send_message(user_id, payment_details, parse_mode='Markdown')
+            except Exception as e:
+                print(f"Error saving transaction details: {e}")
+                return None
             return transaction_id
         else:
             print(f"Error creating transaction: {response['error']}")
