@@ -11,6 +11,11 @@ import json
 from quart import Quart, request
 import hypercorn
 from hypercorn.asyncio import serve
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 class AirdropFarmer:
     def __init__(self):
@@ -55,13 +60,16 @@ async def main():
         try:
             await db_manager.init_db()
             print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Successfully connected to the database.")
+            logger.info(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Successfully connected to the database.")
             break
         except ConnectionDoesNotExistError as e:
             if i < settings.MAX_DB_RETRIES - 1:  # Check if it's not the last retry
                 print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database: {e}. Retrying in 5 seconds...")
+                logger.info(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database: {e}. Retrying in 5 seconds...")
                 await asyncio.sleep(5)
             else:
                 print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...")
+                logger.info(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Failed to connect to the database after {settings.MAX_DB_RETRIES} attempts. Exiting...")
                 return
 
     # Create an AirdropFarmer instance
@@ -79,6 +87,7 @@ async def main():
         await asyncio.gather(run_flask_app(), telegram_bot.start_polling())
     except KeyboardInterrupt:
         print(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Keyboard interrupt detected. Exiting...")
+        logger.info(f"{datetime.now().strftime('%d-%m-%Y %H:%M:%S')} INFO - Keyboard interrupt detected. Exiting...")
     finally:
         await airdrop_farmer.close()
         await telegram_bot.stop()  # Stop the Telegram bot

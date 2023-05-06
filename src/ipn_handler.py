@@ -2,7 +2,10 @@ from config import settings
 import hmac
 import hashlib
 from quart import request
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class IPNHandler:
     def __init__(self, db_manager):
@@ -13,16 +16,19 @@ class IPNHandler:
 
     async def handle_ipn(self, ipn_data, telegram_bot):
         print(f"IPN received: {ipn_data}")
+        logger.info(f"IPN received: {ipn_data}")
         # Verify IPN mode
         ipn_mode = ipn_data.get("ipn_mode")
         if ipn_mode != "hmac":
             print("IPN Error: IPN Mode is not HMAC")
+            logger.error("IPN Error: IPN Mode is not HMAC")
             return "IPN Error: IPN Mode is not HMAC"
 
         # Verify HMAC signature
         hmac_signature = request.headers.get("HTTP_HMAC")
         if not hmac_signature:
             print("IPN Error: No HMAC signature sent.")
+            logger.error("IPN Error: No HMAC signature sent.")
             return "IPN Error: No HMAC signature sent."
 
         request_data = await request.get_data()
@@ -30,12 +36,14 @@ class IPNHandler:
 
         if not hmac.compare_digest(generated_hmac, hmac_signature):
             print("IPN Error: HMAC signature does not match")
+            logger.error("IPN Error: HMAC signature does not match")
             return "IPN Error: HMAC signature does not match"
 
         # Load variables
         merchant_id = ipn_data.get("merchant")
         if merchant_id != self.cp_merchant_id:
             print("IPN Error: No or incorrect Merchant ID passed")
+            logger.error("IPN Error: No or incorrect Merchant ID passed")
             return "IPN Error: No or incorrect Merchant ID passed"
 
         status = int(ipn_data.get('status'))
@@ -44,6 +52,7 @@ class IPNHandler:
         user_id = await self.db_manager.get_user_id_from_txn_id(transaction_id)
 
         print(f'IPN received for transaction {transaction_id} with status {status} for user {user_id}')
+        logger.info(f'IPN received for transaction {transaction_id} with status {status} for user {user_id}')
 
         if status >= 100 or status == 2:  # Payment is complete or queued for nightly payout
             await self.save_transaction_details(user_id, transaction_id, ipn_data)
