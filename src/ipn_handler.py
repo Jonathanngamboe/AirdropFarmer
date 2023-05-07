@@ -40,35 +40,41 @@ class IPNHandler:
             self.sys_logger.add_log("IPN Error: No or incorrect Merchant ID passed", logging.ERROR)
             return "IPN Error: No or incorrect Merchant ID passed"
 
-        status = int(ipn_data.get('status'))
         transaction_id = ipn_data.get('txn_id')
-
         user_id = await self.db_manager.get_user_id_from_txn_id(transaction_id)
+        if user_id is None:
+            self.sys_logger.add_log(f"IPN Error: No user found for transaction {transaction_id}", logging.ERROR)
+            return "IPN Error: No user found for transaction"
 
-        self.sys_logger.add_log(f'IPN received for transaction {transaction_id} with status {status} for user {user_id}', logging.INFO)
+        self.sys_logger.add_log(
+            f'IPN received for transaction {transaction_id} with status {ipn_data.get("status")} for user {user_id}',
+            logging.INFO)
 
-        if status >= 100 or status == 2:  # Payment is complete or queued for nightly payout
-            transaction_saved = await self.save_transaction_details(user_id, transaction_id, ipn_data)
-            if transaction_saved:
-                await self.update_user_subscription(user_id, ipn_data.get('item_name'), settings.SUBSCRIPTION_DURATION_DAYS)
-                # Send payment received notification
-                await self.process_ipn_request(transaction_id, ipn_data, telegram_bot)
-        elif status < 0:  # Payment error
-            await self.notify_payment_error(user_id, transaction_id, telegram_bot)
-        else:  # Payment is pending
-            transaction_saved = await self.save_transaction_details(user_id, transaction_id, ipn_data)
-            if transaction_saved:
-                await self.process_ipn_request(transaction_id, ipn_data, telegram_bot)
+        # Save the transaction details to the database
+        transaction_saved = await self.save_transaction_details(user_id, transaction_id, ipn_data)
+        if transaction_saved:
+            await self.process_ipn_request(transaction_id, ipn_data, user_id, telegram_bot)
 
-    async def process_ipn_request(self, transaction_id, ipn_data, telegram_bot):
+    async def process_ipn_request(self, transaction_id, ipn_data, user_id, telegram_bot):
         # Check if the transaction has already been processed
         transaction = await self.db_manager.get_transaction_by_id(transaction_id)
         if transaction:
-            self.sys_logger.add_log(f"Duplicate IPN request for transaction {transaction_id} - ignoring.", logging.WARNING)
+            self.sys_logger.add_log(f"Duplicate IPN request for transaction {transaction_id} - ignoring.",
+                                    logging.WARNING)
             return
 
-        # Process the IPN request
-        await self.handle_ipn(ipn_data, telegram_bot)
+        # Process the IPN request based on the status code
+        status = int(ipn_data.get('status'))
+
+        if status >= 100 or status == 2:  # Payment is complete or queued for nightly payout
+            await self.update_user_subscription(user_id, ipn_data.get('item_name'), settings.SUBSCRIPTION_DURATION_DAYS)
+            await self.notify_payment_complete(user_id, transaction_id, telegram_bot)
+        elif status == -1:  # Payment cancelled/Timed out
+            await self.notify_payment_timeout(user_id, transaction_id, telegram_bot)
+        elif status == -2: # Payment refunded
+            await self.notify_payment_refunded(user_id, transaction_id, telegram_bot)
+        else: # Payment is pending
+            await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
 
     async def save_transaction_details(self, user_id, transaction_id, ipn_data):
         if user_id is None:
@@ -107,6 +113,16 @@ class IPNHandler:
         self.sys_logger.add_log(f"Payment error for transaction {transaction_id} for user {user_id}", logging.ERROR)
         # Notify the user of the payment error
         message = f"Your payment encountered an error. If you need help, please type /contact to contact the support team and send your transaction ID: {transaction_id}"
+        await self.send_payment_notification(user_id, message, telegram_bot)
+
+    async def notify_payment_refunded(self, user_id, transaction_id, telegram_bot):
+        # Notify the user of the payment refund
+        message = f"Your payment for transaction {transaction_id} has been refunded. This is usually due to sending the wrong amount. If you need help, please type /contact to contact the support team and send your transaction ID: {transaction_id}"
+        await self.send_payment_notification(user_id, message, telegram_bot)
+
+    async def notify_payment_complete(self, user_id, transaction_id, telegram_bot):
+        # Notify the user of the payment completion
+        message = f"Your payment for transaction {transaction_id} has been received! Your subscription has been activated. Type /subscription to view your subscription details."
         await self.send_payment_notification(user_id, message, telegram_bot)
 
     async def notify_pending_payment(self, user_id, transaction_id, telegram_bot):
