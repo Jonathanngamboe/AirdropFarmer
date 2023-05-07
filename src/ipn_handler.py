@@ -75,6 +75,8 @@ class IPNHandler:
             await self.notify_payment_timeout(user_id, transaction_id, telegram_bot)
         elif status == -2: # Payment refunded
             await self.notify_payment_refunded(user_id, transaction_id, telegram_bot)
+        elif status <= -3: # Payment error
+            await self.notify_payment_error(user_id, transaction_id, telegram_bot)
         else: # Payment is pending
             await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
 
