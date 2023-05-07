@@ -136,10 +136,19 @@ class TelegramBot:
         if user_id is None:
             user_id = message.from_user.id
         message_text = "🚀 *Airdrop Farmer Subscription Plans*\n\n"
+        # Current user subscription
+        user = await self.get_user(user_id)
+        if user.subscription_level is not None:
+            message_text += f"🔸 *Current Plan*: {user.subscription_level}\n\n"
+        # Available plans
         for plan in settings.SUBSCRIPTION_PLANS:
             message_text += f"🔹 *{plan['level']}*\n"
             if isinstance(plan['price'], (int, float)):
-                message_text += f"Price (Monthly): ${plan['price']} (Excl. fees)\n"
+                message_text += f"Price (Monthly): ${plan['price']}"
+                if plan['price'] is not 0:
+                    message += "(Excl. fees)\n"
+                else:
+                    message += "\n"
             else:
                 message_text += f"Price: {plan['price']}\n"
             message_text += f"Wallets: {plan['wallets']}\n"

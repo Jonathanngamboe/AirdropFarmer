@@ -150,3 +150,28 @@ class DBManager:
             SELECT telegram_id FROM users
             WHERE id=$1
         ''', user_id)
+
+    async def get_user_subscription_expiry(self, user_id):
+        return await self.fetchval_query('''
+            SELECT subscription_expiry FROM users
+            WHERE id=$1
+        ''', user_id)
+
+    async def get_transaction_by_id(self, transaction_id):
+        async with self.pool.acquire() as connection:
+            try:
+                result = await connection.fetchrow('''
+                    SELECT * FROM transactions WHERE transaction_id = $1
+                ''', transaction_id)
+                return result
+            except asyncpg.exceptions.UndefinedTableError:
+                await self.init_db()
+            except asyncpg.exceptions.InterfaceError:
+                # Reconnect and retry if a connection error occurs
+                result = await connection.fetchrow('''
+                    SELECT * FROM transactions WHERE transaction_id = $1
+                ''', transaction_id)
+                return result
+            except Exception as e:
+                # Handle other exceptions as appropriate
+                raise e
