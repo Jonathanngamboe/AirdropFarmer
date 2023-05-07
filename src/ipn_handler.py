@@ -58,7 +58,9 @@ class IPNHandler:
     async def process_ipn_request(self, transaction_id, ipn_data, user_id, telegram_bot):
         # Check if the transaction has already been processed
         transaction = await self.db_manager.get_transaction_by_id(transaction_id)
-        if transaction:
+        self.sys_logger.add_log(f"Transaction {transaction_id} status: {transaction}", logging.INFO)
+        self.sys_logger.add_log(f"IPN data: {ipn_data}", logging.INFO)
+        if transaction == ipn_data:
             self.sys_logger.add_log(f"Duplicate IPN request for transaction {transaction_id} - ignoring.",
                                     logging.WARNING)
             return
