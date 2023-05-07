@@ -145,10 +145,10 @@ class TelegramBot:
             message_text += f"🔹 *{plan['level']}*\n"
             if isinstance(plan['price'], (int, float)):
                 message_text += f"Price (Monthly): ${plan['price']}"
-                if plan['price'] is not 0:
-                    message += "(Excl. fees)\n"
+                if plan['price'] != 0:
+                    message_text += " (Excl. fees)\n"
                 else:
-                    message += "\n"
+                    message_text += "\n"
             else:
                 message_text += f"Price: {plan['price']}\n"
             message_text += f"Wallets: {plan['wallets']}\n"
