@@ -56,15 +56,6 @@ class IPNHandler:
             await self.process_ipn_request(transaction_id, ipn_data, user_id, telegram_bot)
 
     async def process_ipn_request(self, transaction_id, ipn_data, user_id, telegram_bot):
-        # Check if the transaction has already been processed
-        transaction = await self.db_manager.get_transaction_by_id(transaction_id)
-        self.sys_logger.add_log(f"Transaction {transaction_id} status: {transaction}", logging.INFO)
-        self.sys_logger.add_log(f"IPN data: {ipn_data}", logging.INFO)
-        if transaction == ipn_data:
-            self.sys_logger.add_log(f"Duplicate IPN request for transaction {transaction_id} - ignoring.",
-                                    logging.WARNING)
-            return
-
         # Process the IPN request based on the status code
         status = int(ipn_data.get('status'))
 
@@ -90,18 +81,6 @@ class IPNHandler:
         # Save transaction details to the database
         await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json)
         return True
-
-    async def on_payment_received(self, user_id: int, payment_details: str, telegram_bot):
-        await self.send_payment_notification(user_id, payment_details, telegram_bot)
-        try:
-            await telegram_bot.bot.send_message(
-                chat_id=user_id,
-                text=f"Your payment for the transaction {payment_details} has been received! Your subscription has been activated.",
-            )
-            print(f"Payment notification sent to user {user_id}")
-            self.sys_logger.add_log(f"Payment notification sent to user {user_id}", logging.INFO)
-        except Exception as e:
-            self.sys_logger.add_log(f"Error sending payment notification to user {user_id}: {e}", logging.ERROR)
 
     async def update_user_subscription(self, user_id, plan_name, duration):
         self.sys_logger.add_log(f"Updating user {user_id} subscription to {plan_name} for {duration} days", logging.INFO)
@@ -131,7 +110,7 @@ class IPNHandler:
 
     async def notify_pending_payment(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the pending payment
-        message = f"Your payment is pending. We'll notify you once the payment is complete. If you need help, please type /contact to contact our support team and send them your transaction ID: {transaction_id}"
+        message = f"Your payment is pending. We'll notify you once the payment is complete. If you need help, please type /contact to contact the support team and send your transaction ID: {transaction_id}"
         await self.send_payment_notification(user_id, message, telegram_bot)
 
     async def send_payment_notification(self, user_id, message, telegram_bot):

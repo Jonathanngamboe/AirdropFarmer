@@ -103,7 +103,7 @@ class DBManager:
 
             # If the user_id does not exist, create a new user
             if not existing_user:
-                user = await User.create_user(user_id, None, self, self.sys_logger)
+                await User.create_user(user_id, None, self, self.sys_logger)
 
             # Check if the transaction_id already exists in the database
             existing_transaction = await self.fetchval_query(
@@ -135,7 +135,7 @@ class DBManager:
         await self.execute_query('''
             UPDATE users
             SET subscription_level=$1, subscription_expiry=$2
-            WHERE id=$3
+            WHERE telegram_id=$3
         ''', plan_name, subscription_expiry, user_id)
 
     async def get_user_id_from_txn_id(self, txn_id):
@@ -154,7 +154,7 @@ class DBManager:
     async def get_user_subscription_expiry(self, user_id):
         return await self.fetchval_query('''
             SELECT subscription_expiry FROM users
-            WHERE id=$1
+            WHERE telegram_id=$1
         ''', user_id)
 
     async def get_transaction_by_id(self, transaction_id):

@@ -30,7 +30,7 @@ BASE_GOERLI_ENDPOINT = "https://base-goerli.public.blastapi.io"
 BASE_GOERLI_WETH_ADDRESS = "0x4200000000000000000000000000000000000006"
 
 DEFAULT_TRANSACTION_TIMEOUT = 120
-GAS_PRICE_INCREASE = 1.2
+GAS_price_INCREASE = 1.2
 
 # Coinpayments API
 COINPAYMENTS_PUBLIC_KEY = config("COINPAYMENTS_PUBLIC_KEY")
@@ -50,33 +50,38 @@ ENCRYPTION_KEY = config("ENCRYPTION_KEY")
 AIRDROP_FARMER_DATABASE_URL = config("AIRDROP_FARMER_DATABASE_URL")
 LOG_PATH = 'logs'
 SUBSCRIPTION_DURATION_DAYS = 30
+# It's important to keep the order of the plans
 SUBSCRIPTION_PLANS = [
     {
         'level': 'Explorer (Free Plan)',
         'features': ['Access to basic airdrops', 'Single wallet'],
-        'price': 0,
+        'price_monthly': 0,
+        'price_yearly': 0,
         'wallets': 1,
         'airdrop_limit': 1,
     },
     {
-        'level': 'Adventurer (Basic Plan)',
+        'level': '🤓 Adventurer (Basic Plan)',
         'features': ['Access to premium airdrops', 'Multiple wallets (up to 5 wallets)', 'Access to detailed log files', 'Priority support'],
-        'price': 9.99,
+        'price_monthly': 9.99,
+        'price_yearly': 99.99,
         'wallets': 5,
         'airdrop_limit': 10,
     },
     {
-        'level': 'Conqueror (Pro Plan)',
+        'level': '🧐 Conqueror (Pro Plan)',
         'features': ['Priority access to new airdrops', 'Multiple wallets (up to 100 wallets)', 'Access to detailed log files', 'Discord and Twitter automation', 'Priority support'],
-        'price': 19.99,
+        'price_monthly': 19.99,
+        'price_yearly': 199.99,
         'wallets': 100,
         'airdrop_limit': 200,
         'most_popular': True,
     },
     {
-        'level': 'Elite (Enterprise Plan)',
+        'level': '🤑 Elite (Enterprise Plan)',
         'features': ['Exclusive airdrops and promotions', 'Unlimited wallets', 'Access to detailed log files', 'Discord and Twitter automation', 'Priority access to new features', 'Dedicated support'],
-        'price': 'Custom',
+        'price_monthly': 'Custom',
+        'price_yearly': 'Custom',
         'airdrop_limit': None,
         'wallets': '♾ (Unlimited)',
     },

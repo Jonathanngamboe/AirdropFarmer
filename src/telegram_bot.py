@@ -18,6 +18,7 @@ from src.user import User
 from aiogram.types import InputFile
 from coinpayments import CoinPaymentsAPI
 import re
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
 
@@ -40,7 +41,6 @@ class TelegramBot:
         self.contact_text = "If you need help using the bot, please visit our wiki:\n\nhttps://defi-bots.gitbook.io/airdrop-farmer/\n\n📤 If you have a specific question or want to discuss your suscription plan, click the button below."
         self.cp = CoinPaymentsAPI(public_key=settings.COINPAYMENTS_PUBLIC_KEY, private_key=settings.COINPAYMENTS_PRIVATE_KEY)
         self.sys_logger = system_logger
-
 
     def register_handlers(self):
         self.dp.register_message_handler(self.cmd_start, Command(["start", "help"]))
@@ -138,19 +138,27 @@ class TelegramBot:
         message_text = "🚀 *Airdrop Farmer Subscription Plans*\n\n"
         # Current user subscription
         user = await self.get_user(user_id)
+        current_plan_index = 0
         if user.subscription_level is not None:
             message_text += f"🔸 *Current Plan*: {user.subscription_level}\n\n"
+            current_plan_index = next(
+                (i for i, plan in enumerate(settings.SUBSCRIPTION_PLANS) if plan['level'] == user.subscription_level),
+                0)
+            # Show the expiry date
+            if user.subscription_expiry is not None:
+                message_text += f"🔸 *Expiry Date*: {user.subscription_expiry.strftime('%d %b %Y')}\n\n"
+
         # Available plans
         for plan in settings.SUBSCRIPTION_PLANS:
             message_text += f"🔹 *{plan['level']}*\n"
-            if isinstance(plan['price'], (int, float)):
-                message_text += f"Price (Monthly): ${plan['price']}"
-                if plan['price'] != 0:
+            if isinstance(plan['price_monthly'], (int, float)):
+                message_text += f"Price (Monthly): ${plan['price_monthly']}"
+                if plan['price_monthly'] != 0:
                     message_text += " (Excl. fees)\n"
                 else:
                     message_text += "\n"
             else:
-                message_text += f"Price: {plan['price']}\n"
+                message_text += f"Price: {plan['price_monthly']}\n"
             message_text += f"Wallets: {plan['wallets']}\n"
             message_text += f"Max. Airdrops: {plan['airdrop_limit']}\n"
             message_text += "Features:\n"
@@ -160,14 +168,14 @@ class TelegramBot:
                 message_text += "💥 *Most Popular*\n"
             message_text += "\n"
 
-        message_text += "Choose your plan:"
+        message_text += "Choose a plan to subscribe to:"
 
-        keyboard = InlineKeyboardMarkup().add(
-            InlineKeyboardButton("🤓 Adventurer", callback_data="menu:choose_currency:Adventurer"),
-            InlineKeyboardButton("🧐 Conqueror", callback_data="menu:choose_currency:Conqueror"),
-            InlineKeyboardButton("🤑 Elite", callback_data="send_transaction_details:Elite"),
-            InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"),
-        )
+        keyboard = InlineKeyboardMarkup()
+        for i, plan in enumerate(settings.SUBSCRIPTION_PLANS[current_plan_index:]):
+            if i >= current_plan_index and i != 0: # Only show the plans after the current one and not the first one (free plan)
+                keyboard.add(InlineKeyboardButton(f"{plan['level'].split('(', 1)[0].strip()}", callback_data=f"menu:choose_subscription_type:{plan['level']}"))
+
+        keyboard.add(InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"))
 
         if message_id:
             await self.bot.edit_message_text(
@@ -185,8 +193,26 @@ class TelegramBot:
                 parse_mode=types.ParseMode.MARKDOWN
             )
 
-    async def choose_currency(self, user_id, message_id, plan):
-        message_text = "Choose the currency you want to pay with:"
+    async def choose_subscription_type(self, user_id, message_id, plan):
+        message_text = f"Select the subscription type for the *{plan}* plan:"
+        buttons_row1 = [
+            {"text": "📅 Monthly", "callback_data": f"menu:choose_currency:{plan}:monthly"},
+            {"text": "📆 Annual", "callback_data": f"menu:choose_currency:{plan}:annual"},
+        ]
+        buttons_row2 = [
+            {"text": "🔙 Back to subscription", "callback_data": "menu:manage_subscription"},
+        ]
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons_row1, buttons_row2])
+        await self.bot.edit_message_text(
+            chat_id=user_id,
+            message_id=message_id,
+            text=message_text,
+            reply_markup=keyboard,
+            parse_mode=types.ParseMode.MARKDOWN,
+        )
+
+    async def choose_currency(self, user_id, message_id, duration, plan):
+        message_text = f"Select the currency for the *{plan}* ({duration}) plan:"
 
         # Get available coins
         coins = await self.get_available_coins()
@@ -201,9 +227,9 @@ class TelegramBot:
         # Generate the inline keyboard
         keyboard = InlineKeyboardMarkup(row_width=2)
         for coin in unique_coins:
-            keyboard.add(InlineKeyboardButton(f"{coin}", callback_data=f"menu:choose_network:{plan}:{coin}"))
+            keyboard.add(InlineKeyboardButton(f"{coin}", callback_data=f"menu:choose_network:{plan}:{duration}:{coin}"))
 
-        keyboard.add(InlineKeyboardButton("🔙 Back to subscription", callback_data="menu:manage_subscription"))
+        keyboard.add(InlineKeyboardButton("🔙 Back to frequency", callback_data=f"menu:choose_subscription_type:{plan}"))
 
         if message_id:
             await self.bot.edit_message_text(
@@ -221,7 +247,7 @@ class TelegramBot:
                 parse_mode=types.ParseMode.MARKDOWN
             )
 
-    async def choose_network(self, user_id, message_id, plan, coin_name):
+    async def choose_network(self, user_id, message_id, plan, duration, coin_name):
         message_text = f"Choose the network for {coin_name}:"
         # TODO: Only add networks that will avoid the error "Amount too small, there would be nothing left!" due to transaction fees
         # TODO: Retrieve the full token name directly to avoid calling the Coinpayment API twice in a row
@@ -247,9 +273,9 @@ class TelegramBot:
             else:
                 network_to_show = token
 
-            keyboard.add(InlineKeyboardButton(f"{network_to_show}", callback_data=f"send_transaction_details:{plan}:{code}"))
+            keyboard.add(InlineKeyboardButton(f"{network_to_show}", callback_data=f"send_transaction_details:{plan}:{duration[0]}:{code}"))
 
-        keyboard.add(InlineKeyboardButton("🔙 Back to choose currency", callback_data=f"menu:choose_currency:{plan}"))
+        keyboard.add(InlineKeyboardButton("🔙 Back to choose currency", callback_data=f"menu:choose_currency:{plan}:{duration}"))
 
         await self.bot.edit_message_text(
             chat_id=user_id,
@@ -259,16 +285,49 @@ class TelegramBot:
             parse_mode=types.ParseMode.MARKDOWN
         )
 
-    async def send_transaction_details(self, user_id, chosen_plan, chosen_coin):
+    async def send_transaction_details(self, user_id, chosen_plan, duration, chosen_coin):
+        user = await self.get_user(user_id)
+
+        if duration == 'm':  # Monthly
+            duration = '1 month'
+            duration_days = 30
+            price_key = 'price_monthly'
+        else:
+            duration = '1 year'
+            duration_days = 365
+            price_key = 'price_yearly'
+
         # Get the subscription plan details
-        plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if p['level'].split()[0] == chosen_plan), None)
-        if not plan_details or plan_details.get('price') is None:
+        plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if
+                             p['level'].split('(', 1)[0].strip() == chosen_plan.split('(', 1)[0].strip()), None)
+        if not plan_details or plan_details.get(price_key) is None:
             self.bot.send_message(user_id, "Invalid subscription plan. Go back and try again.")
             return None
 
+        # Calculate the price and discount for subscription upgrade
+        discount = 0
+        if user.subscription_level == chosen_plan:
+            # Extend the current subscription
+            remaining_days = (user.subscription_expiry - datetime.now()).days
+            duration_days += remaining_days
+        elif user.subscription_level is not None and user.subscription_expiry is not None:
+            # Upgrade to a more expensive subscription
+            current_plan = next((p for p in settings.SUBSCRIPTION_PLANS if p['level'] == user.subscription_level), None)
+            remaining_days = (user.subscription_expiry - datetime.now()).days
+
+            old_daily_rate = current_plan[price_key] / duration_days
+            remaining_value = remaining_days * old_daily_rate
+
+            new_daily_rate = plan_details[price_key] / duration_days
+            new_remaining_value = remaining_days * new_daily_rate
+
+            discount = remaining_value - new_remaining_value if new_remaining_value > remaining_value else 0
+
         plan_details['currency'] = chosen_coin
+        plan_details['price_with_discount'] = plan_details[price_key] - discount
+
         # Create a CoinPayments transaction
-        response = self.cp.create_transaction(amount=float(plan_details['price']),
+        response = self.cp.create_transaction(amount=float(plan_details['price_with_discount']),
                                               currency1='USD',
                                               currency2=plan_details['currency'],
                                               buyer_email=settings.FAKE_EMAIL,
@@ -287,16 +346,29 @@ class TelegramBot:
         if response and response['error'] == 'ok':
             transaction_id = response['result']['txn_id']
 
-            # Send the payment details to the user
+            # Send the payment details to the user and if the user has a discount, show it
             payment_details = (
-                f"💵 *Subscription Payment*\n\n"
-                f"• User ID: `{user_id}`\n"
-                f"• Plan: `{plan_details['level']}`\n"
-                f"• Amount: `{response['result']['amount']}` {plan_details['currency']}\n"
-                f"• Transaction ID: `{transaction_id}`\n"
-                f"• Payment Address: `{response['result']['address']}`\n\n"
-                f"Please send the exact amount to the provided address and wait for the confirmation. "
-                f"Your subscription will be activated once the payment is confirmed."
+                "💵 *Subscription Payment*\n\n"
+                "• User ID: `{}`\n"
+                "• Plan: `{}`\n"
+                "• Duration: `{}`\n"
+                "• Amount: `{}` {}\n"
+                "{}"
+                "• Transaction ID: `{}`\n"
+                "• Payment Address: `{}`\n\n"
+                "Please send the exact amount to the provided address and wait for the confirmation. "
+                "Your subscription will be activated once the payment is confirmed."
+            ).format(
+                user_id,
+                plan_details['level'],
+                duration,
+                response['result']['amount'],
+                plan_details['currency'],
+                "• Discount: `{}` {}\n• Total: `{}` {}\n".format(discount, plan_details['currency'],
+                                                                 response['result']['amount'] - discount,
+                                                                 plan_details['currency']) if discount > 0 else "",
+                transaction_id,
+                response['result']['address']
             )
 
             # Save the transaction details to the database
@@ -340,11 +412,17 @@ class TelegramBot:
                 await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
             elif params[0] == 'manage_subscription':
                 await self.cmd_show_subscriptions_plans(user_id=query.from_user.id, message_id=query.message.message_id)
+            elif params[0] == 'choose_subscription_type':
+                # Searches for plans that have "level" params[1] and price_monthly is of type str
+                if next((p for p in settings.SUBSCRIPTION_PLANS if p['level'] == params[1] and isinstance(p['price_monthly'], (str))), None):
+                    await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
+                else:
+                    await self.choose_subscription_type(user_id=query.from_user.id, message_id=query.message.message_id, plan=params[1])
             elif params[0] == 'choose_currency':
-                await self.choose_currency(user_id=query.from_user.id, plan=params[1], message_id=query.message.message_id)
+                await self.choose_currency(user_id=query.from_user.id, plan=params[1], duration=params[2], message_id=query.message.message_id)
             elif params[0] == 'choose_network':
-                await self.choose_network(user_id=query.from_user.id, message_id=query.message.message_id, plan=params[1],
-                                          coin_name=params[2])
+                await self.choose_network(user_id=query.from_user.id, message_id=query.message.message_id, plan=params[1], duration=params[2], coin_name=params[3])
+
             else:
                 await self.send_menu(query.from_user.id, params[0], message_id=query.message.message_id)
         elif action == 'add_airdrop':
@@ -368,10 +446,7 @@ class TelegramBot:
             await self.bot.send_message(user_id, "Please type your message in the chat or type 'cancel' to cancel:")
             self.dp.register_message_handler(self.cmd_send_contact_message, lambda msg: msg.from_user.id == user_id)
         elif action == "send_transaction_details":
-            if params[0] == 'Elite':
-                await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
-            else:
-                await self.send_transaction_details(query.from_user.id, chosen_plan=params[0], chosen_coin=params[1])
+            await self.send_transaction_details(query.from_user.id, chosen_plan=params[0], duration=params[1], chosen_coin=params[2])
 
         await self.retry_request(self.bot.answer_callback_query, query.id)
 
