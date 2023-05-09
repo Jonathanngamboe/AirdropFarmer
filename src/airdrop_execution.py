@@ -7,7 +7,7 @@ import os
 import importlib.util
 
 class AirdropExecution:
-    def __init__(self, discord_handler, logger, wallets):
+    def __init__(self, discord_handler=None, logger=None, wallets=None):
         self.last_executed = {}  # Dictionary to store the last execution time
         self.airdrop_info = self.load_airdrop_files() # Load the airdrop files
         # Check if there is at least one Discord action
@@ -39,7 +39,12 @@ class AirdropExecution:
 
     # Function to get the active airdrops
     def get_active_airdrops(self):
-        return [airdrop for airdrop in self.airdrop_info if airdrop["isActivated"]]
+        # Show the active airdrops
+        active_airdrops = []
+        for airdrop in self.airdrop_info:
+            if airdrop["isActivated"]:
+                active_airdrops.append(airdrop)
+        return active_airdrops
 
     async def execute_single_airdrop(self, airdrop):
         message = "------------------------"

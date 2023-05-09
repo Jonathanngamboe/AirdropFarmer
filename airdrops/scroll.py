@@ -2,7 +2,7 @@
 
 airdrop_info = {
     "name": "Scroll",
-    "isActivated": False,
+    "isActivated": True,
     "actions": [
             {
             "platform": "defi",

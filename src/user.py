@@ -8,7 +8,7 @@ from cryptography.fernet import Fernet
 class User:
     def __init__(self, telegram_id, username, subscription_level, airdrops=None,
                  twitter_credentials=None, discord_credentials=None, session_logs=None,
-                 encrypted_wallets=None, subscription_expiry=None):  # Add this line
+                 encrypted_wallets=None, subscription_expiry=None):
         self.telegram_id = telegram_id
         self.username = username
         self.subscription_level = subscription_level
@@ -20,35 +20,31 @@ class User:
         self.subscription_expiry = subscription_expiry
 
     async def add_airdrop(self, airdrop, db_manager):
-        existing_airdrops = await db_manager.fetch_query(
-            "SELECT airdrops FROM users WHERE telegram_id = $1", self.telegram_id
-        )
+        existing_airdrops = await self.get_airdrops(db_manager)
         if airdrop not in existing_airdrops:
             self.airdrops.append(airdrop)
+            airdrops_json = json.dumps(self.airdrops)  # Convert the list of airdrops to a json
             await db_manager.execute_query(
-                "UPDATE users SET airdrops = $1 WHERE telegram_id = $2",
-                list(self.airdrops), self.telegram_id
+                "UPDATE users SET airdrops = $1 WHERE telegram_id = $2", airdrops_json, self.telegram_id
             )
 
     async def remove_airdrop(self, airdrop, db_manager):
-        existing_airdrops_record = await db_manager.fetch_query(
-            "SELECT airdrops FROM users WHERE telegram_id = $1", self.telegram_id
-        )
-        if existing_airdrops_record is not None:
-            existing_airdrops = existing_airdrops_record[0]
-        else:
-            existing_airdrops = []
+        existing_airdrops = await self.get_airdrops(db_manager)
         if airdrop in existing_airdrops:
-            existing_airdrops.remove(airdrop)
+            self.airdrops.remove(airdrop)
+            airdrops_json = json.dumps(self.airdrops)  # Convert the list of airdrops to a json
             await db_manager.execute_query(
-                "UPDATE users SET airdrops = $1 WHERE telegram_id = $2", existing_airdrops, self.telegram_id
+                "UPDATE users SET airdrops = $1 WHERE telegram_id = $2", airdrops_json, self.telegram_id
             )
 
     async def get_airdrops(self, db_manager):
         results = await db_manager.fetch_query(
             "SELECT airdrops FROM users WHERE telegram_id = $1 AND airdrops IS NOT NULL", self.telegram_id
         )
-        return results[0] if results else []
+        if results:
+            airdrops = json.loads(results[0]['airdrops'])
+            return airdrops if airdrops else []
+        return []
 
     async def add_wallet(self, wallet, db_manager):
         decrypted_wallets = await self.get_wallets(db_manager)
@@ -56,13 +52,11 @@ class User:
         if wallet not in decrypted_wallets:
             decrypted_wallets.append(wallet)
             fernet = Fernet(settings.ENCRYPTION_KEY)
-            encrypted_wallets = []
-            for decrypted_wallet in decrypted_wallets:
-                encrypted_wallets.append(fernet.encrypt(json.dumps(decrypted_wallet).encode()).decode())
+            encrypted_wallets = fernet.encrypt(json.dumps(decrypted_wallets).encode()).decode()
 
             result = await db_manager.execute_query(
                 "UPDATE users SET encrypted_wallets = $1 WHERE telegram_id = $2",
-                json.dumps(encrypted_wallets), self.telegram_id
+                encrypted_wallets, self.telegram_id
             )
             return True
         else:
@@ -75,20 +69,30 @@ class User:
         if wallet in decrypted_wallets:
             decrypted_wallets.remove(wallet)
             fernet = Fernet(settings.ENCRYPTION_KEY)
-            encrypted_wallets = []
-            for decrypted_wallet in decrypted_wallets:
-                encrypted_wallets.append(fernet.encrypt(json.dumps(decrypted_wallet).encode()).decode())
-
-            encrypted_wallets_json = json.dumps(encrypted_wallets)
+            encrypted_wallets = fernet.encrypt(json.dumps(decrypted_wallets).encode()).decode()
 
             await db_manager.execute_query(
                 "UPDATE users SET encrypted_wallets = $1 WHERE telegram_id = $2",
-                encrypted_wallets_json, self.telegram_id
+                encrypted_wallets, self.telegram_id
             )
             return True
         else:
             return False
             # print(f"Wallet not found: {wallet}") # Debug
+
+    async def get_wallets(self, db_manager):
+        result = await db_manager.fetch_query(
+            "SELECT encrypted_wallets FROM users WHERE telegram_id = $1", self.telegram_id
+        )
+
+        if not result or result[0]['encrypted_wallets'] is None:
+            return []
+
+        encrypted_wallets = result[0]['encrypted_wallets']
+        fernet = Fernet(settings.ENCRYPTION_KEY)
+        decrypted_wallets = json.loads(fernet.decrypt(encrypted_wallets.encode()).decode())
+
+        return decrypted_wallets
 
     async def get_wallets(self, db_manager):
         result = await db_manager.fetch_query(
@@ -158,15 +162,13 @@ class User:
         )
 
         if user_data:
-            record = user_data[0]  # Extract the asyncpg.Record object from the list
-            user_data = dict(record)  # Properly convert the asyncpg.Record object to a dictionary
-            user_data.pop('id', None)  # Remove 'id' from the user_data dictionary, this id is only used in the database
-            user_data.pop('created_at',
-                          None)  # Remove 'created_at' from the user_data dictionary, this is only used in the database
+            record = user_data[0]
+            user_data = dict(record)
+            user_data.pop('id', None)
+            user_data.pop('created_at', None)
 
-            # Convert the airdrops text array to a Python list
             if user_data.get('airdrops'):
-                user_data['airdrops'] = list(user_data['airdrops'])
+                user_data['airdrops'] = json.loads(user_data['airdrops'])
             else:
                 user_data['airdrops'] = []
 

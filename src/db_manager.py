@@ -26,7 +26,7 @@ class DBManager:
                 subscription_level VARCHAR(255) NOT NULL,
                 subscription_expiry TIMESTAMPTZ,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                airdrops TEXT[],
+                airdrops JSONB,
                 encrypted_wallets JSONB,
                 twitter_credentials JSONB,
                 discord_credentials JSONB,

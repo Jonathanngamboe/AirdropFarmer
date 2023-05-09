@@ -69,7 +69,9 @@ class IPNHandler:
         elif status <= -3: # Payment error
             await self.notify_payment_error(user_id, transaction_id, telegram_bot)
         else: # Payment is pending
-            await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
+            pass
+            # Not needed for now
+            # await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
 
     async def save_transaction_details(self, user_id, transaction_id, ipn_data):
         if user_id is None:
