@@ -27,7 +27,6 @@ class DBManager:
                 subscription_expiry TIMESTAMPTZ,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 airdrops JSONB,
-                encrypted_wallets JSONB,
                 twitter_credentials JSONB,
                 discord_credentials JSONB,
                 session_logs JSONB

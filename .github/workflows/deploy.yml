@@ -37,7 +37,6 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
           PORT: ${{ secrets.PORT }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           AIRDROP_FARMER_DATABASE_URL: ${{ secrets.AIRDROP_FARMER_DATABASE_URL }}
           COINPAYMENTS_PUBLIC_KEY: ${{ secrets.COINPAYMENTS_PUBLIC_KEY }}
@@ -45,13 +44,15 @@ jobs:
           COINPAYMENTS_MERCHANT_ID: ${{ secrets.COINPAYMENTS_MERCHANT_ID }}
           COINPAYMENTS_IPN_SECRET: ${{ secrets.COINPAYMENTS_IPN_SECRET }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          VAULT_URL: ${{ secrets.VAULT_URL }}
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
         run: |
           set -e
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
           ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "mkdir -p /home/$SERVER_USER/AirdropFarmer"
           rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/home/$SERVER_USER/AirdropFarmer/
-          export ENCRYPTION_KEY TELEGRAM_TOKEN AIRDROP_FARMER_DATABASE_URL COINPAYMENTS_PUBLIC_KEY COINPAYMENTS_PRIVATE_KEY COINPAYMENTS_MERCHANT_ID COINPAYMENTS_IPN_SECRET ADMIN_EMAIL
+          export TELEGRAM_TOKEN AIRDROP_FARMER_DATABASE_URL COINPAYMENTS_PUBLIC_KEY COINPAYMENTS_PRIVATE_KEY COINPAYMENTS_MERCHANT_ID COINPAYMENTS_IPN_SECRET ADMIN_EMAIL VAULT_URL VAULT_TOKEN
           envsubst < systemd/airdropfarmer.service | sed 's/%i/$SERVER_USER/g' > airdropfarmer.service.tmp
           scp -P $PORT -i private_key.pem -o StrictHostKeyChecking=no airdropfarmer.service.tmp $SERVER_USER@$SERVER_IP:/tmp/airdropfarmer.service
           rm airdropfarmer.service.tmp

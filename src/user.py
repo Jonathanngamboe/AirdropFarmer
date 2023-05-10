@@ -1,14 +1,14 @@
 # user.py
 import json
 import logging
-
+import hvac
 from config import settings
-from cryptography.fernet import Fernet
+from src.secret_manager import SecretsManager
+
 
 class User:
     def __init__(self, telegram_id, username, subscription_level, airdrops=None,
-                 twitter_credentials=None, discord_credentials=None, session_logs=None,
-                 encrypted_wallets=None, subscription_expiry=None):
+                 twitter_credentials=None, discord_credentials=None, session_logs=None, subscription_expiry=None):
         self.telegram_id = telegram_id
         self.username = username
         self.subscription_level = subscription_level
@@ -16,8 +16,8 @@ class User:
         self.twitter_credentials = twitter_credentials
         self.discord_credentials = discord_credentials
         self.session_logs = session_logs if session_logs is not None else []
-        self.encrypted_wallets = encrypted_wallets if encrypted_wallets is not None else []
         self.subscription_expiry = subscription_expiry
+        self._secrets_manager = SecretsManager(url='http://localhost:8200', token=settings.VAULT_TOKEN)
 
     async def add_airdrop(self, airdrop, db_manager):
         existing_airdrops = await self.get_airdrops(db_manager)
@@ -46,68 +46,36 @@ class User:
             return airdrops if airdrops else []
         return []
 
-    async def add_wallet(self, wallet, db_manager):
-        decrypted_wallets = await self.get_wallets(db_manager)
-
-        if wallet not in decrypted_wallets:
-            decrypted_wallets.append(wallet)
-            fernet = Fernet(settings.ENCRYPTION_KEY)
-            encrypted_wallets = fernet.encrypt(json.dumps(decrypted_wallets).encode()).decode()
-
-            result = await db_manager.execute_query(
-                "UPDATE users SET encrypted_wallets = $1 WHERE telegram_id = $2",
-                encrypted_wallets, self.telegram_id
-            )
+    async def add_wallet(self, wallet):
+        try:
+            self._secrets_manager.store_wallet(self.telegram_id, wallet)
             return True
-        else:
+        except Exception as e:
+            print(f"Error during wallet addition: {e}")
             return False
-            # print(f"Wallet already exists: {wallet}") # Debug
 
-    async def remove_wallet(self, wallet, db_manager):
-        decrypted_wallets = await self.get_wallets(db_manager)
-
-        if wallet in decrypted_wallets:
-            decrypted_wallets.remove(wallet)
-            fernet = Fernet(settings.ENCRYPTION_KEY)
-            encrypted_wallets = fernet.encrypt(json.dumps(decrypted_wallets).encode()).decode()
-
-            await db_manager.execute_query(
-                "UPDATE users SET encrypted_wallets = $1 WHERE telegram_id = $2",
-                encrypted_wallets, self.telegram_id
-            )
-            return True
-        else:
+    async def remove_wallet(self, wallet):
+        print(f"Removing wallet {wallet} for user {self.telegram_id}")
+        try:
+            existing_wallets = await self.get_wallets()
+            if wallet in existing_wallets:
+                self._secrets_manager.delete_wallet(self.telegram_id, wallet)
+                return True
+            else:
+                print(f"Wallet {wallet} not found for user {self.telegram_id}")
+                return False
+        except Exception as e:
+            print("Error during wallet deletion: {e}")
             return False
-            # print(f"Wallet not found: {wallet}") # Debug
 
-    async def get_wallets(self, db_manager):
-        result = await db_manager.fetch_query(
-            "SELECT encrypted_wallets FROM users WHERE telegram_id = $1", self.telegram_id
-        )
-
-        if not result or result[0]['encrypted_wallets'] is None:
+    async def get_wallets(self):
+        try:
+            # Add the user's wallets from secrets manager to the list of wallets
+            wallets = self._secrets_manager.get_wallet(self.telegram_id)
+            return wallets
+        except hvac.exceptions.InvalidPath:
+            print(f"Error during wallet retrieval: No wallets found for user {self.telegram_id}")
             return []
-
-        encrypted_wallets = result[0]['encrypted_wallets']
-        fernet = Fernet(settings.ENCRYPTION_KEY)
-        decrypted_wallets = json.loads(fernet.decrypt(encrypted_wallets.encode()).decode())
-
-        return decrypted_wallets
-
-    async def get_wallets(self, db_manager):
-        result = await db_manager.fetch_query(
-            "SELECT encrypted_wallets FROM users WHERE telegram_id = $1", self.telegram_id
-        )
-
-        if not result or result[0]['encrypted_wallets'] is None:
-            return []
-
-        encrypted_wallets_json = result[0]['encrypted_wallets']
-        encrypted_wallets = json.loads(encrypted_wallets_json)
-        fernet = Fernet(settings.ENCRYPTION_KEY)
-        decrypted_wallets = [json.loads(fernet.decrypt(wallet.encode()).decode()) for wallet in encrypted_wallets]
-
-        return decrypted_wallets
 
     def set_twitter_credentials(self, twitter_credentials):
         self.twitter_credentials = twitter_credentials
@@ -139,6 +107,8 @@ class User:
 
     @classmethod
     async def create_user(cls, telegram_id, username, db_manager, logger):
+        # save logger in the user object
+        cls.logger = logger
         user_data = {
             'telegram_id': telegram_id,
             'username': username,

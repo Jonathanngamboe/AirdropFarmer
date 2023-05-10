@@ -472,7 +472,7 @@ class TelegramBot:
     async def send_menu(self, chat_id, menu, message="Choose an option:", message_id=None, parse_mode=None):
         user = await self.get_user(chat_id)
         user_airdrops = await user.get_airdrops(self.db_manager)
-        user_wallets = await user.get_wallets(self.db_manager) if await user.get_wallets(self.db_manager) else []
+        user_wallets = await user.get_wallets()
         keyboard = InlineKeyboardMarkup(row_width=2)
         if menu == 'main':
             keyboard.add(
@@ -597,7 +597,7 @@ class TelegramBot:
     async def cmd_start_farming(self, user_id, chat_id, message_id):
         user = await self.get_user(user_id)
         user_airdrops = await user.get_airdrops(self.db_manager)
-        user_wallets = await user.get_wallets(self.db_manager)
+        user_wallets = await user.get_wallets()
 
         if user_id in self.farming_users.keys():
             await self.bot.send_message(chat_id, "Airdrop farming is already in progress. Please wait or press the 'Stop farming' button to stop.")
@@ -803,7 +803,7 @@ class TelegramBot:
 
     async def cmd_add_wallet(self, message: types.Message):
         user = await self.get_user(message.from_user.id)
-        user_wallets = await user.get_wallets(self.db_manager)
+        user_wallets = await user.get_wallets()
         split_message = message.text.split(" ", 1)
         if len(split_message) > 1:
             wallet_info = split_message[1].split(':', 1)
@@ -846,7 +846,7 @@ class TelegramBot:
 
         # Store the private key in the user's database
         if wallet not in user_wallets:
-            await user.add_wallet(wallet, self.db_manager)
+            await user.add_wallet(wallet)
             # Send a confirmation message
             await message.reply("Wallet added successfully!", parse_mode=ParseMode.HTML)
         else:
@@ -858,10 +858,10 @@ class TelegramBot:
 
     async def cmd_remove_wallet(self, query: CallbackQuery, wallet_name):
         user = await self.get_user(query.from_user.id)
-        user_wallets = await user.get_wallets(self.db_manager)
+        user_wallets = await user.get_wallets()
         wallet = next((wallet for wallet in user_wallets if wallet['name'] == wallet_name), None)
         if wallet in user_wallets:
-            await user.remove_wallet(wallet, self.db_manager)
+            await user.remove_wallet(wallet)
             message = f"Wallet {wallet['name']} removed successfully!"
             await self.bot.send_message(chat_id=query.from_user.id, text=message)
             await self.send_menu(query.from_user.id, 'manage_wallets')

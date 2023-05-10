@@ -15,7 +15,7 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 - Python 3.7 or newer
 - PostgreSQL 9.5 or higher
 - A Telegram bot token
-- An encryption key for securing user data
+- A Vault instance for storing application secrets
 - A CoinPayments API key, API secret, merchant ID, and IPN secret
 - An admin email address
 - A server with SSH access and systemd (for deployment)
@@ -57,15 +57,11 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    pip install -r requirements.txt
    ```
 
-6. Generate an encryption key:
+6. Set up Vault (optional but recommended):
 
-   Run the `generate_key.py` script in the `src` folder:
-
-   ```
-   python src/generate_key.py
-   ```
-
-   The script will output a generated encryption key. Make a note of this key, as you will need it for configuring the environment variables in the next step.
+   If you prefer not to store your sensitive information in the .env file, you can use HashiCorp's Vault. After setting up a Vault instance, you can store your secrets there.
+   
+   Note: The current deployment script assumes you are using Vault to store your secrets. If you choose not to use Vault, you'll need to modify the deployment script accordingly.
 
 7. Set up the PostgreSQL database and user:
 
@@ -207,6 +203,8 @@ Interact with the AirdropFarmer Telegram bot using the Telegram app. You can use
 
 To receive IPN notifications from CoinPayments, make sure your application is running and accessible at the IPN URL (https://yourdomain.com/ipn by default). Configure your CoinPayments account to send IPN notifications to this URL.
 
+Note: This application is configured to fetch secrets from a Vault instance. Please ensure that the Vault is running and accessible, and that the correct Vault token is provided.
+
 ## Troubleshooting
 
 If you encounter any issues while setting up or running the AirdropFarmer Telegram bot, please follow these steps:
@@ -222,6 +220,8 @@ If you encounter any issues while setting up or running the AirdropFarmer Telegr
 5. Make sure your application is running and accessible at the IPN URL.
 
 6. If you are using Nginx as a reverse proxy, check the Nginx configuration, logs, and ensure that the service is running.
+
+7. If you are using Vault to store your secrets, make sure that your Vault instance is running and that the application has the necessary permissions to fetch the secrets.
 
 If you still encounter issues, feel free to ask for help or submit an issue on the GitHub repository.
 
