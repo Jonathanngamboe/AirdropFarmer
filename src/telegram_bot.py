@@ -81,9 +81,10 @@ class TelegramBot:
             await on_shutdown(self.dp)
 
     async def get_user(self, telegram_id, username=None):
-        user = await User.get_user_by_telegram_id(telegram_id, self.db_manager)
+        user = await User.get_user_by_telegram_id(telegram_id, self.db_manager, self.sys_logger)
         if user is None:
             user = await User.create_user(telegram_id, username, self.db_manager, self.sys_logger)
+            user.sysl_logger = self.sys_logger
         return user
 
     async def cmd_start(self, message: types.Message):

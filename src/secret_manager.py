@@ -1,11 +1,13 @@
 # secrets_manager.py
+import logging
 from typing import Optional
 import hvac
 
 
 class SecretsManager:
-    def __init__(self, url: str, token: str):
+    def __init__(self, url: str, token: str, logger):
         self.client = hvac.Client(url=url, token=token)
+        self.logger = logger
 
     def store_wallet(self, user_id: str, wallet: dict):
         existing_wallets = self.get_wallet(user_id)
@@ -34,5 +36,5 @@ class SecretsManager:
             else:
                 return None
         except Exception as e:
-            print(f"Error during wallet retrieval: {e}")
+            self.logger.add_log(f"Error during wallet retrieval: {e}", logging.ERROR)
             return None

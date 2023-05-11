@@ -7,7 +7,7 @@ from src.secret_manager import SecretsManager
 
 
 class User:
-    def __init__(self, telegram_id, username, subscription_level, airdrops=None,
+    def __init__(self, telegram_id, username, subscription_level, logger, airdrops=None,
                  twitter_credentials=None, discord_credentials=None, session_logs=None, subscription_expiry=None):
         self.telegram_id = telegram_id
         self.username = username
@@ -17,7 +17,8 @@ class User:
         self.discord_credentials = discord_credentials
         self.session_logs = session_logs if session_logs is not None else []
         self.subscription_expiry = subscription_expiry
-        self._secrets_manager = SecretsManager(url='http://localhost:8200', token=settings.VAULT_TOKEN)
+        self.sys_logger = logger
+        self._secrets_manager = SecretsManager(url='http://localhost:8200', token=settings.VAULT_TOKEN, logger=self.sys_logger)
 
     async def add_airdrop(self, airdrop, db_manager):
         existing_airdrops = await self.get_airdrops(db_manager)
@@ -51,30 +52,32 @@ class User:
             self._secrets_manager.store_wallet(self.telegram_id, wallet)
             return True
         except Exception as e:
-            print(f"Error during wallet addition: {e}")
+            self.sys_logger.add_log(f"Error during wallet addition: {e}", logging.ERROR)
             return False
 
     async def remove_wallet(self, wallet):
-        print(f"Removing wallet {wallet} for user {self.telegram_id}")
+        self.sys_logger.add_log(f"Removing wallet {wallet} for user {self.telegram_id}")
         try:
             existing_wallets = await self.get_wallets()
             if wallet in existing_wallets:
                 self._secrets_manager.delete_wallet(self.telegram_id, wallet)
                 return True
             else:
-                print(f"Wallet {wallet} not found for user {self.telegram_id}")
+                self.sys_logger.add_log(f"Wallet {wallet} not found for user {self.telegram_id}")
                 return False
         except Exception as e:
-            print("Error during wallet deletion: {e}")
+            self.sys_logger.add_log(f"Error during wallet deletion: {e}", logging.ERROR)
             return False
 
     async def get_wallets(self):
         try:
             # Add the user's wallets from secrets manager to the list of wallets
             wallets = self._secrets_manager.get_wallet(self.telegram_id)
+            if wallets is None:
+                return []
             return wallets
         except hvac.exceptions.InvalidPath:
-            print(f"Error during wallet retrieval: No wallets found for user {self.telegram_id}")
+            self.sys_logger.add_log(f"Error during wallet retrieval: No wallets found for user {self.telegram_id}")
             return []
 
     def set_twitter_credentials(self, twitter_credentials):
@@ -126,7 +129,7 @@ class User:
         return user
 
     @classmethod
-    async def get_user_by_telegram_id(cls, telegram_id: int, db_manager) -> "User":
+    async def get_user_by_telegram_id(cls, telegram_id: int, db_manager, logger) -> "User":
         user_data = await db_manager.fetch_query(
             "SELECT * FROM users WHERE telegram_id = $1", telegram_id
         )
@@ -142,6 +145,7 @@ class User:
             else:
                 user_data['airdrops'] = []
 
-            user = cls(**user_data)
+
+            user = cls(**user_data, logger=logger)
             return user
         return None
