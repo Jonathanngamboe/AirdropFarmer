@@ -78,15 +78,16 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
    Example:
    ```
-   SERVER_IP=your_server_ip
-   TELEGRAM_TOKEN=your_telegram_token
-   ENCRYPTION_KEY=your_encryption_key
-   AIRDROP_FARMER_DATABASE_URL=your_database_url
-   COINPAYMENTS_API_KEY=your_coinpayments_api_public_key
-   COINPAYMENTS_API_SECRET=your_coinpayments_api_private_key
-   ADMIN_EMAIL=your_admin_email
-   COINPAYMENTS_MERCHANT_ID=your_coinpayments_merchant_id
-   COINPAYMENTS_IPN_SECRET=your_coinpayments_ipn_secret
+   TELEGRAM_TOKEN=<your telegram bot token>
+   AIRDROP_FARMER_DATABASE_URL=<your postgre database url>
+   COINPAYMENTS_PUBLIC_KEY=<your coinpayments api private key>
+   COINPAYMENTS_PRIVATE_KEY=<your coinpayments api public key>
+   COINPAYMENTS_MERCHANT_ID=<your coinpayments merchant id>
+   COINPAYMENTS_IPN_SECRET=<your coinpayments ipn secret>
+   ADMIN_EMAIL=<your admin email>
+   SERVER_IP=<your server ip>
+   VAULT_TOKEN=<your vault token>
+   VAULT_URL=<your vault address>
    ```
 
 9. Run the application:
