@@ -18,8 +18,6 @@ class User:
         self.session_logs = session_logs if session_logs is not None else []
         self.subscription_expiry = subscription_expiry
         self.sys_logger = logger
-        self.sys_logger.add_log(f"Vault URL: {settings.VAULT_URL}", logging.INFO)
-        self.sys_logger.add_log(f"Vault Token: {settings.VAULT_TOKEN}", logging.INFO)
         self._secrets_manager = SecretsManager(url=settings.VAULT_URL, token=settings.VAULT_TOKEN, logger=self.sys_logger)
 
     async def add_airdrop(self, airdrop, db_manager):
