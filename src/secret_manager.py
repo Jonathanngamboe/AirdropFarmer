@@ -47,6 +47,12 @@ class SecretsManager:
 
     def get_wallet(self, user_id: str) -> Optional[list]:
         try:
+            # Check if data exists at the path
+            self.client.secrets.kv.v2.read_secret_metadata(
+                path=user_id,
+                mount_point='secret',
+            )
+            # If no exception was raised, data exists. Proceed with retrieval.
             read_response = self.client.secrets.kv.v2.read_secret_version(
                 path=user_id,
                 mount_point='secret',
@@ -55,7 +61,11 @@ class SecretsManager:
                 return read_response['data']['data'].get('wallets', [])
             else:
                 return None
-        except Exception as e:
-            self.logger.add_log(f"Error during wallet retrieval: {e}", logging.ERROR)
+        except hvac.exceptions.InvalidPath:
+            self.logger.add_log(f"No data found for user {user_id}", logging.WARNING)
             return None
+        except Exception as e:
+            self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {e}", logging.ERROR)
+            return None
+
 
