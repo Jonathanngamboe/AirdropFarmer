@@ -63,9 +63,11 @@ class SecretsManager:
                 return None
         except hvac.exceptions.InvalidPath:
             self.logger.add_log(f"No data found for user {user_id}", logging.WARNING)
+            raise hvac.exceptions.InvalidPath
             return None
         except Exception as e:
             self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {e}", logging.ERROR)
+            raise e
             return None
 
 
