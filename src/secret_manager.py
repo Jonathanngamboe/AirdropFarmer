@@ -11,13 +11,22 @@ class SecretsManager:
 
     def store_wallet(self, user_id: str, wallet: dict):
         try:
-            existing_wallets = self.get_wallet(user_id) or []
-            existing_wallets.append(wallet)
-            self.client.secrets.kv.v2.create_or_update_secret(
-                path=f'users/{user_id}/wallets',
-                secret={'wallets': existing_wallets},
-                mount_point='secret',
-            )
+            existing_wallets = self.get_wallet(user_id)
+            if existing_wallets is None:
+                # No existing wallets, create new secret
+                self.client.secrets.kv.v2.create_or_update_secret(
+                    path=f'users/{user_id}/wallets',
+                    secret={'wallets': [wallet]},
+                    mount_point='secret',
+                )
+            else:
+                # Existing wallets found, append new wallet and update secret
+                existing_wallets.append(wallet)
+                self.client.secrets.kv.v2.create_or_update_secret(
+                    path=f'users/{user_id}/wallets',
+                    secret={'wallets': existing_wallets},
+                    mount_point='secret',
+                )
         except Exception as e:
             self.logger.add_log(f"Error during wallet storage: {e}", logging.ERROR)
 
