@@ -33,7 +33,6 @@ class SecretsManager:
     def delete_wallet(self, user_id: str, wallet: dict):
         try:
             existing_wallets = self.get_wallet(user_id) or []
-            self.logger.add_log(f"Existing wallets: {existing_wallets}")
             if wallet in existing_wallets:
                 existing_wallets.remove(wallet)
                 if existing_wallets:
@@ -75,7 +74,7 @@ class SecretsManager:
             else:
                 return None
         except hvac.exceptions.InvalidPath:
-            self.logger.add_log(f"No data found for user {user_id}", logging.WARNING)
+            # self.logger.add_log(f"No data found in Vault for user {user_id}", logging.WARNING)
             return None
         except Exception as e:
             self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {e}", logging.ERROR)

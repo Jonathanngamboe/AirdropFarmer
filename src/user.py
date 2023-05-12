@@ -56,7 +56,6 @@ class User:
             return False
 
     async def remove_wallet(self, wallet):
-        self.sys_logger.add_log(f"Removing wallet {wallet} for user {self.telegram_id}")
         try:
             existing_wallets = await self.get_wallets()
             if wallet in existing_wallets:
