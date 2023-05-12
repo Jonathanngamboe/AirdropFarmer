@@ -2,21 +2,12 @@
 
 from decouple import config
 
-# Discord
-DISCORD_TOKEN = "NTM4MzMzODUyMTEzMDQzNDY2.GQhLNS.jQKTZAPT5BOZlxbgbUig1XvR8PovK90O4N06Wk"
-
 # Telegram
 TELEGRAM_TOKEN = config("TELEGRAM_TOKEN")
 ADMIN_TELEGRAM_ID = 1892238442
 MAX_WALLET_NAME_LENGTH = 20
 
-# Twitter
-TWITTER_API_KEY = "votre_clé_api_twitter"
-TWITTER_API_SECRET = "votre_clé_api_secrète_twitter"
-TWITTER_ACCESS_TOKEN = "votre_token_d'accès_twitter"
-TWITTER_ACCESS_TOKEN_SECRET = "votre_token_d'accès_secrète_twitter"
-
-# Web3
+## Web3
 # Ethereum Mainnet
 ETHEREUM_MAINNET_ENDPOINT = "https://eth.llamarpc.com"
 ETHEREUM_MAINNET_WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
@@ -42,14 +33,15 @@ IPN_ROUTE = '/ipn'
 SERVER_IP = config("SERVER_IP")
 COINPAYMENTS_IPN_URL = f'http://{SERVER_IP}:{IPN_PORT}{IPN_ROUTE}'
 ADMIN_EMAIL = config("ADMIN_EMAIL")
-FAKE_EMAIL = "airdropfarmer@airdropfarmer.com"
 
-# App
-LOG_MAX_AGE_DAYS = 7
+# Vault
 VAULT_TOKEN = config("VAULT_TOKEN")
 VAULT_URL = config("VAULT_URL")
-AIRDROP_FARMER_DATABASE_URL = config("AIRDROP_FARMER_DATABASE_URL")
+
+# App
 LOG_PATH = 'logs'
+LOG_MAX_AGE_DAYS = 7
+AIRDROP_FARMER_DATABASE_URL = config("AIRDROP_FARMER_DATABASE_URL")
 SUBSCRIPTION_DURATION_DAYS = 30
 # It's important to keep the order of the plans
 SUBSCRIPTION_PLANS = [

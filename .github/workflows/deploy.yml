@@ -52,7 +52,7 @@ jobs:
           chmod 600 private_key.pem
           ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "mkdir -p /home/$SERVER_USER/AirdropFarmer"
           rsync -avz -e "ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT" --exclude '.git' --exclude '.github' ./ $SERVER_USER@$SERVER_IP:/home/$SERVER_USER/AirdropFarmer/
-          ssh -i private_key.pem -o StrictHostKeyChecking=no -p $PORT $SERVER_USER@$SERVER_IP "echo -e \"TELEGRAM_TOKEN=${TELEGRAM_TOKEN}\nAIRDROP_FARMER_DATABASE_URL=${AIRDROP_FARMER_DATABASE_URL}\nCOINPAYMENTS_PUBLIC_KEY=${COINPAYMENTS_PUBLIC_KEY}\nCOINPAYMENTS_PRIVATE_KEY=${COINPAYMENTS_PRIVATE_KEY}\nCOINPAYMENTS_MERCHANT_ID=${COINPAYMENTS_MERCHANT_ID}\nCOINPAYMENTS_IPN_SECRET=${COINPAYMENTS_IPN_SECRET}\nADMIN_EMAIL=${ADMIN_EMAIL}\nVAULT_URL=${VAULT_URL}\nVAULT_TOKEN=${VAULT_TOKEN}\nSERVER_IP=${SERVER_IP}\" > /home/$SERVER_USER/AirdropFarmer/.env"
+          export TELEGRAM_TOKEN AIRDROP_FARMER_DATABASE_URL COINPAYMENTS_PUBLIC_KEY COINPAYMENTS_PRIVATE_KEY COINPAYMENTS_MERCHANT_ID COINPAYMENTS_IPN_SECRET ADMIN_EMAIL VAULT_URL VAULT_TOKEN
           envsubst < systemd/airdropfarmer.service | sed 's/%i/$SERVER_USER/g' > airdropfarmer.service.tmp
           scp -P $PORT -i private_key.pem -o StrictHostKeyChecking=no airdropfarmer.service.tmp $SERVER_USER@$SERVER_IP:/tmp/airdropfarmer.service
           rm airdropfarmer.service.tmp

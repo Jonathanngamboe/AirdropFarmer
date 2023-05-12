@@ -69,12 +69,13 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
 
 8. Set up environment variables:
 
-   Copy the `.env.example` file to a new file called `.env`:
+   For local development and testing, copy the `.env.example` file to a new file called `.env`:
+
    ```
    cp .env.example .env
    ```
 
-   Open the `.env` file and replace the placeholders with the appropriate values for `TELEGRAM_TOKEN`, `ENCRYPTION_KEY`, `AIRDROP_FARMER_DATABASE_URL`, `COINPAYMENTS_API_KEY`, `COINPAYMENTS_API_SECRET`, `ADMIN_EMAIL`, `COINPAYMENTS_MERCHANT_ID`, and `COINPAYMENTS_IPN_SECRET`. Use the encryption key generated in step 6. Save the file.
+   Open the `.env` file and replace the placeholders with the appropriate values for your environment. Save the file.
 
    Example:
    ```
@@ -89,6 +90,17 @@ AirdropFarmer is a Telegram bot that helps users manage and participate in airdr
    VAULT_TOKEN=<your vault token>
    VAULT_URL=<your vault address>
    ```
+
+   For production, you should set the environment variables on your server. When configuring the `airdropfarmer.service` file, you can add the environment variables directly to the `EnvironmentFile` directive. Replace the `/home/airdropfarmer/AirdropFarmer/.env` path with the path to the file containing your environment variables:
+
+   ```ini
+   [Service]
+   ...
+   EnvironmentFile=/path/to/your/environment/variables/file
+   ...
+   ```
+
+This should help clarify the process for both local and server-based configurations.
 
 9. Run the application:
 
