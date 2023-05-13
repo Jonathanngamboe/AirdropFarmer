@@ -440,7 +440,7 @@ class TelegramBot:
         elif action == "stop_farming":
             await self.cmd_stop_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
         elif action == "display_log":
-            await self.cmd_display_log(query.from_user.id, query.message.chat.id, params[0], query.message.message_id)
+            await self.cmd_display_log(query.from_user.id, query.message.chat.id, params[0])
         elif action == "contact_us":
             user_id = query.from_user.id
             await self.bot.send_message(user_id, "Please type your message in the chat or type 'cancel' to cancel:")
@@ -583,7 +583,17 @@ class TelegramBot:
             await self.bot.send_message(chat_id=chat_id, text=f"{message}", reply_markup=keyboard,
                                         parse_mode=parse_mode if parse_mode else None)
 
-    async def cmd_display_log(self, user_id, chat_id, log_date, message_id=None):
+    async def cmd_display_log(self, user_id, chat_id, log_date):
+        # Check if user plan permits to view logs
+        user = await self.get_user(user_id)
+        user_plan_features = next(
+            (plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level),
+            None)
+        if not "Access to detailed log files" in user_plan_features['features']:
+            await self.bot.send_message(chat_id,
+                                        "⛔️ Your current subscription plan does not permit to view logs. If you want to view logs, type /subscription to upgrade your plan.")
+            return
+        # Check if log file exists and send it to the user
         user_logger = Logger(user_id)
         date_str = log_date.replace(f"user_{user_id}_", "").replace(".log", "")
         log_file_path = user_logger.get_log_file_path(date_str)
@@ -780,10 +790,10 @@ class TelegramBot:
 
         # Check if the user has already reached the maximum number of airdrops allowed by his plan
         user_airdrops = await user.get_airdrops(self.db_manager)
-        plan_data = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
-        airdrop_limit = plan_data['airdrop_limit']
+        user_plan_features = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
+        airdrop_limit = user_plan_features['airdrop_limit']
         if len(user_airdrops) >= airdrop_limit:
-            message = f"You have reached the maximum number of airdrops allowed by your plan ({airdrop_limit}).\nIf you want to add a new airdrop, type /subscribtion to upgrade your plan."
+            message = f"⛔️ You have reached the maximum number of airdrops allowed by your plan ({airdrop_limit}).If you want to add a new airdrop, type /subscribtion to upgrade your plan."
             keyboard = InlineKeyboardMarkup(row_width=2)
             keyboard.add(
                 InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"),
@@ -820,12 +830,12 @@ class TelegramBot:
         user = await self.get_user(message.from_user.id)
 
         # Check if the user has already reached the maximum number of wallets allowed by his plan
-        plan_data = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
-        max_wallets = plan_data['wallets'] if plan_data is not None else None
+        user_plan_features = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
+        max_wallets = user_plan_features['wallets'] if user_plan_features is not None else None
         user_wallets = await user.get_wallets()
         if len(user_wallets) >= max_wallets:
             await message.reply(
-                f"You have reached the maximum number of wallets allowed by your plan ({max_wallets}).\nIf you want to add a new wallet, type /subscribtion to upgrade your plan.")
+                f"⛔️ You have reached the maximum number of wallets allowed by your plan ({max_wallets}).If you want to add a new wallet, type /subscribtion to upgrade your plan.")
             await message.delete()
             return
 
