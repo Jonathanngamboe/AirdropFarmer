@@ -804,6 +804,15 @@ class TelegramBot:
 
     async def cmd_add_wallet(self, message: types.Message):
         user = await self.get_user(message.from_user.id)
+        # Check if the user has already reached the maximum number of wallets allowed by his plan
+        # Get the maximum number of wallets allowed by the user's plan
+        plan = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
+        max_wallets = plan['wallets'] if plan is not None else None
+        if len(await user.get_wallets()) >= max_wallets:
+            await message.reply(
+                f"You have reached the maximum number of wallets allowed by your plan ({max_wallets}).\nPlease type /subscription to upgrade your plan.")
+            await message.delete()
+            return
         user_wallets = await user.get_wallets()
         split_message = message.text.split(" ", 1)
         if len(split_message) > 1:
