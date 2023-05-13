@@ -799,6 +799,8 @@ class TelegramBot:
         await user.add_airdrop(airdrop_name, self.db_manager)
         message = f"{airdrop_name} airdrop added to your list."
         await self.bot.send_message(chat_id=query.from_user.id, text=message)
+        await self.bot.delete_message(chat_id=query.from_user.id, message_id=query.message.message_id)
+        await self.send_airdrop_edit_menu(query.from_user.id)
 
     async def cmd_remove_airdrop(self, query: CallbackQuery, airdrop_name: str):
         user = await self.get_user(query.from_user.id)
@@ -807,6 +809,7 @@ class TelegramBot:
         if airdrop_name in user_airdrops:
             await user.remove_airdrop(airdrop_name, self.db_manager)
             message = f"{airdrop_name} airdrop removed from your list."
+            await self.bot.delete_message(chat_id=query.from_user.id, message_id=query.message.message_id)
             await self.bot.send_message(chat_id=query.from_user.id, text=message)
             await self.send_airdrop_edit_menu(query.from_user.id)
         else:
@@ -820,9 +823,9 @@ class TelegramBot:
         plan_data = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
         max_wallets = plan_data['wallets'] if plan_data is not None else None
         user_wallets = await user.get_wallets()
-        if len(await user_wallets) >= max_wallets:
+        if len(user_wallets) >= max_wallets:
             await message.reply(
-                f"You have reached the maximum number of wallets allowed by your plan ({max_wallets}).\nPlease type /subscription to upgrade your plan.")
+                f"You have reached the maximum number of wallets allowed by your plan ({max_wallets}).\nIf you want to add a new wallet, type /subscribtion to upgrade your plan.")
             await message.delete()
             return
 
@@ -870,13 +873,15 @@ class TelegramBot:
         if wallet not in user_wallets:
             if await user.add_wallet(wallet):
                 # Send a confirmation message
-                await message.reply("Wallet added successfully!", parse_mode=ParseMode.HTML)
+                await message.reply(f"Wallet {formatted_wallet_name} added successfully!")
+                await self.send_menu(message.from_user.id, "manage_wallets")
             else:
                 await message.reply("An error occurred while adding the wallet. Please try again or type /contact to contact the support.")
         else:
             await message.reply("This wallet is already added.")
 
         await message.delete()  # Delete the message containing the private key for security reasons
+
 
     async def cmd_remove_wallet(self, query: CallbackQuery, wallet_name):
         user = await self.get_user(query.from_user.id)
@@ -885,7 +890,11 @@ class TelegramBot:
         if wallet in user_wallets:
             await user.remove_wallet(wallet)
             message = f"Wallet {wallet['name']} removed successfully!"
+            # Delete the last menu message
+            await self.bot.delete_message(chat_id=query.from_user.id, message_id=query.message.message_id)
             await self.bot.send_message(chat_id=query.from_user.id, text=message)
+            # Send the wallets menu again
+            await self.send_menu(query.from_user.id, "manage_wallets")
         else:
             message = f"Wallet {wallet_name} not found in your list."
             await self.bot.send_message(chat_id=query.from_user.id, text=message)
@@ -938,6 +947,7 @@ class TelegramBot:
         else:
             message = "Your airdrop list is empty."
             await self.bot.send_message(chat_id=telegram_id, text=message)
+            await self.send_menu(telegram_id, 'manage_airdrops')
             return
 
         keyboard.add(
