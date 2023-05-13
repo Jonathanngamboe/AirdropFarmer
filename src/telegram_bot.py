@@ -440,7 +440,7 @@ class TelegramBot:
         elif action == 'start_farming':
             await self.cmd_start_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
         elif action == "stop_farming":
-            await self.cmd_stop_farming(query.from_user.id, query.message.chat.id, query.message.message_id)
+            await self.cmd_stop_farming(query.from_user.id, query.message.chat.id)
         elif action == "display_log":
             await self.cmd_display_log(query.from_user.id, query.message.chat.id, params[0])
         elif action == "contact_us":
@@ -471,7 +471,7 @@ class TelegramBot:
         await self.send_menu(message.chat.id, 'main', message=self.welcome_text,
                              parse_mode='Markdown')  # Send the main menu
 
-    async def send_menu(self, chat_id, menu, message="Choose an option:", message_id=None, parse_mode=None):
+    async def send_menu(self, chat_id, menu='main', message="Choose an option:", message_id=None, parse_mode=None):
         user = await self.get_user(chat_id)
         user_airdrops = await user.get_airdrops(self.db_manager)
         user_wallets = await user.get_wallets()
@@ -685,13 +685,11 @@ class TelegramBot:
             keyboard = types.InlineKeyboardMarkup()
             if self.farming_users[user_id]['status']:  # If the user is farming, show the 'Stop farming' button
                 keyboard.add(types.InlineKeyboardButton("🛑 Stop farming", callback_data="stop_farming"))
-            else:
-                keyboard.add(types.InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"))
 
-            try:
-                await self.bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=keyboard)
-            except MessageNotModified:
-                self.sys_logger.add_log("WARNING - Message not modified: new keyboard layout is the same as the current one.")
+            else:
+                self.bot.delete_message(chat_id, message_id)  # Delete the old message
+                await self.send_menu(chat_id)  # Send the main menu
+                keyboard.add(types.InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"))
 
     def get_user_logger(self, user_id):
         if user_id not in self.user_loggers:
