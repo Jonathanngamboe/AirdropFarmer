@@ -20,7 +20,7 @@ class Logger:
         self.ensure_log_file_exists()
 
         # Set up logging
-        logger_name = "sys_log" if app_log else f"{self.user_id}_logger"
+        logger_name = "APP_LOG" if app_log else f"{self.user_id}_LOGGER"
         self.logger = logging.getLogger(logger_name)
         self.logger.setLevel(logging.INFO)
         log_handler = TimedRotatingFileHandler(self.log_dir / self.log_filename, when="midnight", interval=1,
