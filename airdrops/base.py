@@ -20,7 +20,7 @@ airdrop_info = {
          "action": "transfer_native_token",
          "amount_in_wei": 5000000000000000,
          "recipient_address": '0xe93c8cd0d409341205a592f8c4ac1a5fe5585cfa',
-    },
+        },
         {
         "platform": "defi",
         "isActivated": True,
