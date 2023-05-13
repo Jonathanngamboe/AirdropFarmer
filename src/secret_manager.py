@@ -14,6 +14,7 @@ class SecretsManager:
             self.logger.add_log(f"Successfully authenticated in Vault as {token['display_name']}", logging.INFO)
         else:
             self.logger.add_log(f"Failed to authenticate with Vault", logging.ERROR)
+            raise Exception('Failed to authenticate with Vault')
 
     def store_wallet(self, user_id: str, wallet: dict):
         try:
@@ -21,7 +22,7 @@ class SecretsManager:
             if existing_wallets is None:
                 # No existing wallets, create new secret
                 self.logger.add_log(f"Creating new secret for user {user_id}", logging.INFO)
-                self.client.secrets.kv.create_or_update_secret(
+                self.client.secrets.kv.v1.create_or_update_secret(
                     path=f'users/{user_id}/wallets',
                     secret={'wallets': [wallet]},
                     mount_point='secret',
@@ -30,14 +31,15 @@ class SecretsManager:
                 # Existing wallets found, append new wallet and update secret
                 self.logger.add_log(f"Updating existing secret for user {user_id}", logging.INFO)
                 existing_wallets.append(wallet)
-                self.client.secrets.kv.create_or_update_secret(
+                self.client.secrets.kv.v1.create_or_update_secret(
                     path=f'users/{user_id}/wallets',
                     secret={'wallets': existing_wallets},
                     mount_point='secret',
                 )
 
         except Exception as e:
-            raise e  # Re-raise the exception to propagate the error
+            self.logger.add_log(f"Error during wallet storage for user {user_id}: {str(e)}", logging.ERROR)
+            raise e
 
     def delete_wallet(self, user_id: str, wallet: dict):
         try:
@@ -46,25 +48,26 @@ class SecretsManager:
                 existing_wallets.remove(wallet)
                 if existing_wallets:
                     # If there are other wallets, overwrite with the updated list
-                    self.client.secrets.kv.create_or_update_secret(
+                    self.client.secrets.kv.v1.create_or_update_secret(
                         path=f'users/{user_id}/wallets',
                         secret={'wallets': existing_wallets},
                         mount_point='secret',
                     )
                 else:
                     # If there are no other wallets, delete the secret
-                    self.client.secrets.kv.delete_secret(
+                    self.client.secrets.kv.v1.delete_secret(
                         path=f'users/{user_id}/wallets',
                         mount_point='secret',
                     )
 
         except Exception as e:
-            raise e  # Re-raise the exception to propagate the error
+            self.logger.add_log(f"Error during wallet deletion for user {user_id}: {str(e)}", logging.ERROR)
+            raise e
 
     def get_wallet(self, user_id: str) -> Optional[list]:
         try:
             # Proceed with retrieval.
-            read_response = self.client.secrets.kv.read_secret(
+            read_response = self.client.secrets.kv.v1.read_secret(
                 path=f'users/{user_id}/wallets',
                 mount_point='secret',
             )
@@ -83,5 +86,5 @@ class SecretsManager:
             self.logger.add_log(f"No data found in Vault for user {user_id}", logging.WARNING)
             return None
         except Exception as e:
-            self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {e}", logging.ERROR)
+            self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {str(e)}", logging.ERROR)
             return None
