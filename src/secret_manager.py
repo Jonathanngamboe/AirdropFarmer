@@ -14,6 +14,7 @@ class SecretsManager:
             existing_wallets = self.get_wallet(user_id)
             if existing_wallets is None:
                 # No existing wallets, create new secret
+                self.logger.add_log(f"Creating new secret for user {user_id}", logging.INFO)
                 self.client.secrets.kv.v2.create_or_update_secret(
                     path=f'users/{user_id}/wallets',
                     secret={'wallets': [wallet]},
@@ -21,6 +22,7 @@ class SecretsManager:
                 )
             else:
                 # Existing wallets found, append new wallet and update secret
+                self.logger.add_log(f"Updating existing secret for user {user_id}", logging.INFO)
                 existing_wallets.append(wallet)
                 self.client.secrets.kv.v2.create_or_update_secret(
                     path=f'users/{user_id}/wallets',
@@ -70,11 +72,14 @@ class SecretsManager:
                 mount_point='secret',
             )
             if read_response and 'data' in read_response and read_response['data']['metadata']['deletion_time'] == "":
-                return read_response['data']['data'].get('wallets', [])
+                wallets = read_response['data']['data'].get('wallets', [])
+                self.logger.add_log(f"No wallets found for user {user_id}", logging.DEBUG)
+                return wallets
             else:
+                self.logger.add_log(f"No wallets found for user {user_id}", logging.DEBUG)
                 return None
         except hvac.exceptions.InvalidPath:
-            #  self.logger.add_log(f"No data found in Vault for user {user_id}", logging.WARNING)
+            self.logger.add_log(f"No data found in Vault for user {user_id}", logging.WARNING)
             return None
         except Exception as e:
             self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {e}", logging.ERROR)
