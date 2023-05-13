@@ -847,9 +847,11 @@ class TelegramBot:
 
         # Store the private key in the user's database
         if wallet not in user_wallets:
-            await user.add_wallet(wallet)
-            # Send a confirmation message
-            await message.reply("Wallet added successfully!", parse_mode=ParseMode.HTML)
+            if await user.add_wallet(wallet):
+                # Send a confirmation message
+                await message.reply("Wallet added successfully!", parse_mode=ParseMode.HTML)
+            else:
+                await message.reply("An error occurred while adding the wallet. Please try again or type /contact to contact the support.")
         else:
             await message.reply("This wallet is already added.")
 

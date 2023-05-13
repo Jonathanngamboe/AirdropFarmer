@@ -32,13 +32,12 @@ class SecretsManager:
 
             # Verify that the secret was written correctly
             written_wallets = self.get_wallet(user_id)
-            if written_wallets == existing_wallets:
+            if written_wallets == existing_wallets and written_wallets is not None:
                 self.logger.add_log(f"Successfully wrote wallets for user {user_id}", logging.INFO)
             else:
                 raise Exception(f"Failed to write wallets for user {user_id}")
 
         except Exception as e:
-            self.logger.add_log(f"Error during wallet storage: {e}", logging.ERROR)
             raise e  # Re-raise the exception to propagate the error
 
     def delete_wallet(self, user_id: str, wallet: dict):
@@ -74,7 +73,6 @@ class SecretsManager:
                 raise Exception(f"Failed to delete wallet for user {user_id}")
 
         except Exception as e:
-            self.logger.add_log(f"Error during wallet deletion: {e}", logging.ERROR)
             raise e  # Re-raise the exception to propagate the error
 
     def get_wallet(self, user_id: str) -> Optional[list]:
