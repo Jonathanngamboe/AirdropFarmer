@@ -39,7 +39,6 @@ class SecretsManager:
                 )
 
         except Exception as e:
-            self.logger.add_log(f"Error during wallet storage for user {user_id}: {str(e)}", logging.ERROR)
             raise e
 
     def delete_wallet(self, user_id: str, wallet: dict):
@@ -62,7 +61,6 @@ class SecretsManager:
                     )
 
         except Exception as e:
-            self.logger.add_log(f"Error during wallet deletion for user {user_id}: {str(e)}", logging.ERROR)
             raise e
 
     def get_wallet(self, user_id: str) -> Optional[list]:
@@ -75,16 +73,15 @@ class SecretsManager:
             if read_response and 'data' in read_response:
                 wallets = read_response['data'].get('wallets', [])
                 if wallets:
-                    self.logger.add_log(f"Retrieved wallets for user {user_id}", logging.DEBUG)
+                    # self.logger.add_log(f"Retrieved wallets for user {user_id}", logging.INFO)
                     return wallets
                 else:
-                    self.logger.add_log(f"No wallets found for user {user_id}", logging.DEBUG)
+                    # self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
                     return None
             else:
-                self.logger.add_log(f"No wallets found for user {user_id}", logging.DEBUG)
+                # self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
                 return None
         except hvac.exceptions.InvalidPath:
-            self.logger.add_log(f"No data found in Vault for user {user_id}", logging.WARNING)
             return None
         except Exception as e:
             self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {str(e)}", logging.ERROR)
