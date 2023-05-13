@@ -131,7 +131,6 @@ class TelegramBot:
                                         f"Message from @{message.from_user.username} (ID: {user_id}): {user_message}")
             await self.bot.send_message(user_id,
                                         "Your message has been sent to our support team. We will get back to you as soon as possible.")
-        await self.send_menu(user_id, 'main', message=self.welcome_text, parse_mode='Markdown')
 
     async def cmd_show_subscriptions_plans(self, message: types.Message = None, user_id: int = None, message_id=None):
         if user_id is None:
@@ -676,8 +675,6 @@ class TelegramBot:
 
         self.farming_users[user_id]['status'] = False
         await self.update_keyboard_layout(user_id)
-        await self.send_menu(user_id, 'main', message=self.welcome_text, parse_mode='Markdown')
-
         del self.user_airdrop_executions[user_id]
         del self.farming_users[user_id]
 
@@ -802,7 +799,6 @@ class TelegramBot:
         await user.add_airdrop(airdrop_name, self.db_manager)
         message = f"{airdrop_name} airdrop added to your list."
         await self.bot.send_message(chat_id=query.from_user.id, text=message)
-        await self.send_menu(query.from_user.id, 'add_airdrop', message="Select the airdrop you want to farm:")
 
     async def cmd_remove_airdrop(self, query: CallbackQuery, airdrop_name: str):
         user = await self.get_user(query.from_user.id)
@@ -882,8 +878,6 @@ class TelegramBot:
 
         await message.delete()  # Delete the message containing the private key for security reasons
 
-        await self.send_menu(message.from_user.id, 'manage_wallets')
-
     async def cmd_remove_wallet(self, query: CallbackQuery, wallet_name):
         user = await self.get_user(query.from_user.id)
         user_wallets = await user.get_wallets()
@@ -892,7 +886,6 @@ class TelegramBot:
             await user.remove_wallet(wallet)
             message = f"Wallet {wallet['name']} removed successfully!"
             await self.bot.send_message(chat_id=query.from_user.id, text=message)
-            await self.send_menu(query.from_user.id, 'manage_wallets')
         else:
             message = f"Wallet {wallet_name} not found in your list."
             await self.bot.send_message(chat_id=query.from_user.id, text=message)
@@ -945,7 +938,6 @@ class TelegramBot:
         else:
             message = "Your airdrop list is empty."
             await self.bot.send_message(chat_id=telegram_id, text=message)
-            await self.send_menu(telegram_id, 'manage_airdrops')
             return
 
         keyboard.add(
