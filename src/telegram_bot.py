@@ -779,10 +779,25 @@ class TelegramBot:
                                          reply_markup=keyboard)
 
     async def cmd_add_airdrop(self, query: CallbackQuery):
+        user = await self.get_user(query.from_user.id)
+
+        # Check if the user has already reached the maximum number of airdrops allowed by his plan
+        user_airdrops = await user.get_airdrops(self.db_manager)
+        plan_data = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
+        airdrop_limit = plan_data['airdrop_limit']
+        if len(user_airdrops) >= airdrop_limit:
+            message = f"You have reached the maximum number of airdrops allowed by your plan ({airdrop_limit}).\nIf you want to add a new airdrop, type /subscribtion to upgrade your plan."
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard.add(
+                InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"),
+            )
+            await self.bot.edit_message_text(chat_id=query.from_user.id, message_id=query.message.message_id, text=message,
+                                             reply_markup=keyboard)
+            return
+
         data = query.data.split(':')
         airdrop_name = data[1] if len(data) > 1 else None
 
-        user = await self.get_user(query.from_user.id)
 
         await user.add_airdrop(airdrop_name, self.db_manager)
         message = f"{airdrop_name} airdrop added to your list."
@@ -804,16 +819,17 @@ class TelegramBot:
 
     async def cmd_add_wallet(self, message: types.Message):
         user = await self.get_user(message.from_user.id)
+
         # Check if the user has already reached the maximum number of wallets allowed by his plan
-        # Get the maximum number of wallets allowed by the user's plan
-        plan = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
-        max_wallets = plan['wallets'] if plan is not None else None
-        if len(await user.get_wallets()) >= max_wallets:
+        plan_data = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
+        max_wallets = plan_data['wallets'] if plan_data is not None else None
+        user_wallets = await user.get_wallets()
+        if len(await user_wallets) >= max_wallets:
             await message.reply(
                 f"You have reached the maximum number of wallets allowed by your plan ({max_wallets}).\nPlease type /subscription to upgrade your plan.")
             await message.delete()
             return
-        user_wallets = await user.get_wallets()
+
         split_message = message.text.split(" ", 1)
         if len(split_message) > 1:
             wallet_info = split_message[1].split(':', 1)

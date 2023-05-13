@@ -9,12 +9,13 @@ class SecretsManager:
         self.client = hvac.Client(url=url, token=token)
         self.logger = logger
 
-        if self.client.is_authenticated():
-            token = self.client.lookup_token()['data']
-            self.logger.add_log(f"Successfully authenticated in Vault as {token['display_name']}", logging.INFO)
-        else:
-            self.logger.add_log(f"Failed to authenticate with Vault", logging.ERROR)
-            raise Exception('Failed to authenticate with Vault')
+        # DEBUG
+        # if self.client.is_authenticated():
+        #    token = self.client.lookup_token()['data']
+        #    self.logger.add_log(f"Successfully authenticated in Vault as {token['display_name']}", logging.INFO)
+        #else:
+        #    self.logger.add_log(f"Failed to authenticate with Vault", logging.ERROR)
+        #    raise Exception('Failed to authenticate with Vault')
 
     def store_wallet(self, user_id: str, wallet: dict):
         try:
