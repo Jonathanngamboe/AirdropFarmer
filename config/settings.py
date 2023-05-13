@@ -55,7 +55,7 @@ SUBSCRIPTION_PLANS = [
     },
     {
         'level': '🤓 Adventurer (Basic Plan)',
-        'features': ['Access to premium airdrops', 'Multiple wallets (up to 5 wallets)', 'Access to detailed log files', 'Priority support'],
+        'features': ['New Airdrop alerts', 'Access to premium airdrops', 'Multiple wallets (up to 5 wallets)', 'Access to detailed log files', 'Priority support'],
         'price_monthly': 9.99,
         'price_yearly': 99.99,
         'wallets': 5,
@@ -63,7 +63,7 @@ SUBSCRIPTION_PLANS = [
     },
     {
         'level': '🧐 Conqueror (Pro Plan)',
-        'features': ['Priority access to new airdrops', 'Multiple wallets (up to 100 wallets)', 'Access to detailed log files', 'Discord and Twitter automation', 'Priority support'],
+        'features': ['New Airdrop alerts', 'Priority access to new airdrops', 'Multiple wallets (up to 100 wallets)', 'Access to detailed log files', 'Discord and Twitter automation', 'Priority support'],
         'price_monthly': 19.99,
         'price_yearly': 199.99,
         'wallets': 100,
@@ -72,7 +72,7 @@ SUBSCRIPTION_PLANS = [
     },
     {
         'level': '🤑 Elite (Enterprise Plan)',
-        'features': ['Exclusive airdrops and promotions', 'Unlimited wallets', 'Access to detailed log files', 'Discord and Twitter automation', 'Priority access to new features', 'Dedicated support'],
+        'features': ['New Airdrop alerts', 'Exclusive airdrops and promotions', 'Unlimited wallets', 'Access to detailed log files', 'Discord and Twitter automation', 'Priority access to new features', 'Dedicated support'],
         'price_monthly': 'Custom',
         'price_yearly': 'Custom',
         'airdrop_limit': None,
