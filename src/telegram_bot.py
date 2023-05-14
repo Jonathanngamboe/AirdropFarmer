@@ -499,11 +499,8 @@ class TelegramBot:
                 message = "💸 *My airdrops :*\nYou have no airdrops yet.\nClick on the button below to add a new airdrop:"
             parse_mode = 'Markdown'
             if remaining_airdrops:
-                keyboard.add(InlineKeyboardButton("➕ Add new airdrop", callback_data="menu:add_airdrop"))
-
-            keyboard.add(
-                InlineKeyboardButton("🔙 Back", callback_data="menu:main"),
-                InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"))
+                keyboard.add(InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"),
+                             InlineKeyboardButton("➕ Add new airdrop", callback_data="menu:add_airdrop"),)
         elif menu == 'add_airdrop':
             # Create a temporary instance to get the active airdrops
             available_airdrops = AirdropExecution().get_active_airdrops()
