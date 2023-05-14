@@ -94,13 +94,14 @@ class IPNHandler:
 
         # Retrieve the existing transaction, if it exists
         existing_transaction = await self.db_manager.get_transaction_by_id(transaction_id)
+        self.sys_logger.add_log(f"Existing transaction: {existing_transaction}", logging.INFO)
 
         # If the transaction exists, update only the specific columns
         if existing_transaction:
-            await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json)  # Corrected method name
+            await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json, existing_transaction['duration'])
         # If it doesn't exist, create a new transaction (this is where you'd include the duration)
         else:
-            await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json, duration)  # Corrected method name
+            await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json, duration)
 
         return True
 
