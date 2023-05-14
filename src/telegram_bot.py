@@ -946,7 +946,7 @@ class TelegramBot:
             "- Never use your main wallet.\n"
             "- Leave only the necessary funds for transactions in the wallet.\n"
             "- After receiving an airdrop, immediately secure it by sending it to another wallet for which you are the only one with the private key.\n"
-            "\nIf you understand the risks and still wish to proceed, type /add_wallet followed by your wallet name and private key. For example: wallet_name:private_key\n"
+            "\nIf you understand the risks and still wish to proceed, type /add_wallet followed by the name of your wallet, a colon and your private key. For example: /add_wallet WalletName:0xYourPrivateKey\n"
         )
         await message.reply(warning_text)
 
