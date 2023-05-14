@@ -176,7 +176,7 @@ class TelegramBot:
                 plan = plan['level'].split('(', 1)[0].strip()
                 keyboard.add(InlineKeyboardButton(f"{plan}", callback_data=f"menu:choose_plan_type:{plan}"))
 
-        keyboard.add(InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"))
+        keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"))
 
         if message_id:
             await self.bot.edit_message_text(
@@ -499,7 +499,7 @@ class TelegramBot:
                 message = "💸 *My airdrops :*\nYou have no airdrops yet.\nClick on the button below to add a new airdrop:"
             parse_mode = 'Markdown'
             if remaining_airdrops:
-                keyboard.add(InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"),
+                keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),
                              InlineKeyboardButton("➕ Add new airdrop", callback_data="menu:add_airdrop"),)
         elif menu == 'add_airdrop':
             # Create a temporary instance to get the active airdrops
@@ -530,7 +530,7 @@ class TelegramBot:
                 keyboard.add(InlineKeyboardButton(wallet['name'], callback_data=f"remove_wallet:{wallet['name']}"))
 
             keyboard.add(
-                InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"),
+                InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),
                 InlineKeyboardButton("➕ Add wallet", callback_data="menu:add_wallet"),
             )
         elif menu == 'contact':
@@ -547,7 +547,7 @@ class TelegramBot:
             for date in log_dates:
                 keyboard.add(InlineKeyboardButton(date, callback_data=f"display_log:{date}"))
 
-            keyboard.add(InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"))
+            keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"))
 
             message = "*📋 Logs :*\nSelect a date to display the logs:"
             parse_mode = 'Markdown'
@@ -559,7 +559,7 @@ class TelegramBot:
             message = "⚙️ *Settings :*\nThere are currently no settings to configure."
             parse_mode = 'Markdown'
             keyboard.add(
-                InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main")
+                InlineKeyboardButton("🔙 Back home", callback_data="menu:main")
             )
         # Add more menus as needed
         else:
