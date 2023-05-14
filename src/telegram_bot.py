@@ -371,9 +371,9 @@ class TelegramBot:
             )
 
             # Save the transaction details to the database
-            response['result']['plan_duration_days'] = duration_days
             try:
-                await self.db_manager.save_transaction_details(user_id, transaction_id, json.dumps(response['result']))
+                await self.db_manager.save_transaction_details(user_id, transaction_id, json.dumps(response['result']),
+                                                               duration_days)
                 await self.bot.send_message(user_id, payment_details, parse_mode='Markdown')
             except Exception as e:
                 self.sys_logger.add_log(f"Error saving transaction details: {e}", logging.ERROR)
