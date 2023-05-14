@@ -62,8 +62,11 @@ class IPNHandler:
         if status >= 100 or status == 2:  # Payment is complete or queued for nightly payout
             # Get the user's subscription plan and duration
             transaction_data = await self.db_manager.get_transaction_by_id(transaction_id)
+            if transaction_data is None:  # Check if transaction_data is None
+                self.sys_logger.add_log(f"No transaction data found for transaction ID {transaction_id}", logging.ERROR)
+                return
             duration = transaction_data['duration']
-            self.sys_logger.add_log(f"Updating user {user_id} subscription to {ipn_data.get('item_name')} for {plan_duration_days} days",
+            self.sys_logger.add_log(f"Updating user {user_id} subscription to {ipn_data.get('item_name')} for {duration} days",
                                     logging.INFO)
             # Update user's subscription in the database.
             await self.db_manager.update_user_subscription(user_id, ipn_data.get('item_name'), duration)
@@ -79,15 +82,26 @@ class IPNHandler:
             # Not needed for now
             # await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
 
-    async def save_transaction_details(self, user_id, transaction_id, ipn_data):
+    async def save_transaction_details(self, user_id, transaction_id, ipn_data, duration=settings.DAYS_IN_MONTH):
         if user_id is None:
             self.sys_logger.add_log(f"User ID not found for transaction {transaction_id}", logging.ERROR)
             return False
-        self.sys_logger.add_log(f"Saving transaction details for transaction {transaction_id} for user {user_id}", logging.INFO)
+        self.sys_logger.add_log(f"Saving transaction details for transaction {transaction_id} for user {user_id}",
+                                logging.INFO)
+
         # Convert the ipn_data to a JSON string
         ipn_data_json = json.dumps(dict(ipn_data))
-        # Save transaction details to the database
-        await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json)
+
+        # Retrieve the existing transaction, if it exists
+        existing_transaction = await self.db_manager.get_transaction_by_id(transaction_id)
+
+        # If the transaction exists, update only the specific columns
+        if existing_transaction:
+            await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json)  # Corrected method name
+        # If it doesn't exist, create a new transaction (this is where you'd include the duration)
+        else:
+            await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json, duration)  # Corrected method name
+
         return True
 
     async def notify_payment_timeout(self, user_id, transaction_id, telegram_bot):
