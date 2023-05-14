@@ -495,6 +495,7 @@ class TelegramBot:
                 message = "💸 *My airdrops :*\nClick on the airdrop to edit it or click on the button below to add a new airdrop."
                 for airdrop in user_airdrops:
                     keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"edit_airdrop:{airdrop}"))
+                keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),)
             else:
                 message = "💸 *My airdrops :*\nYou have no airdrops yet.\nClick on the button below to add a new airdrop:"
             parse_mode = 'Markdown'
