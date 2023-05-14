@@ -493,15 +493,21 @@ class TelegramBot:
 
             if user_airdrops:
                 message = "💸 *My airdrops :*\nClick on the airdrop to edit it or click on the button below to add a new airdrop."
-                for airdrop in user_airdrops:
-                    keyboard.add(InlineKeyboardButton(airdrop, callback_data=f"edit_airdrop:{airdrop}"))
-                keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),)
+                airdrop_buttons = [InlineKeyboardButton(airdrop, callback_data=f"edit_airdrop:{airdrop}") for airdrop in
+                                   user_airdrops]
+                # Group airdrop_buttons into chunks of 3
+                airdrop_rows = [airdrop_buttons[i:i + 3] for i in range(0, len(airdrop_buttons), 3)]
+                keyboard = InlineKeyboardMarkup()
+                for row in airdrop_rows:
+                    keyboard.row(*row)
             else:
                 message = "💸 *My airdrops :*\nYou have no airdrops yet.\nClick on the button below to add a new airdrop:"
             parse_mode = 'Markdown'
             if remaining_airdrops:
                 keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),
                              InlineKeyboardButton("➕ Add new airdrop", callback_data="menu:add_airdrop"),)
+            else:
+                keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"), )
         elif menu == 'add_airdrop':
             # Create a temporary instance to get the active airdrops
             available_airdrops = AirdropExecution().get_active_airdrops()
@@ -527,9 +533,13 @@ class TelegramBot:
             else:
                 message = "👛 *My wallets :*\nYou don't have any wallets yet. Add a wallet to start farming."
             parse_mode = 'Markdown'
-            for wallet in user_wallets:
-                keyboard.add(InlineKeyboardButton(wallet['name'], callback_data=f"remove_wallet:{wallet['name']}"))
-
+            wallet_buttons = [InlineKeyboardButton(wallet['name'], callback_data=f"remove_wallet:{wallet['name']}") for
+                              wallet in user_wallets]
+            # Group wallet_buttons into chunks of 2
+            wallet_rows = [wallet_buttons[i:i + 2] for i in range(0, len(wallet_buttons), 2)]
+            keyboard = InlineKeyboardMarkup()
+            for row in wallet_rows:
+                keyboard.row(*row)
             keyboard.add(
                 InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),
                 InlineKeyboardButton("➕ Add wallet", callback_data="menu:add_wallet"),
