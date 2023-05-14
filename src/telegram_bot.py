@@ -560,6 +560,7 @@ class TelegramBot:
             await self.choose_currency(user_id=chat_id, message_id=message_id)
         elif menu == 'settings':
             message = "⚙️ *Settings :*\nThere are currently no settings to configure."
+            parse_mode = 'Markdown'
             keyboard.add(
                 InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main")
             )
