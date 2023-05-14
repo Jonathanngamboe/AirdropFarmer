@@ -287,19 +287,18 @@ class TelegramBot:
 
     async def send_txn_info(self, user_id, chosen_plan, duration, chosen_coin):
         user = await self.get_user(user_id)
-
-        if duration == 'monthly':  # Monthly
+        if duration == 'm':  # Monthly
             duration = '1 month'
             duration_days = settings.DAYS_IN_MONTH
             price_key = 'price_monthly'
-        elif duration == 'annual':  # Annual
+        elif duration == 'a':  # Annual
             duration = '1 year'
             duration_days = settings.DAYS_IN_YEAR
             price_key = 'price_yearly'
 
         # Get the subscription plan details
         plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if
-                             p['level'].split('(', 1)[0].strip() == chosen_plan), None)
+                             p['level'].split('(', 1)[0].strip() == chosen_plan.split('(', 1)[0].strip()), None)
         if not plan_details or plan_details.get(price_key) is None:
             self.bot.send_message(user_id, "Invalid subscription plan. Go back and try again.")
             return None
@@ -372,6 +371,7 @@ class TelegramBot:
             )
 
             # Save the transaction details to the database
+            response['result']['plan_duration_days'] = duration_days
             try:
                 await self.db_manager.save_transaction_details(user_id, transaction_id, json.dumps(response['result']))
                 await self.bot.send_message(user_id, payment_details, parse_mode='Markdown')

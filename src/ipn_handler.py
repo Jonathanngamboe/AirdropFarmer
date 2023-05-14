@@ -60,7 +60,14 @@ class IPNHandler:
         status = int(ipn_data.get('status'))
 
         if status >= 100 or status == 2:  # Payment is complete or queued for nightly payout
-            await self.update_user_subscription(user_id, ipn_data.get('item_name'), settings.SUBSCRIPTION_DURATION_DAYS)
+            # Get the user's subscription plan and duration
+            txn_record = await self.db_manager.get_transaction_by_id(transaction_id)
+            txn = json.loads(txn_record['ipn_data'])
+            plan_duration_days = txn['plan_duration_days']
+            self.sys_logger.add_log(f"Updating user {user_id} subscription to {ipn_data.get('item_name')} for {plan_duration_days} days",
+                                    logging.INFO)
+            # Update user's subscription in the database.
+            await self.db_manager.update_user_subscription(user_id, ipn_data.get('item_name'), plan_duration_days)
             await self.notify_payment_complete(user_id, transaction_id, telegram_bot)
         elif status == -1:  # Payment cancelled/Timed out
             await self.notify_payment_timeout(user_id, transaction_id, telegram_bot)
@@ -83,11 +90,6 @@ class IPNHandler:
         # Save transaction details to the database
         await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json)
         return True
-
-    async def update_user_subscription(self, user_id, plan_name, duration):
-        self.sys_logger.add_log(f"Updating user {user_id} subscription to {plan_name} for {duration} days", logging.INFO)
-        # Update user's subscription in the database.
-        await self.db_manager.update_user_subscription(user_id, plan_name, duration)
 
     async def notify_payment_timeout(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the payment timeout

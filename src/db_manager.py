@@ -175,6 +175,7 @@ class DBManager:
         ''', user_id)
 
     async def get_transaction_by_id(self, transaction_id):
+        self.sys_logger.add_log(f"Getting transaction {transaction_id}")
         async with self.pool.acquire() as connection:
             try:
                 result = await connection.fetchrow('''
@@ -182,13 +183,15 @@ class DBManager:
                 ''', transaction_id)
                 return result
             except asyncpg.exceptions.UndefinedTableError:
+                self.sys_logger.add_log("Transactions table not found. Creating table...")
                 await self.init_db()
             except asyncpg.exceptions.InterfaceError:
                 # Reconnect and retry if a connection error occurs
+                self.sys_logger.add_log("Connection error. Reconnecting...")
                 result = await connection.fetchrow('''
                     SELECT * FROM transactions WHERE transaction_id = $1
                 ''', transaction_id)
                 return result
             except Exception as e:
-                # Handle other exceptions as appropriate
+                self.sys_logger.add_log(f"Failed to get transaction {transaction_id}: {e}")
                 raise e
