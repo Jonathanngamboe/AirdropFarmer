@@ -42,7 +42,7 @@ VAULT_URL = config("VAULT_URL")
 DAYS_IN_MONTH = 1 # TODO: Change this to 30
 DAYS_IN_YEAR = 365
 LOG_PATH = 'logs'
-LOG_MAX_AGE_DAYS = 7
+LOG_MAX_AGE_DAYS = 30
 AIRDROP_FARMER_DATABASE_URL = config("AIRDROP_FARMER_DATABASE_URL")
 # It's important to keep the order of the plans
 SUBSCRIPTION_PLANS = [

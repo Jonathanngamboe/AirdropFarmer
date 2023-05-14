@@ -554,9 +554,12 @@ class TelegramBot:
                 await self.bot.send_message(chat_id, "No logs found.")
                 return
 
-            keyboard = InlineKeyboardMarkup(row_width=1)
-            for date in log_dates:
-                keyboard.add(InlineKeyboardButton(date, callback_data=f"display_log:{date}"))
+            log_buttons = [InlineKeyboardButton(date, callback_data=f"display_log:{date}") for date in log_dates]
+            # Group log_buttons into chunks of 3
+            log_rows = [log_buttons[i:i + 2] for i in range(0, len(log_buttons), 2)]
+            keyboard = InlineKeyboardMarkup()
+            for row in log_rows:
+                keyboard.row(*row)
 
             keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"))
 
