@@ -27,6 +27,11 @@ class AirdropFarmer:
         if self.discord_handler.is_connected:
             await self.discord_handler.disconnect()
 
+async def check_subscriptions_periodically(db_manager):
+    while True:
+        await db_manager.check_and_update_expired_subscriptions()
+        await asyncio.sleep(86400)  # Sleep for a day
+
 app = Quart(__name__)
 
 # Create an instance of the Logger class for system logs
@@ -76,6 +81,7 @@ async def main():
         # Run the Quart app concurrently with the Telegram bot
         tasks.append(asyncio.create_task(run_flask_app(app, ipn_handler_instance, telegram_bot)))
         tasks.append(asyncio.create_task(telegram_bot.start_polling()))
+        tasks.append(asyncio.create_task(check_subscriptions_periodically(db_manager)))
         await asyncio.gather(*tasks)
     except KeyboardInterrupt:
         system_logger.add_log("Keyboard interrupt detected. Exiting...", logging.INFO)

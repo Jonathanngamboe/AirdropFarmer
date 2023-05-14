@@ -290,11 +290,11 @@ class TelegramBot:
 
         if duration == 'monthly':  # Monthly
             duration = '1 month'
-            duration_days = 30
+            duration_days = settings.DAYS_IN_MONTH
             price_key = 'price_monthly'
         elif duration == 'annual':  # Annual
             duration = '1 year'
-            duration_days = 365
+            duration_days = settings.DAYS_IN_YEAR
             price_key = 'price_yearly'
 
         # Get the subscription plan details

@@ -137,6 +137,24 @@ class DBManager:
             WHERE telegram_id=$3
         ''', plan_name, subscription_expiry, user_id)
 
+    async def check_and_update_expired_subscriptions(self):
+        # Get current date
+        current_date = datetime.now()
+
+        try:
+            # Query for all users whose subscriptions have expired
+            expired_users = await self.fetch_query(
+                "SELECT * FROM users WHERE subscription_expiry <= $1;", current_date)
+
+            # Update user plans
+            for user in expired_users:
+                user_id = user['telegram_id']
+                await self.execute_query(
+                    "UPDATE users SET subscription_level = $1 WHERE telegram_id = $2;", settings.SUBSCRIPTION_PLANS[0]['level'],user_id)
+                self.sys_logger.add_log(f"Subscription for user {user_id} has been set to 'expired'")
+        except Exception as e:
+            self.sys_logger.add_log(f"Failed to update expired subscriptions: {e}")
+
     async def get_user_id_from_txn_id(self, txn_id):
         user_id_record = await self.fetch_query('''
             SELECT user_id FROM transactions
