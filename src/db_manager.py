@@ -59,8 +59,10 @@ class DBManager:
                 await self.init_db()
             except asyncpg.exceptions.InterfaceError:
                 # Reconnect and retry if a connection error occurs
-                result = await connection.execute(query, *args, **kwargs)
-                return result
+                connection.close()
+                async with self.pool.acquire() as connection:
+                    result = await connection.execute(query, *args, **kwargs)
+                    return result
             except Exception as e:
                 # Handle other exceptions as appropriate
                 raise e
@@ -74,8 +76,10 @@ class DBManager:
                 await self.init_db()
             except asyncpg.exceptions.InterfaceError:
                 # Reconnect and retry if a connection error occurs
-                result = await connection.fetch(query, *args, **kwargs)
-                return result
+                connection.close()
+                async with self.pool.acquire() as connection:
+                    result = await connection.execute(query, *args, **kwargs)
+                    return result
             except Exception as e:
                 # Handle other exceptions as appropriate
                 raise e
@@ -87,9 +91,10 @@ class DBManager:
                 return result
             except asyncpg.exceptions.InterfaceError:
                 # Reconnect and retry if a connection error occurs
-                await self.init_db()
-                result = await connection.fetchval(query, *args, **kwargs)
-                return result
+                connection.close()
+                async with self.pool.acquire() as connection:
+                    result = await connection.execute(query, *args, **kwargs)
+                    return result
             except Exception as e:
                 # Handle other exceptions as appropriate
                 raise e
