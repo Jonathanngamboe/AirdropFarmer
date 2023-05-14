@@ -82,7 +82,7 @@ class IPNHandler:
             # Not needed for now
             # await self.notify_pending_payment(user_id, transaction_id, telegram_bot)
 
-    async def save_transaction_details(self, user_id, transaction_id, ipn_data, duration=settings.DAYS_IN_MONTH):
+    async def save_transaction_details(self, user_id, transaction_id, ipn_data):
         if user_id is None:
             self.sys_logger.add_log(f"User ID not found for transaction {transaction_id}", logging.ERROR)
             return False
@@ -98,10 +98,13 @@ class IPNHandler:
 
         # If the transaction exists, update only the specific columns
         if existing_transaction:
-            await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json, existing_transaction['duration'])
-        # If it doesn't exist, create a new transaction (this is where you'd include the duration)
+            # Here, we are using the duration from the existing transaction if it's available
+            # If it's not (i.e., if it's None), we use settings.DAYS_IN_MONTH as a default value
+            transaction_duration = existing_transaction['duration'] if existing_transaction['duration'] is not None else settings.DAYS_IN_MONTH
+            await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json, transaction_duration)
+            # If it doesn't exist, we don't do anything, this should never happen
         else:
-            await self.db_manager.save_transaction_details(user_id, transaction_id, ipn_data_json, duration)
+            self.sys_logger.add_log(f"Transaction {transaction_id} not found in the database", logging.ERROR)
 
         return True
 
