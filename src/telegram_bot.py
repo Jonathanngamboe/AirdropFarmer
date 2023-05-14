@@ -173,7 +173,8 @@ class TelegramBot:
         keyboard = InlineKeyboardMarkup()
         for i, plan in enumerate(settings.SUBSCRIPTION_PLANS[current_plan_index:]):
             if i >= current_plan_index and i != 0: # Only show the plans after the current one and not the first one (free plan)
-                keyboard.add(InlineKeyboardButton(f"{plan['level'].split('(', 1)[0].strip()}", callback_data=f"menu:choose_subscription_type:{plan['level']}"))
+                plan = plan['level'].split('(', 1)[0].strip()
+                keyboard.add(InlineKeyboardButton(f"{plan}", callback_data=f"menu:choose_plan_type:{plan}"))
 
         keyboard.add(InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main"))
 
@@ -193,7 +194,7 @@ class TelegramBot:
                 parse_mode=types.ParseMode.MARKDOWN
             )
 
-    async def choose_subscription_type(self, user_id, message_id, plan):
+    async def choose_plan_type(self, user_id, message_id, plan):
         message_text = f"Select the subscription type for the *{plan}* plan:"
         buttons_row1 = [
             {"text": "📅 Monthly", "callback_data": f"menu:choose_currency:{plan}:monthly"},
@@ -229,7 +230,7 @@ class TelegramBot:
         for coin in unique_coins:
             keyboard.add(InlineKeyboardButton(f"{coin}", callback_data=f"menu:choose_network:{plan}:{duration}:{coin}"))
 
-        keyboard.add(InlineKeyboardButton("🔙 Back", callback_data=f"menu:choose_subscription_type:{plan}"))
+        keyboard.add(InlineKeyboardButton("🔙 Back", callback_data=f"menu:choose_plan_type:{plan}"))
 
         if message_id:
             await self.bot.edit_message_text(
@@ -250,7 +251,6 @@ class TelegramBot:
     async def choose_network(self, user_id, message_id, plan, duration, coin_name):
         message_text = f"Choose the network for {coin_name}:"
         # TODO: Only add networks that will avoid the error "Amount too small, there would be nothing left!" due to transaction fees
-        # TODO: Retrieve the full token name directly to avoid calling the Coinpayment API twice in a row
         # Get available coins
         coins = await self.get_available_coins()
 
@@ -273,7 +273,7 @@ class TelegramBot:
             else:
                 network_to_show = token
 
-            keyboard.add(InlineKeyboardButton(f"{network_to_show}", callback_data=f"send_transaction_details:{plan}:{duration[0]}:{code}"))
+            keyboard.add(InlineKeyboardButton(f"{network_to_show}", callback_data=f"send_txn_info:{plan}:{duration[0]}:{code}"))
 
         keyboard.add(InlineKeyboardButton("🔙 Back", callback_data=f"menu:choose_currency:{plan}:{duration}"))
 
@@ -285,21 +285,21 @@ class TelegramBot:
             parse_mode=types.ParseMode.MARKDOWN
         )
 
-    async def send_transaction_details(self, user_id, chosen_plan, duration, chosen_coin):
+    async def send_txn_info(self, user_id, chosen_plan, duration, chosen_coin):
         user = await self.get_user(user_id)
 
-        if duration == 'm':  # Monthly
+        if duration == 'monthly':  # Monthly
             duration = '1 month'
             duration_days = 30
             price_key = 'price_monthly'
-        else:
+        elif duration == 'annual':  # Annual
             duration = '1 year'
             duration_days = 365
             price_key = 'price_yearly'
 
         # Get the subscription plan details
         plan_details = next((p for p in settings.SUBSCRIPTION_PLANS if
-                             p['level'].split('(', 1)[0].strip() == chosen_plan.split('(', 1)[0].strip()), None)
+                             p['level'].split('(', 1)[0].strip() == chosen_plan), None)
         if not plan_details or plan_details.get(price_key) is None:
             self.bot.send_message(user_id, "Invalid subscription plan. Go back and try again.")
             return None
@@ -414,12 +414,12 @@ class TelegramBot:
                 await self.cmd_show_subscriptions_plans(user_id=query.from_user.id, message_id=query.message.message_id)
             elif params[0] == 'manage_airdrops':  # Go directly to edit airdrops when manage_airdrops is clicked
                 await self.send_menu(query.from_user.id, 'manage_airdrops', message_id=query.message.message_id)
-            elif params[0] == 'choose_subscription_type':
+            elif params[0] == 'choose_plan_type':
                 # Searches for plans that have "level" params[1] and price_monthly is of type str
                 if next((p for p in settings.SUBSCRIPTION_PLANS if p['level'] == params[1] and isinstance(p['price_monthly'], (str))), None):
                     await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
                 else:
-                    await self.choose_subscription_type(user_id=query.from_user.id, message_id=query.message.message_id, plan=params[1])
+                    await self.choose_plan_type(user_id=query.from_user.id, message_id=query.message.message_id, plan=params[1])
             elif params[0] == 'choose_currency':
                 await self.choose_currency(user_id=query.from_user.id, plan=params[1], duration=params[2], message_id=query.message.message_id)
             elif params[0] == 'choose_network':
@@ -447,8 +447,8 @@ class TelegramBot:
             user_id = query.from_user.id
             await self.bot.send_message(user_id, "Please type your message in the chat or type 'cancel' to cancel:")
             self.dp.register_message_handler(self.cmd_send_contact_message, lambda msg: msg.from_user.id == user_id)
-        elif action == "send_transaction_details":
-            await self.send_transaction_details(query.from_user.id, chosen_plan=params[0], duration=params[1], chosen_coin=params[2])
+        elif action == "send_txn_info":
+            await self.send_txn_info(query.from_user.id, chosen_plan=params[0], duration=params[1], chosen_coin=params[2])
 
         await self.retry_request(self.bot.answer_callback_query, query.id)
 
@@ -559,6 +559,7 @@ class TelegramBot:
         elif menu == 'choose_currency':
             await self.choose_currency(user_id=chat_id, message_id=message_id)
         elif menu == 'settings':
+            message = "⚙️ *Settings :*\nThere are currently no settings to configure."
             keyboard.add(
                 InlineKeyboardButton("🔙 Back to menu", callback_data="menu:main")
             )
