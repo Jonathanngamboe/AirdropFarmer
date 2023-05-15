@@ -54,17 +54,11 @@ class DeFiHandler:
 
     async def perform_action(self, action):
         # Print the wallet balance before start
-        message = f"INFO - Wallet : {action['wallet']['address']}\nINFO - Native token Balance : {self.get_token_balance(action['wallet'], native=True)}"
-        self.logger.add_log(message)
-        print(message)
-        # Cancel all pending transactions before performing a new action
-        #pending_transactions = self.get_pending_transactions(action["wallet"]["address"])
-        #if pending_transactions:
-        #    message = f"INFO - Canceling all pending transactions"
-        #    print(message)
-        #    self.logger.add_log(message)
-        #    for tx in pending_transactions:
-        #        self.cancel_pending_transactions(action["blockchain"], action["wallet"])
+        self.logger.add_log(f"INFO - Wallet : {action['wallet']['address']}\nINFO - Native token Balance : {self.get_token_balance(action['wallet'], native=True)}")
+        self.logger.add_log(f"INFO - Performing action : {action['description']}")
+
+        # Replace placeholder with actual wallet address in action
+        self.replace_placeholder_with_value(action, "<WALLET_ADDRESS>", action["wallet"]["address"])
 
         if action["action"] == "interact_with_contract":
             # Convert address type arguments to checksum address
@@ -116,6 +110,20 @@ class DeFiHandler:
                 deadline_minutes = action["deadline_minutes"],
                 blockchain = action["blockchain"]
             )
+
+    def replace_placeholder_with_value(self, dictionary, placeholder, value):
+        for key in dictionary:
+            if isinstance(dictionary[key], dict):
+                self.replace_placeholder_with_value(dictionary[key], placeholder, value)
+            elif isinstance(dictionary[key], list):
+                for item in dictionary[key]:
+                    if isinstance(item, dict):
+                        self.replace_placeholder_with_value(item, placeholder, value)
+            elif dictionary[key] == placeholder:
+                if value.startswith('0x') and len(value) == 42:  # Check if it's an EVM address
+                    dictionary[key] = self.web3.toChecksumAddress(value)  # Convert to checksum address
+                else:
+                    dictionary[key] = value
 
     def cancel_pending_transactions(self, blockchain, wallet):
         nonce = self.web3.eth.getTransactionCount(wallet["address"], 'pending')
@@ -374,14 +382,20 @@ class DeFiHandler:
 
         return await self.build_and_send_transaction(wallet, function_call, blockchain)
 
-    async def interact_with_contract(self, wallet, contract_address, abi, function_name, blockchain, msg_value=None, *args, **kwargs):
+    async def interact_with_contract(self, wallet, contract_address, abi, function_name, blockchain, msg_value=None, **kwargs):
         contract = self.web3.eth.contract(address=contract_address, abi=abi)
         function = contract.functions[function_name]
-        function_call = function(*args, **kwargs) # If gettting error "Function invocation failed due to no matching argument types", try to switch from *args to *kwargs or vice versa in the function call
+        try:
+            function_call = function(**kwargs)
+        except Exception as e:
+            self.logger.add_log(f"ERROR - Error while building function call : {e}")
+            # Print the kwargs
+            self.logger.add_log(f"INFO - Arguments passed to the function :")
+            for key, value in kwargs.items():
+                self.logger.add_log(f"      {key} : {value} {type(value)}")
+            return
 
-        message = f"INFO - Interacting with the function '{function_name}' of the contract {contract_address}"
-        print(message)
-        self.logger.add_log(message)
+        self.logger.add_log(f"INFO - Interacting with the function '{function_name}' of the contract {contract_address}")
 
         return await self.build_and_send_transaction(wallet, function_call, blockchain, msg_value)
 
