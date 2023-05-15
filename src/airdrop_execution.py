@@ -120,7 +120,7 @@ class AirdropExecution:
                         defi_handler = DeFiHandler(action["blockchain"], self.logger, self.stop_requested)
                         txn_hash = await defi_handler.perform_action(action)
                         if txn_hash is None:
-                            message = f"ERROR - Error in executing action {platform} for {airdrop_info['name']} airdrop, skipping this action."
+                            message = f"ERROR - Due to an error while executing {platform} action for {airdrop_info['name']} airdrop, skipping this action."
                             success = False  # Set success to False if an error occurs
                         else:
                             message = f"INFO - Transaction hash : {txn_hash}"
