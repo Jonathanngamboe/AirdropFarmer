@@ -30,6 +30,10 @@ class DeFiHandler:
             self.wrapped_native_token_address = settings.BASE_GOERLI_WETH_ADDRESS
             self.wrapped_native_token_abi = self.get_token_abi('weth_base_abi.json')
             self.token_abi = self.get_token_abi('erc20_abi.json')
+        elif blockchain == 'arbitrum_one':
+            web3 = Web3(Web3.HTTPProvider(settings.ARBITRUM_ONE_MAINNET_ENDPOINT))
+            self.wrapped_native_token_address = settings.ARBITRUM_ONE_MAINNET_WETH_ADDRESS
+            self.wrapped_native_token_abi = self.get_token_abi('weth_mainnet_abi.json')
         # Add more blockchains here if needed
         else:
             raise ValueError(f"INFO - Unsupported blockchain.")
