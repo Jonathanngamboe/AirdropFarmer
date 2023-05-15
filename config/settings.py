@@ -16,6 +16,7 @@ ETHEREUM_GOERLI_ENDPOINT = "https://eth-goerli.public.blastapi.io"
 ETHEREUM_GOERLI_WETH_ADDRESS = "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6"
 # Arbitrum One Mainnet
 ARBITRUM_ONE_MAINNET_ENDPOINT = "https://endpoints.omniatech.io/v1/arbitrum/one/public"
+ARBITRUM_ONE_MAINNET_WETH_ADDRESS = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"
 # Base Chain Goerli
 BASE_GOERLI_ENDPOINT = "https://base-goerli.public.blastapi.io"
 BASE_GOERLI_WETH_ADDRESS = "0x4200000000000000000000000000000000000006"
