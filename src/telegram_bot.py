@@ -55,6 +55,7 @@ class TelegramBot:
         async def on_startup(dp):
             # Set bot commands in the chat menu
             bot_commands = [
+                types.BotCommand(command="start", description="Start the bot"),
                 types.BotCommand(command="menu", description="Show the main menu"),
                 types.BotCommand(command="subscription", description="Show subscription plans"),
                 types.BotCommand(command="add_wallet", description="Add a wallet"),
@@ -700,8 +701,9 @@ class TelegramBot:
                 keyboard.add(types.InlineKeyboardButton("🛑 Stop farming", callback_data="stop_farming"))
 
             else:
-                self.bot.delete_message(chat_id, message_id)  # Delete the old message
-                await self.send_menu(chat_id)  # Send the main menu
+                await self.bot.delete_message(chat_id, message_id)  # Delete the old message
+                await self.send_menu(chat_id, 'main', message=self.welcome_text,
+                                     parse_mode='Markdown')  # Send the main menu again
                 keyboard.add(types.InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"))
 
     def get_user_logger(self, user_id):
@@ -720,30 +722,33 @@ class TelegramBot:
             actions_text = []
             for action in actions:
                 if action["isActivated"]:
-                    action_text = f"🔸 <b>{action['platform'].capitalize()}:</b> {action.get('description', action['action']).replace('_', ' ').title()}"
-                    if "blockchain" in action:
-                        action_text += f" ({action['blockchain'].capitalize().replace('_', ' ')})\n"
-                    action_details = []
-                    if "contract_address" in action:
-                        action_details.append(f"  - Contract address: {action['contract_address']}")
-                    if "function_name" in action:
-                        action_details.append(f"  - Function name: {action['function_name']}")
-                    if "exchange_address" in action:
-                        action_details.append(f"  - Exchange address: {action['exchange_address']}")
-                    if "token_address" in action:
-                        action_details.append(f"  - Token address: {action['token_address']}")
-                    if "recipient_address" in action:
-                        action_details.append(f"  - Recipient: {action['recipient_address']}")
-                    if "msg_value" in action:
-                        action_details.append(f"  - Value: {action['msg_value']} wei")
-                    if "amount" in action:
-                        action_details.append(f"  - Amount: {action['amount']} tokens")
-                    if "amount_in_wei" in action:
-                        action_details.append(f"  - Amount: {action['amount_in_wei']} wei")
-                    if "slippage" in action:
-                        action_details.append(f"  - Slippage tolerance: {action['slippage'] * 100}%")
+                    if "description" in action:
+                        action_text = f"🔸 <b>{action['platform'].capitalize()}:</b> {action['description']}"
+                    else:
+                        action_text = f"🔸 <b>{action['platform'].capitalize()}:</b> {action['action'].replace('_', ' ').title()}"
+                        if "blockchain" in action:
+                            action_text += f" ({action['blockchain'].capitalize().replace('_', ' ')})\n"
+                        action_details = []
+                        if "contract_address" in action:
+                            action_details.append(f"  - Contract address: {action['contract_address']}")
+                        if "function_name" in action:
+                            action_details.append(f"  - Function name: {action['function_name']}")
+                        if "exchange_address" in action:
+                            action_details.append(f"  - Exchange address: {action['exchange_address']}")
+                        if "token_address" in action:
+                            action_details.append(f"  - Token address: {action['token_address']}")
+                        if "recipient_address" in action:
+                            action_details.append(f"  - Recipient: {action['recipient_address']}")
+                        if "msg_value" in action:
+                            action_details.append(f"  - Value: {action['msg_value']} wei")
+                        if "amount" in action:
+                            action_details.append(f"  - Amount: {action['amount']} tokens")
+                        if "amount_in_wei" in action:
+                            action_details.append(f"  - Amount: {action['amount_in_wei']} wei")
+                        if "slippage" in action:
+                            action_details.append(f"  - Slippage tolerance: {action['slippage'] * 100}%")
 
-                    action_text += "\n".join(action_details)
+                        action_text += "\n".join(action_details)
                     actions_text.append(action_text)
 
             description = f"<b>Airdrop:</b> {airdrop_name}\n\n<b>Actions:</b>\n" + "\n\n".join(actions_text)
