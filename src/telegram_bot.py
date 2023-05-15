@@ -720,7 +720,7 @@ class TelegramBot:
             actions_text = []
             for action in actions:
                 if action["isActivated"]:
-                    action_text = f"🔸 <b>{action['platform'].capitalize()}:</b> {action['action'].replace('_', ' ').title()}"
+                    action_text = f"🔸 <b>{action['platform'].capitalize()}:</b> {action.get('description', action['action']).replace('_', ' ').title()}"
                     if "blockchain" in action:
                         action_text += f" ({action['blockchain'].capitalize().replace('_', ' ')})\n"
                     action_details = []
