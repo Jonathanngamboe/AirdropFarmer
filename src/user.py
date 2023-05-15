@@ -109,12 +109,11 @@ class User:
 
     @classmethod
     async def create_user(cls, telegram_id, username, db_manager, logger):
-        # save logger in the user object
-        cls.logger = logger
         user_data = {
             'telegram_id': telegram_id,
             'username': username,
             'subscription_level': 'Explorer (Free Plan)',
+            'logger': logger  # include the logger in the user_data dictionary
         }
         user = cls(**user_data)
         try:
