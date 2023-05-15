@@ -169,7 +169,9 @@ class TelegramBot:
                 message_text += "💥 *Most Popular*\n"
             message_text += "\n"
 
-        message_text += "Choose a plan to subscribe to:"
+        # Show the plans to choose from only if the user is not subscribed to the highest plan
+        if current_plan_index < len(settings.SUBSCRIPTION_PLANS) - 1:
+            message_text += "Choose a plan to subscribe to:"
 
         keyboard = InlineKeyboardMarkup()
         for i, plan in enumerate(settings.SUBSCRIPTION_PLANS[current_plan_index:]):
