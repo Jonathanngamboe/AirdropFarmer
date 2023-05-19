@@ -39,8 +39,11 @@ ADMIN_EMAIL = config("ADMIN_EMAIL")
 VAULT_TOKEN = config("VAULT_TOKEN")
 VAULT_URL = config("VAULT_URL")
 
+# Covalent
+COVALENT_API_KEY = config("COVALENT_API_KEY")
+
 # App
-DAYS_IN_MONTH = 1 # TODO: Change this to 30
+DAYS_IN_MONTH = 30
 DAYS_IN_YEAR = 365
 LOG_PATH = 'logs'
 LOG_MAX_AGE_DAYS = 30

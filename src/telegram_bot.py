@@ -1,24 +1,30 @@
 # telegram_bot.py
 import asyncio
+import io
 import json
 import os
+import traceback
 from collections import defaultdict
 from aiogram import Bot, Dispatcher, types
-from aiogram.utils.exceptions import InvalidQueryID, MessageNotModified
+from aiogram.utils.exceptions import InvalidQueryID
 from aiogram.dispatcher.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ParseMode
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from config import settings
 import logging
 from ecdsa import SECP256k1
 from eth_keys import keys
 from src.airdrop_execution import AirdropExecution
 from src.discord_handler import DiscordHandler
+from src.footprint import Footprint
 from src.logger import Logger
 from src.user import User
 from aiogram.types import InputFile
 from coinpayments import CoinPaymentsAPI
 import re
 from datetime import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 logging.basicConfig(level=logging.INFO)
 
@@ -46,6 +52,7 @@ class TelegramBot:
         self.dp.register_message_handler(self.cmd_start, Command(["start", "help"]))
         self.dp.register_message_handler(self.cmd_show_main_menu, Command(["menu"]))
         self.dp.register_message_handler(self.cmd_stop, commands=['stop'], commands_prefix='/', state='*')
+        self.dp.register_message_handler(self.cmd_show_footprint, commands=['footprint'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_contact, commands=['contact'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_add_wallet, Command("add_wallet"), content_types=types.ContentTypes.TEXT)
         self.dp.register_message_handler(self.cmd_show_subscriptions_plans, commands=['subscription'], commands_prefix='/', state='*')
@@ -59,6 +66,7 @@ class TelegramBot:
                 types.BotCommand(command="menu", description="Show the main menu"),
                 types.BotCommand(command="subscription", description="Show subscription plans"),
                 types.BotCommand(command="add_wallet", description="Add a wallet"),
+                types.BotCommand(command="footprint", description="Show wallet footprint"),
                 types.BotCommand(command="help", description="Show help"),
                 types.BotCommand(command="contact", description="Contact support"),
             ]
@@ -474,6 +482,73 @@ class TelegramBot:
         await self.send_menu(message.chat.id, 'main', message=self.welcome_text,
                              parse_mode='Markdown')  # Send the main menu
 
+    async def is_valid_address(self, wallet_address: str) -> bool:
+        # implement your validation logic here
+        # this is a simple placeholder implementation
+        if len(wallet_address) == 42 and wallet_address.startswith('0x'):
+            return True
+        return False
+
+    async def cmd_show_footprint(self, message: types.Message):
+        chat_id = message.chat.id
+        try:
+            command, params = message.text.strip().split(' ', 1)
+            blockchain_name, wallet_address = params.split(':')
+            wallet_address = wallet_address.strip()
+            blockchain_name = blockchain_name.strip().lower()
+        except Exception:
+            message = f"👣 To get the footprint of a wallet, please type /footprint followed by the blockchain name and a valid wallet address.\n\nAn example would be:\n/footprint eth-mainnet:0xWalletAddress\n\nSupported blockchains:\n"
+            footprint = Footprint()
+            supported_chains = await footprint.get_supported_chains()
+            for blockchain in supported_chains:
+                message += f"   - {blockchain['label'].capitalize()} ({blockchain['name']})\n"
+            await self.bot.send_message(chat_id, message)
+            return
+
+        # Check if the wallet address is valid
+        if not await self.is_valid_address(wallet_address):
+            await self.bot.send_message(chat_id, "The wallet address is invalid.")
+            return
+
+        try:
+            footprint = Footprint()
+
+            supported_chains = await footprint.get_supported_chains()
+            blockchain_label = next((blockchain['label'] for blockchain in supported_chains if blockchain['name'].lower() == blockchain_name.lower()), blockchain_name)
+
+            if not any(blockchain_name.lower() == blockchain['name'].lower() or blockchain_name.lower() == blockchain[
+                'label'].lower() for blockchain in supported_chains):
+                message = f"Sorry, but {blockchain_name} is not a valid chain name.Please try again with the following format:\n/footprint <eth-mainnet>:<wallet_address>\n\nSupported blockchains:\n"
+                for blockchain in supported_chains:
+                    message += f"   - {blockchain['label'].capitalize()} ({blockchain['name']})\n"
+                await self.bot.send_message(chat_id, message)
+                return
+
+            result = await footprint.get_statistics(wallet_address, blockchain_name)
+
+            if result is None:
+                await self.bot.send_message(chat_id, "No data available for the given wallet address.")
+                return
+
+            # Displays data according to what was received in the dictionary
+            message = f"👣 *Wallet Footprint*\n\n" \
+                      f"*⛓️ Blockchain:* {blockchain_label.title()}\n" \
+                      f"*👛 Wallet:* {wallet_address}\n\n" \
+                      f"• *Interactions:* {result['interactions']}\n" \
+                      f"• *Last Interaction:* {result['last_interaction_time'] if result['last_interaction_time'] is not None else '-'}\n" \
+                      f"• *Volume:* ${result['volume']}\n" \
+                      f"• *Fees Paid:* ${result['fees']}\n\n" \
+                      #f"📊 *Rankings*\n\n" \
+                      #f"• *Activity Rank:* Your wallet has been more active than {result['percentage_less_active']}% of wallets!\n" \
+                      #f"• *Spending Rank:* Your wallet has spent more than {result['percentage_less_spending']}% of wallets!"
+
+            await self.bot.send_message(chat_id, message, parse_mode='Markdown')
+        except Exception as e:
+            await self.bot.send_message(chat_id,
+                                        f"An error occurred while getting the wallet footprint. Please try again or type /contact to contact us.")
+            traceback.print_exc()  # Uncomment this line to print the full stack trace
+            self.sys_logger.add_log(f"ERROR - An error occurred while getting the wallet footprint: {e}", logging.ERROR)
+
     async def send_menu(self, chat_id, menu='main', message="Choose an option:", message_id=None, parse_mode=None):
         user = await self.get_user(chat_id)
         user_airdrops = await user.get_airdrops(self.db_manager)
@@ -495,7 +570,7 @@ class TelegramBot:
             remaining_airdrops = [airdrop for airdrop in available_airdrop_names if airdrop not in user_airdrops]
 
             if user_airdrops:
-                message = "💸 *My airdrops :*\nClick on the airdrop to edit it or click on the button below to add a new airdrop."
+                message = "💸 *My airdrops*\n\nClick on the airdrop to edit it or click on the button below to add a new airdrop."
                 airdrop_buttons = [InlineKeyboardButton(airdrop, callback_data=f"edit_airdrop:{airdrop}") for airdrop in
                                    user_airdrops]
                 # Group airdrop_buttons into chunks of 3
@@ -504,7 +579,7 @@ class TelegramBot:
                 for row in airdrop_rows:
                     keyboard.row(*row)
             else:
-                message = "💸 *My airdrops :*\nYou have no airdrops yet.\nClick on the button below to add a new airdrop:"
+                message = "💸 *My airdrops*\n\nYou have no airdrops yet.\nClick on the button below to add a new airdrop:"
             parse_mode = 'Markdown'
             if remaining_airdrops:
                 keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),
@@ -566,14 +641,14 @@ class TelegramBot:
 
             keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"))
 
-            message = "*📋 Logs :*\nSelect a date to display the logs:"
+            message = "*📋 Logs*\n\nSelect a date to display the logs:"
             parse_mode = 'Markdown'
         elif menu == 'manage_subscription':
             await self.cmd_show_subscriptions_plans(user_id=chat_id)
         elif menu == 'choose_currency':
             await self.choose_currency(user_id=chat_id, message_id=message_id)
         elif menu == 'settings':
-            message = "⚙️ *Settings :*\nThere are currently no settings to configure."
+            message = "⚙️ *Settings*\n\nThere are currently no settings to configure."
             parse_mode = 'Markdown'
             keyboard.add(
                 InlineKeyboardButton("🔙 Back home", callback_data="menu:main")
@@ -913,7 +988,6 @@ class TelegramBot:
             await message.reply("This wallet is already added.")
 
         await message.delete()  # Delete the message containing the private key for security reasons
-
 
     async def cmd_remove_wallet(self, query: CallbackQuery, wallet_name):
         user = await self.get_user(query.from_user.id)
