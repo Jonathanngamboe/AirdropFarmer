@@ -497,11 +497,11 @@ class TelegramBot:
             wallet_address = wallet_address.strip()
             blockchain_name = blockchain_name.strip().lower()
         except Exception:
-            message = f"👣 To get the footprint of a wallet, please type /footprint followed by the blockchain name and a valid wallet address.\n\nAn example would be:\n/footprint eth-mainnet:0xWalletAddress\n\nSupported blockchains:\n"
+            message = f"👣 To get the footprint of a wallet, please type /footprint followed by the blockchain name and a valid wallet address.\n\nAn example would be:\n/footprint <Chain Name>:<0xWalletAddress>\n\nSupported blockchains:\n"
             footprint = Footprint()
             supported_chains = await footprint.get_supported_chains()
             for blockchain in supported_chains:
-                message += f"   - {blockchain['label'].capitalize()} ({blockchain['name']})\n"
+                message += f"   - {blockchain['label'].title()}\n"
             await self.bot.send_message(chat_id, message)
             return
 
@@ -518,11 +518,13 @@ class TelegramBot:
 
             if not any(blockchain_name.lower() == blockchain['name'].lower() or blockchain_name.lower() == blockchain[
                 'label'].lower() for blockchain in supported_chains):
-                message = f"Sorry, but {blockchain_name} is not a valid chain name.Please try again with the following format:\n/footprint <eth-mainnet>:<wallet_address>\n\nSupported blockchains:\n"
+                message = f"Sorry, but {blockchain_name} is not a valid chain name. Please try again with the following format:\n/footprint <Chain Name>:<0xWalletAddress>\n\nSupported blockchains:\n"
                 for blockchain in supported_chains:
-                    message += f"   - {blockchain['label'].capitalize()} ({blockchain['name']})\n"
+                    message += f"   - {blockchain['label'].title()}\n"
                 await self.bot.send_message(chat_id, message)
                 return
+
+            # await self.bot.send_message(chat_id, "The calculation of your wallet footprint is in progress. This may take a few minutes. You will receive a notification when it is ready.")
 
             result = await footprint.get_statistics(wallet_address, blockchain_name)
 
@@ -535,9 +537,9 @@ class TelegramBot:
                       f"*⛓️ Blockchain:* {blockchain_label.title()}\n" \
                       f"*👛 Wallet:* {wallet_address}\n\n" \
                       f"• *Interactions:* {result['interactions']}\n" \
-                      f"• *Last Interaction:* {result['last_interaction_time'] if result['last_interaction_time'] is not None else '-'}\n" \
-                      f"• *Volume:* ${result['volume']}\n" \
-                      f"• *Fees Paid:* ${result['fees']}\n\n" \
+                      f"• *Last Interaction:* {result['last_interaction_time']}\n" \
+                      f"• *Volume:* {result['volume']}\n" \
+                      f"• *Fees Paid:* {result['fees']}\n\n" \
                       #f"📊 *Rankings*\n\n" \
                       #f"• *Activity Rank:* Your wallet has been more active than {result['percentage_less_active']}% of wallets!\n" \
                       #f"• *Spending Rank:* Your wallet has spent more than {result['percentage_less_spending']}% of wallets!"
@@ -545,7 +547,7 @@ class TelegramBot:
             await self.bot.send_message(chat_id, message, parse_mode='Markdown')
         except Exception as e:
             await self.bot.send_message(chat_id,
-                                        f"An error occurred while getting the wallet footprint. Please try again or type /contact to contact us.")
+                                        f"An error occurred while getting the wallet footprint: {e}")
             traceback.print_exc()  # Uncomment this line to print the full stack trace
             self.sys_logger.add_log(f"ERROR - An error occurred while getting the wallet footprint: {e}", logging.ERROR)
 
