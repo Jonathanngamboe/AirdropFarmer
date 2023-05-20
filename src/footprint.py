@@ -99,9 +99,6 @@ class Footprint:
                     if last_interaction_time is None or txn_time > last_interaction_time:
                         last_interaction_time = txn_time
 
-        print(first_interaction_time)
-        print(last_interaction_time)
-
         if txn_count == 0:
             return None
 
@@ -184,7 +181,7 @@ class Footprint:
 
             return data
         except Exception as e:
-            print(e)
+            raise e
 
     async def get_statistics(self, wallet_address, blockchain_name_or_label):
         blockchain_name = await self.get_blockchain_name(blockchain_name_or_label)
