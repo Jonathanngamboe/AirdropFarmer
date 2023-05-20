@@ -61,7 +61,6 @@ class Footprint:
                                    auth=aiohttp.BasicAuth(*self.covalent_basic)) as response:
                 try:
                     data = await response.json()
-                    print(data)
                     if data.get('error'):
                         raise ValueError(f"Error: {data.get('error_message')}")
                     transactions = data.get('data', {}).get('items', [])
