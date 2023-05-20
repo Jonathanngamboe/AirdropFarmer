@@ -1,5 +1,6 @@
 # src\footprint.py
 
+from datetime import datetime
 import aiohttp
 from config import settings
 
@@ -61,6 +62,7 @@ class Footprint:
                                    auth=aiohttp.BasicAuth(*self.covalent_basic)) as response:
                 try:
                     data = await response.json()
+                    print(data)
                     if data.get('error'):
                         raise ValueError(f"Error: {data.get('error_message')}")
                     transactions = data.get('data', {}).get('items', [])
@@ -77,6 +79,10 @@ class Footprint:
         if not blockchain:
             raise ValueError("Unsupported blockchain name.")
 
+        # Initialize these variables with None before the loop
+        first_interaction_time = None
+        last_interaction_time = None
+
         # Get the volume, fees and txn count
         for txn in transactions:
             if txn['from_address'].lower() == wallet_address.lower():
@@ -84,6 +90,17 @@ class Footprint:
                 if txn['successful']:
                     txn_count += 1
                     volume += int(txn['value']) * 10 ** -18 if txn['value'] else 0
+
+                    txn_time = datetime.fromisoformat(txn['block_signed_at'].replace('Z', ''))
+
+                    if first_interaction_time is None or txn_time < first_interaction_time:
+                        first_interaction_time = txn_time
+
+                    if last_interaction_time is None or txn_time > last_interaction_time:
+                        last_interaction_time = txn_time
+
+        print(first_interaction_time)
+        print(last_interaction_time)
 
         if txn_count == 0:
             return None
@@ -101,14 +118,10 @@ class Footprint:
             volume = f"{volume} ETH"
             fees = f"{fees} ETH"
 
-        # Get the last interaction time if it was successful and made by the wallet address
-        last_interaction_time = transactions[0]['block_signed_at'] if transactions[0]['successful'] and transactions[0][
-            'from_address'].lower() == wallet_address.lower() else None
-        last_interaction_time = last_interaction_time.replace('T', ' ').replace('Z',
-                                                                                '') if last_interaction_time else None
         data = {
             'interactions': txn_count,
             'volume': volume,
+            'first_interaction_time': first_interaction_time,
             'last_interaction_time': last_interaction_time,
             'fees': fees,
         }

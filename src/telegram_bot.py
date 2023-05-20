@@ -534,6 +534,7 @@ class TelegramBot:
                       f"*⛓️ Blockchain:* {blockchain_label.title()}\n" \
                       f"*👛 Wallet:* {wallet_address}\n\n" \
                       f"• *Interactions:* {result['interactions']}\n" \
+                      f"• *First Interaction:* {result['first_interaction_time']}\n" \
                       f"• *Last Interaction:* {result['last_interaction_time']}\n" \
                       f"• *Volume:* {result['volume']}\n" \
                       f"• *Fees Paid:* {result['fees']}\n\n" \
