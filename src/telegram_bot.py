@@ -22,9 +22,6 @@ from aiogram.types import InputFile
 from coinpayments import CoinPaymentsAPI
 import re
 from datetime import datetime
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 logging.basicConfig(level=logging.INFO)
 
