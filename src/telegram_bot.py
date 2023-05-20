@@ -1,6 +1,5 @@
 # telegram_bot.py
 import asyncio
-import io
 import json
 import os
 import traceback
@@ -22,6 +21,7 @@ from aiogram.types import InputFile
 from coinpayments import CoinPaymentsAPI
 import re
 from datetime import datetime
+from fuzzywuzzy import process
 
 logging.basicConfig(level=logging.INFO)
 
@@ -509,21 +509,21 @@ class TelegramBot:
 
         try:
             footprint = Footprint()
-
             supported_chains = await footprint.get_supported_chains()
-            blockchain_label = next((blockchain['label'] for blockchain in supported_chains if blockchain['name'].lower() == blockchain_name.lower()), blockchain_name)
+            chain_names = [blockchain['name'].lower() for blockchain in supported_chains]
 
-            if not any(blockchain_name.lower() == blockchain['name'].lower() or blockchain_name.lower() == blockchain[
-                'label'].lower() for blockchain in supported_chains):
-                message = f"Sorry, but {blockchain_name} is not a valid chain name. Please try again with the following format:\n/footprint <Chain Name>:<0xWalletAddress>\n\nSupported blockchains:\n"
+            # Use fuzzywuzzy to find the best match
+            best_match, confidence = process.extractOne(blockchain_name, chain_names)
+
+            if confidence < 80:  # adjust this confidence level based on your requirement
+                message = f"Sorry, but {blockchain_name} is not a valid chain name. Did you mean {best_match}?\n\nPlease try again with the following format:\n/footprint <Chain Name>:<0xWalletAddress>\n\nSupported blockchains:\n"
                 for blockchain in supported_chains:
                     message += f"   - {blockchain['label'].title()}\n"
                 await self.bot.send_message(chat_id, message)
                 return
 
-            # await self.bot.send_message(chat_id, "The calculation of your wallet footprint is in progress. This may take a few minutes. You will receive a notification when it is ready.")
-
-            result = await footprint.get_statistics(wallet_address, blockchain_name)
+            result = await footprint.get_statistics(wallet_address,
+                                                    best_match)  # pass best_match instead of blockchain_name
 
             if result is None:
                 await self.bot.send_message(chat_id, "No data available for the given wallet address.")
@@ -531,16 +531,13 @@ class TelegramBot:
 
             # Displays data according to what was received in the dictionary
             message = f"👣 *Wallet Footprint*\n\n" \
-                      f"*⛓️ Blockchain:* {blockchain_label.title()}\n" \
+                      f"*⛓️ Blockchain:* {best_match.title()}\n" \
                       f"*👛 Wallet:* {wallet_address}\n\n" \
                       f"• *Interactions:* {result['interactions']}\n" \
                       f"• *First Interaction:* {result['first_interaction_time']}\n" \
                       f"• *Last Interaction:* {result['last_interaction_time']}\n" \
                       f"• *Volume:* {result['volume']}\n" \
-                      f"• *Fees Paid:* {result['fees']}\n\n" \
-                      #f"📊 *Rankings*\n\n" \
-                      #f"• *Activity Rank:* Your wallet has been more active than {result['percentage_less_active']}% of wallets!\n" \
-                      #f"• *Spending Rank:* Your wallet has spent more than {result['percentage_less_spending']}% of wallets!"
+                      f"• *Fees Paid:* {result['fees']}\n\n"
 
             await self.bot.send_message(chat_id, message, parse_mode='Markdown')
         except Exception as e:

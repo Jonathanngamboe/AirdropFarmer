@@ -18,3 +18,5 @@ coinpayments-py
 quart
 hypercorn
 hvac
+fuzzywuzzy
+python-Levenshtein
