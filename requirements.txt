@@ -18,4 +18,3 @@ coinpayments-py
 quart
 hypercorn
 hvac
-dune_client
