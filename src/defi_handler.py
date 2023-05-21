@@ -55,7 +55,7 @@ class DeFiHandler:
     async def perform_action(self, action):
         # Print the wallet balance before start
         self.logger.add_log(f"INFO - Wallet : {action['wallet']['address']}\nINFO - Native token Balance : {self.get_token_balance(action['wallet'], native=True)}")
-        self.logger.add_log(f"INFO - Performing action : {action['description']}")
+        # self.logger.add_log(f"INFO - Performing action : {action['description']}")
 
         # Replace placeholder with actual wallet address in action
         self.replace_placeholder_with_value(action, "<WALLET_ADDRESS>", action["wallet"]["address"])
