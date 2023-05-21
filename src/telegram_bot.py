@@ -886,7 +886,7 @@ class TelegramBot:
         user_airdrops = await user.get_airdrops(self.db_manager)
         user_plan_features = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
         airdrop_limit = user_plan_features['airdrop_limit']
-        if len(user_airdrops) >= airdrop_limit:
+        if airdrop_limit != None and len(user_airdrops) >= airdrop_limit:
             message = f"⛔️ You have reached the maximum number of airdrops allowed by your plan ({airdrop_limit}). If you want to add a new airdrop, type /subscribtion to upgrade your plan."
             keyboard = InlineKeyboardMarkup(row_width=2)
             keyboard.add(
