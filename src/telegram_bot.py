@@ -604,9 +604,9 @@ class TelegramBot:
             )
         elif menu == 'manage_wallets':
             if user_wallets:
-                message = "👛 *My wallets :*\nClick on a wallet to remove it or click on the button below to add a new wallet."
+                message = "👛 *My wallets*\n\nClick on a wallet to remove it or click on the button below to add a new wallet."
             else:
-                message = "👛 *My wallets :*\nYou don't have any wallets yet. Add a wallet to start farming."
+                message = "👛 *My wallets*\n\nYou don't have any wallets yet. Add a wallet to start farming."
             parse_mode = 'Markdown'
             wallet_buttons = [InlineKeyboardButton(wallet['name'], callback_data=f"remove_wallet:{wallet['name']}") for
                               wallet in user_wallets]
@@ -1043,7 +1043,7 @@ class TelegramBot:
             "- Never use your main wallet.\n"
             "- Leave only the necessary funds for transactions in the wallet.\n"
             "- After receiving an airdrop, immediately secure it by sending it to another wallet for which you are the only one with the private key.\n"
-            "\nIf you understand the risks and still wish to proceed, type /add_wallet followed by the name of your wallet, a colon and your private key. For example: /add_wallet WalletName:0xYourPrivateKey\n"
+            "\nIf you understand the risks and still wish to proceed, type /add_wallet followed by the name of your wallet, a colon and your private key. For example: /add_wallet WalletName:YourPrivateKey\n"
         )
         await message.reply(warning_text)
 
