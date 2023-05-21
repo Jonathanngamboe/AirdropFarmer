@@ -1004,21 +1004,29 @@ class TelegramBot:
 
     async def is_valid_private_key(self, private_key_hex):
         try:
+            if len(private_key_hex) != 64 or not all(c in "0123456789abcdefABCDEF" for c in private_key_hex):
+                return False
             private_key_int = int(private_key_hex, 16)
             return 0 < private_key_int < SECP256k1.order
         except ValueError:
             return False
 
     async def private_to_public_key(self, private_key_hex):
-        private_key = keys.PrivateKey(bytes.fromhex(private_key_hex))
-        public_key = private_key.public_key
-        ethereum_address = public_key.to_checksum_address()
-        return ethereum_address
+        try:
+            private_key = keys.PrivateKey(bytes.fromhex(private_key_hex))
+            public_key = private_key.public_key
+            ethereum_address = public_key.to_checksum_address()
+            return ethereum_address
+        except Exception:
+            raise ValueError("Invalid private key")
 
     async def check_private_key(self, private_key_hex):
         if await self.is_valid_private_key(private_key_hex):
-            public_key_hex = await self.private_to_public_key(private_key_hex)
-            return {'private_key': private_key_hex, 'public_key': public_key_hex}
+            try:
+                public_key_hex = await self.private_to_public_key(private_key_hex)
+                return {'private_key': private_key_hex, 'public_key': public_key_hex}
+            except Exception:
+                return False
         else:
             return False
 
