@@ -526,7 +526,7 @@ class TelegramBot:
                                                     best_match)  # pass best_match instead of blockchain_name
 
             if result is None:
-                await self.bot.send_message(chat_id, "No data available for the given wallet address.")
+                await self.bot.send_message(chat_id, f"No data available for the given wallet address on {best_match.title()}.")
                 return
 
             # Displays data according to what was received in the dictionary
@@ -927,7 +927,7 @@ class TelegramBot:
         user_plan_features = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
         max_wallets = user_plan_features['wallets'] if user_plan_features is not None else None
         user_wallets = await user.get_wallets()
-        if len(user_wallets) >= max_wallets:
+        if max_wallets != '♾ (Unlimited)' and len(user_wallets) >= max_wallets:
             await message.reply(
                 f"⛔️ You have reached the maximum number of wallets allowed by your plan ({max_wallets}). If you want to add a new wallet, type /subscribtion to upgrade your plan.")
             await message.delete()
