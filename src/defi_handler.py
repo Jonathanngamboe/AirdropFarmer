@@ -382,11 +382,11 @@ class DeFiHandler:
 
         return await self.build_and_send_transaction(wallet, function_call, blockchain)
 
-    async def interact_with_contract(self, wallet, contract_address, abi, function_name, blockchain, msg_value=None, **kwargs):
+    async def interact_with_contract(self, wallet, contract_address, abi, function_name, blockchain, msg_value=None, *args, **kwargs):
         contract = self.web3.eth.contract(address=contract_address, abi=abi)
         function = contract.functions[function_name]
         try:
-            function_call = function(**kwargs)
+            function_call = function(*args, **kwargs)
         except Exception as e:
             self.logger.add_log(f"ERROR - Error while building function call : {e}")
             # Print the kwargs
