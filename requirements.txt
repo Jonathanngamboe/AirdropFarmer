@@ -1,10 +1,10 @@
 # requirements.txt
-tweepy==3.10.0
+tweepy>=3.10.0
 discord.py
-web3==5.23.0
-eth-account==0.5.6
-eth-abi==2.1.1
-beautifulsoup4==4.10.0
+web3>=5.30.0
+eth-account>=0.5.6
+eth-abi>=2.1.1
+beautifulsoup4>=4.10.0
 requests>=2.27.1
 aiogram
 pyrogram
