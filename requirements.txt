@@ -19,5 +19,4 @@ quart
 hypercorn
 hvac
 fuzzywuzzy
-python-Levenshtein
 dune_client
