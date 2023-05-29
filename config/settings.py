@@ -39,8 +39,18 @@ ADMIN_EMAIL = config("ADMIN_EMAIL")
 VAULT_TOKEN = config("VAULT_TOKEN")
 VAULT_URL = config("VAULT_URL")
 
+### Footprint ###
+
 # Covalent
 COVALENT_API_KEY = config("COVALENT_API_KEY")
+
+# Transpose
+TRANSPOSE_API_KEY = config("TRANSPOSE_API_KEY")
+
+# Dune Analytics
+DUNE_API_KEY = config("DUNE_API_KEY")
+
+### Footprint ###
 
 # App
 DAYS_IN_MONTH = 30

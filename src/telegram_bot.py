@@ -498,7 +498,7 @@ class TelegramBot:
             footprint = Footprint()
             supported_chains = await footprint.get_supported_chains()
             for blockchain in supported_chains:
-                message += f"   - {blockchain['label'].title()}\n"
+                message += f"   - {blockchain['name'].title()}\n"
             await self.bot.send_message(chat_id, message)
             return
 
@@ -516,28 +516,37 @@ class TelegramBot:
             best_match, confidence = process.extractOne(blockchain_name, chain_names)
 
             if confidence < 80:  # adjust this confidence level based on your requirement
-                message = f"Sorry, but {blockchain_name} is not a valid chain name. Did you mean {best_match}?\n\nPlease try again with the following format:\n/footprint <Chain Name>:<0xWalletAddress>\n\nSupported blockchains:\n"
+                message = f"Sorry, but {blockchain_name} is not a valid chain name. Did you mean {best_match.title()}?\n\nPlease try again with the following format:\n/footprint <Chain Name>:<0xWalletAddress>\n\nSupported blockchains:\n"
                 for blockchain in supported_chains:
-                    message += f"   - {blockchain['label'].title()}\n"
+                    message += f"   - {blockchain['name'].title()}\n"
                 await self.bot.send_message(chat_id, message)
                 return
+
+            # Get the statistics
+            await self.bot.send_message(chat_id, "The statistics are being fetched. This may take a few minutes. You will be notified when the statistics are ready.")
 
             result = await footprint.get_statistics(wallet_address,
                                                     best_match)  # pass best_match instead of blockchain_name
 
             if result is None:
-                await self.bot.send_message(chat_id, f"No data available for the given wallet address on {best_match.title()}.")
+                await self.bot.send_message(chat_id, f"No data available for the wallet {wallet_address} on {best_match.title()}.")
                 return
 
             # Displays data according to what was received in the dictionary
             message = f"👣 *Wallet Footprint*\n\n" \
                       f"*⛓️ Blockchain:* {best_match.title()}\n" \
-                      f"*👛 Wallet:* {wallet_address}\n\n" \
-                      f"• *Interactions:* {result['interactions']}\n" \
-                      f"• *First Interaction:* {result['first_interaction_time']}\n" \
-                      f"• *Last Interaction:* {result['last_interaction_time']}\n" \
-                      f"• *Volume:* {result['volume']}\n" \
-                      f"• *Fees Paid:* {result['fees']}\n\n"
+                      f"*👛 Wallet:* {wallet_address}\n\n"
+            # Add all the data to the message
+            for key, value in result.items():
+                if key not in ['rank', 'total_user_count', 'user_address']:
+                    if key in ['last_transaction', 'first_transaction']:
+                        value = value.split(' ')[0]
+                    elif key == 'volume':
+                        value = f"${value}"
+                    message += f"• *{key.replace('_', ' ').title()}:* {value}\n"
+
+            # Add the ranking
+            message += f"\n*🏆 Ranking*\n\nBased on the above data, your wallet is ranked **{result['rank']}** out of **{result['total_user_count']}** wallets. In other words, your wallet is in the top **{round(100 - ((result['rank'] / result['total_user_count']) * 100), 2)}%** of wallets on {best_match.title()}."
 
             await self.bot.send_message(chat_id, message, parse_mode='Markdown')
         except Exception as e:
