@@ -15,6 +15,8 @@ Environment="SERVER_IP=${SERVER_IP}"
 Environment="VAULT_URL=${VAULT_URL}"
 Environment="VAULT_TOKEN=${VAULT_TOKEN}"
 Environment="COVALENT_API_KEY=${COVALENT_API_KEY}"
+Environment="TRANSPOSE_API_KEY=${TRANSPOSE_API_KEY}"
+Environment="DUNE_API_KEY=${DUNE_API_KEY}"
 Restart=always
 RestartSec=5
 
