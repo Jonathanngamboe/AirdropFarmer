@@ -1,5 +1,6 @@
 # src\footprint.py
-
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from dune_client.types import QueryParameter
 from dune_client.client import DuneClient
 from dune_client.query import Query
@@ -12,9 +13,9 @@ SUPPORTED_CHAINS = [
     }
 ]
 
-
 class Footprint:
     def __init__(self):
+        self.executor = ThreadPoolExecutor(max_workers=5)
         # Transpose API
         self.transpose_header = {
             'Content-Type': 'application/json',
@@ -40,7 +41,9 @@ class Footprint:
             ],
         )
         try:
-            result = self.dune.refresh(query)
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(self.executor, self.dune.refresh, query)
+            self.executor.shutdown()
             print(result.result.rows)
             return result.result.rows[0]
         except Exception as e:
