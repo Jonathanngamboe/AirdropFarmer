@@ -17,6 +17,6 @@ ecdsa
 coinpayments-py
 quart
 hypercorn
-hvac
+hvac==1.1.0
 fuzzywuzzy
-dune_client
+dune_client==1.0.0
