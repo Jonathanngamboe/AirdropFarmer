@@ -549,6 +549,9 @@ class TelegramBot:
             percentile = (result['rank'] / result['total_user_count']) * 100
             message += f"\n*🏆 Ranking*\n\nBased on previous airdrop eligibility criteria such as Arbitrum or Optimism, your wallet is ranked **{result['rank']:,}** out of **{result['total_user_count']:,}** wallets on {best_match.title()}. This places you ahead of **{100 - percentile:.2f}%** of all wallets."
 
+            # Add the source
+            message += f"\n\n*📊 Source*\n\nThe data is sourced from {result['source']} : {result['source_url']}."
+
             await self.bot.send_message(chat_id, message, parse_mode='Markdown')
         except Exception as e:
             await self.bot.send_message(chat_id,

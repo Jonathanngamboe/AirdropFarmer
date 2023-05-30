@@ -10,6 +10,7 @@ SUPPORTED_CHAINS = [
     {
         "name": "Layer Zero",
         "data_source": "Dune Analytics",
+        "source_url": "https://dune.com/springzhang/layerzero-users-ranking-for-potential-airdrop",
     }
 ]
 
@@ -54,6 +55,10 @@ class Footprint:
         # Get the statistics from the supported chains using the appropriate daa source
         data_source = [chain['data_source'] for chain in SUPPORTED_CHAINS if chain['name'].lower() == chain_name.lower()][0]
         if data_source == "Dune Analytics":
-            return await self.get_dune_statistics(wallet_address, chain_name)
+            datas = await self.get_dune_statistics(wallet_address, chain_name)
+        # Add the source url to the data
+        datas['source'] = data_source
+        datas['source_url'] = [chain['source_url'] for chain in SUPPORTED_CHAINS if chain['name'].lower() == chain_name.lower()][0]
+        return datas
 
 
