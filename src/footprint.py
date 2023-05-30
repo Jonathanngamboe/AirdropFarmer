@@ -15,7 +15,7 @@ SUPPORTED_CHAINS = [
 
 class Footprint:
     def __init__(self):
-        self.executor = ThreadPoolExecutor(max_workers=5)
+        self.executor = ThreadPoolExecutor(max_workers=2) # Create a thread pool executor to run blocking code
         # Transpose API
         self.transpose_header = {
             'Content-Type': 'application/json',
