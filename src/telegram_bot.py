@@ -547,7 +547,7 @@ class TelegramBot:
 
             # Add the ranking
             percentile = (result['rank'] / result['total_user_count']) * 100
-            message += f"\n*🏆 Ranking*\n\nBased on the above data, your wallet is ranked **{result['rank']}** out of **{result['total_user_count']}** wallets on the {best_match.title()} blockchain. This places you ahead of **{100 - percentile:.2f}%** of all wallets."
+            message += f"\n*🏆 Ranking*\n\nBased on the above data, your wallet is ranked **{result['rank']}** out of **{result['total_user_count']}** wallets on {best_match.title()}. This places you ahead of **{100 - percentile:.2f}%** of all wallets."
 
             await self.bot.send_message(chat_id, message, parse_mode='Markdown')
         except Exception as e:
