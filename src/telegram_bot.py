@@ -541,13 +541,13 @@ class TelegramBot:
                 if key not in ['rank', 'total_user_count', 'user_address']:
                     if key in ['last_transaction', 'first_transaction']:
                         value = value.split(' ')[0]
-                    elif key == 'volume':
+                    elif key in ['volume', 'bridged_amount']:
                         value = f"${value}"
                     message += f"• *{key.replace('_', ' ').title()}:* {value}\n"
 
             # Add the ranking
             percentile = (result['rank'] / result['total_user_count']) * 100
-            message += f"\n*🏆 Ranking*\n\nBased on the above data, your wallet is ranked **{result['rank']}** out of **{result['total_user_count']}** wallets on {best_match.title()}. This places you ahead of **{100 - percentile:.2f}%** of all wallets."
+            message += f"\n*🏆 Ranking*\n\nBased on previous airdrop eligibility criteria such as Arbitrum or Optimism, your wallet is ranked **{result['rank']}** out of **{result['total_user_count']}** wallets on {best_match.title()}. This places you ahead of **{100 - percentile:.2f}%** of all wallets."
 
             await self.bot.send_message(chat_id, message, parse_mode='Markdown')
         except Exception as e:
