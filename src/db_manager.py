@@ -1,8 +1,7 @@
 # db:manger.py
-import datetime
 import asyncpg
 from config import settings
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from src.user import User
 
 
@@ -138,7 +137,7 @@ class DBManager:
 
     async def update_user_subscription(self, user_id, plan_name, duration):
         # Update the user's subscription in your database
-        subscription_expiry = datetime.now() + timedelta(days=duration)
+        subscription_expiry = datetime.now(timezone.utc) + timedelta(days=duration)
         await self.execute_query('''
             UPDATE users
             SET subscription_level=$1, subscription_expiry=$2
@@ -147,7 +146,7 @@ class DBManager:
 
     async def check_and_update_expired_subscriptions(self):
         # Get current date
-        current_date = datetime.now()
+        current_date = datetime.now(timezone.utc)
 
         try:
             # Query for all users whose subscriptions have expired

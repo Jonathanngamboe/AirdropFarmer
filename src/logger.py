@@ -1,7 +1,7 @@
 import datetime
 import os
 from pathlib import Path
-from datetime import timedelta
+from datetime import timedelta, timezone
 from config import settings
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -30,7 +30,7 @@ class Logger:
         self.logger.addHandler(log_handler)
 
     def get_log_filename(self):
-        today = datetime.datetime.now()
+        today = datetime.datetime.now(timezone.utc)
         if self.app_log:
             filename = f"app_{today.strftime('%Y-%m-%d')}.log"
         else:
@@ -52,14 +52,14 @@ class Logger:
         if not log_path.exists():
             with open(log_path, 'w') as log_file:
                 log_file.write(
-                    f"--- Log file created on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n\n")
+                    f"--- Log file created on {datetime.datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC ---\n\n")
 
     def add_log(self, log_message, log_level=logging.INFO):
         if self.app_log:
             self.logger.log(log_level, log_message)
         else:
             log_path = self.log_dir / self.log_filename
-            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = datetime.datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             with log_path.open('a') as log_file:
                 log_file.write(f"[{timestamp}] {log_message}\n")
             self.delete_old_logs()

@@ -20,7 +20,7 @@ from src.user import User
 from aiogram.types import InputFile
 from coinpayments import CoinPaymentsAPI
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from fuzzywuzzy import process
 
 logging.basicConfig(level=logging.INFO)
@@ -311,16 +311,17 @@ class TelegramBot:
             self.bot.send_message(user_id, "Invalid subscription plan. Go back and try again.")
             return None
 
+        # Use datetime.now(timezone.utc) to get a timezone-aware datetime object
+        remaining_days = (user.subscription_expiry - datetime.now(timezone.utc)).days
+
         # Calculate the price and discount for subscription upgrade
         discount = 0
         if user.subscription_level == chosen_plan:
             # Extend the current subscription
-            remaining_days = (user.subscription_expiry - datetime.now()).days
             duration_days += remaining_days
         elif user.subscription_level is not None and user.subscription_expiry is not None:
             # Upgrade to a more expensive subscription
             current_plan = next((p for p in settings.SUBSCRIPTION_PLANS if p['level'] == user.subscription_level), None)
-            remaining_days = (user.subscription_expiry - datetime.now()).days
 
             old_daily_rate = current_plan[price_key] / duration_days
             remaining_value = remaining_days * old_daily_rate
