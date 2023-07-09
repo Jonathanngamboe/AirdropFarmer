@@ -107,7 +107,7 @@ class AirdropExecution:
                 message = "------------------------"
                 print(message)
                 self.logger.add_log(message)
-                message = f"INFO - Executing action {action['action']} for {airdrop_info['name']} airdrop"
+                message = f"INFO - Executing action '{action['action'].replace('_', ' ')}' for {airdrop_info['name']} airdrop"
                 print(message)
                 self.logger.add_log(message)
                 # Add the wallet's public address and private key to the action
