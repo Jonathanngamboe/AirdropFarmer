@@ -1,5 +1,6 @@
 # airdrop_execution.py
 import asyncio
+import random
 import traceback
 from src.defi_handler import DeFiHandler
 from src.twitter_handler import TwitterHandler
@@ -88,6 +89,8 @@ class AirdropExecution:
     async def execute_airdrop_actions(self, airdrop_info):
         success = True  # Initialize success as True
         active_actions = [action for action in airdrop_info["actions"] if action["isActivated"]]
+        # Shuffle the list
+        random.shuffle(active_actions)
 
         if not active_actions:
             message = f"INFO - No active actions found for {airdrop_info['name']} airdrop."
