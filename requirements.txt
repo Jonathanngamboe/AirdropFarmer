@@ -20,3 +20,4 @@ hypercorn
 hvac==1.1.0
 fuzzywuzzy
 dune_client==1.0.0
+filelock
