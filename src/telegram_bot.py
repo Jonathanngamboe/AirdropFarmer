@@ -901,7 +901,7 @@ class TelegramBot:
         user_plan_features = next((plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level), None)
         airdrop_limit = user_plan_features['airdrop_limit']
         if airdrop_limit != None and len(user_airdrops) >= airdrop_limit:
-            message = f"⛔️ You have reached the maximum number of airdrops allowed by your plan ({airdrop_limit}). If you want to add a new airdrop, type /subscribtion to upgrade your plan."
+            message = f"⛔️ Your current plan allows you to add up to {airdrop_limit} airdrops. If you want to add a new airdrop, type /subscribtion to upgrade your plan."
             keyboard = InlineKeyboardMarkup(row_width=2)
             keyboard.add(
                 InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"),
@@ -943,7 +943,7 @@ class TelegramBot:
         user_wallets = await user.get_wallets()
         if max_wallets != '♾ (Unlimited)' and len(user_wallets) >= max_wallets:
             await message.reply(
-                f"⛔️ You have reached the maximum number of wallets allowed by your plan ({max_wallets}). If you want to add a new wallet, type /subscribtion to upgrade your plan.")
+                f"⛔️ Your current plan allows you to add up to {max_wallets} wallets. If you want to add a new wallet, type /subscribtion to upgrade your plan.")
             await message.delete()
             return
 
