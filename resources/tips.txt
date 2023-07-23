@@ -1,17 +1,17 @@
-Here are some tips to help you make the most of your airdrop hunting experience while being aware of the risks involved:
+💡 We're dedicated to maximizing your chances of being eligible for airdrops by integrating sybil-flag protection measures into our bot. Despite our best efforts, we urge you to remain cautious and adhere to the following advice:
 
-1. 🚀 Engage actively: Complete tasks, join groups, and follow social media channels mentioned in airdrop campaigns. The more active you are, the better your chances of receiving rewards.
+⛓️ *Avoid Wallet Linking*: Never directly transfer funds between your wallets. Use an exchange, like Binance or OKX, as an intermediary. This prevents potential wallet-linking.
 
-2. 📚 Do your research: Always research the projects behind airdrops to assess their legitimacy and potential. Be cautious of projects that seem too good to be true or lack substantial information.
+💰 *Maintain Network Balance*: Ensure a small amount of funds always remain in the network of your target airdrop. Wallets that appear empty may be flagged as Sybil.
 
-3. 🛡️ Protect your privacy: Never share your private keys or sensitive personal information with airdrops. Use separate email addresses and usernames for airdrop registrations to minimize potential risks.
+🌐 *Engage with Popular Networks*: Stay active in major networks like Ethereum, BSC, and Polygon. This conveys the impression of a genuine, protocol-diverse user.
 
-4. ⚙️ Update your wallet: Keep your cryptocurrency wallets up to date and maintain a secure backup of your private keys. This will help you avoid losing access to your funds.
+🎁 *Diversify Airdrop Activity*: Don't focus exclusively on a single airdrop. Engage with various airdrops to showcase diverse blockchain activity.
 
-5. 🔄 Diversify your portfolio: Participating in multiple airdrops can increase your chances of success. Diversify your airdrop portfolio to minimize risks and maximize potential gains.
+🕰️ *Prolonged Usage & Diversified Airdrop Farming*: Utilize the bot over an extended period and refrain from farming all airdrops simultaneously across multiple wallets. Diverse and prolonged use appears more organic and less Sybil-like.
 
-6. 💬 Stay connected: Join our community and engage with fellow airdrop hunters to share tips, insights, and experiences. Stay up to date with the latest news and trends in the airdrop space.
+👛 *Unique Deposit Addresses*: Generate a unique Binance deposit address for each wallet when collecting airdrops. This prevents your wallets from being associated.
 
-7. ⚠️ Be aware of risks: Remember that airdrops carry inherent risks, and the bot does not guarantee profits or successful participation. Always exercise caution and use the bot as a tool to assist you in your airdrop endeavors.
+Happy airdrop farming, and remember to stay safu! 🚀
 
-Happy airdrop hunting, and remember to stay safu! 🎉
+
