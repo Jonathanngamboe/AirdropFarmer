@@ -202,3 +202,10 @@ class DBManager:
             except Exception as e:
                 self.sys_logger.add_log(f"Failed to get transaction {transaction_id}: {e}")
                 raise e
+
+    async def delete_user(self, telegram_id):
+        # Here we are using DELETE CASCADE to delete all related entries in transactions table
+        await self.execute_query('''
+            DELETE FROM users
+            WHERE telegram_id=$1
+        ''', telegram_id)
