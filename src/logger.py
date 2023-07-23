@@ -91,6 +91,17 @@ class Logger:
                 log_dates.append(date_str)
         return log_dates
 
+    def delete_user_logs(self):
+        """Delete all log files for the user"""
+        log_directory = Path(self.log_dir)
+        if log_directory.exists():
+            for log_file in log_directory.glob("*.log"):
+                try:
+                    os.remove(log_file)
+                except PermissionError:
+                    self.add_log(f"Could not delete log file {log_file} because it is in use by another process.",
+                                 log_level=logging.ERROR)
+
     def delete_old_logs(self, max_age_days=settings.LOG_MAX_AGE_DAYS):
         log_directory = Path(self.log_dir)
         if log_directory.exists():
