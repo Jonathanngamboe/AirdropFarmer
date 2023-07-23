@@ -5,17 +5,18 @@ import traceback
 from src.defi_handler import DeFiHandler
 from src.twitter_handler import TwitterHandler
 import os
+import logging
 import importlib.util
 
 class AirdropExecution:
     def __init__(self, discord_handler=None, logger=None, wallets=None):
+        self.logger = logger
         self.last_executed = {}  # Dictionary to store the last execution time
         self.airdrop_info = self.load_airdrop_files() # Load the airdrop files
         # Check if there is at least one Discord action
         self.has_discord_action = any(
             action["platform"] == "discord" for airdrop in self.airdrop_info for action in airdrop["actions"])
         self.discord_handler = discord_handler
-        self.logger = logger
         self.finished = False
         self.airdrops_to_execute = []
         self.airdrop_statuses = {}
@@ -30,11 +31,14 @@ class AirdropExecution:
 
         airdrop_list = []
         for airdrop_file in airdrop_files:
-            file_path = os.path.join(airdrops_path, airdrop_file)
-            spec = importlib.util.spec_from_file_location(airdrop_file[:-3], file_path)
-            airdrop_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(airdrop_module)
-            airdrop_list.append(airdrop_module.airdrop_info)
+            try:
+                file_path = os.path.join(airdrops_path, airdrop_file)
+                spec = importlib.util.spec_from_file_location(airdrop_file[:-3], file_path)
+                airdrop_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(airdrop_module)
+                airdrop_list.append(airdrop_module.airdrop_info)
+            except Exception as e:
+                self.logger.add_log(f"ERROR - Error loading {airdrop_file}: {e}", logging.ERROR)
 
         return airdrop_list
 
