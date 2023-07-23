@@ -1,0 +1,27 @@
+👋 *Hello and welcome to the Airdrop Farmer Telegram Bot!*
+
+Our bot is designed to help you automatically farm airdrops across multiple wallets. Whether you're a newcomer to the world of cryptocurrency or an advanced user, our bot can simplify the airdrop acquisition process for you.
+
+Here are a few simple steps to start using the bot:
+1️⃣ Add your wallets using the /add_wallet command, followed by the name of your wallet and your private key.
+2️⃣ Send the /menu command to access the main menu.
+3️⃣ Navigate through the airdrops menu to select the airdrops you wish to farm.
+
+We also have several handy commands for navigating the bot:
+- /menu: Displays the main menu.
+- /contact: Allows you to contact support.
+- /add_wallet: Lets you add a wallet address.
+- /subscription: Shows the different subscription plans available.
+- /footprint: Shows statistics about your airdrop farming activity.
+- /tips: Provides tips to maximize your chances of receiving airdrops.
+- /stop: Stops the bot.
+
+Please note that our bot *does not guarantee* the receipt of specific airdrops. The granting of airdrops is at the discretion of the issuing entities.
+
+Feel free to consult our /tips to maximize your chances of obtaining airdrops.
+
+For a detailed guide on how to use our bot, please visit our GitBook here: [GitBook Link](https://defi-bots.gitbook.io/airdrop-farmer/)
+
+If you have any questions or need additional help, don't hesitate to use the /contact command to get in touch with us. We're here to help!
+
+We hope you enjoy your experience with the Airdrop Farmer Telegram Bot, and we wish you successful 🚀 airdrop farming! 🎉
