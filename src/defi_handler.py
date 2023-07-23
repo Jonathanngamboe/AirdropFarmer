@@ -8,6 +8,9 @@ import time
 import os
 import config.settings as settings
 
+# TODO: Implement feature to automatically vary activities across user wallets (e.g., token bridging on one, token swapping on another).
+# TODO: Detect and alert users if they're synchronizing actions across multiple wallets (like simultaneous withdrawals or identical transactions).
+# TODO: Wallet generation
 class DeFiHandler:
     def __init__(self, blockchain, logger, stop_requested):
         self.logger = logger
@@ -224,6 +227,7 @@ class DeFiHandler:
         return token_name
 
     async def build_and_send_transaction(self, wallet, function_call, msg_value=None):
+        print(f"DEBUG - Building transaction for {wallet['address']}")
         gas_price = self.web3.eth.gas_price
 
         # Estimate gas_limit
@@ -232,9 +236,9 @@ class DeFiHandler:
                 "from": wallet["address"],
                 "value": msg_value if msg_value is not None else 0,
             })
-        except ValueError as e:
+        except Exception as e:
             error_message = str(e)
-            if "Insufficient msg.value" in error_message:
+            if "Insufficient msg.value" or "execution reverted: mvl" in error_message:
                 message = f"ERROR - {error_message}. Using default gas limit but transaction may fail."
                 print(message)
                 self.logger.add_log(message)
@@ -387,8 +391,8 @@ class DeFiHandler:
             self.logger.add_log(f"ERROR - Error while building function call : {e}")
             # Print the kwargs
             self.logger.add_log(f"INFO - Arguments passed to the function :")
-            for key, value in kwargs.items():
-                self.logger.add_log(f"      {key} : {value} {type(value)}")
+            self.logger.add_log(kwargs)
+            print(f"ERROR - Error while building function call : {e}")
             return
 
         self.logger.add_log(f"INFO - Interacting with the function '{function_name}' of the contract {contract_address}")
