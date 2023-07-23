@@ -10,9 +10,18 @@ SUPPORTED_CHAINS = [
     {
         "name": "Layer Zero",
         "data_source": "Dune Analytics",
+        "query_id": 2660352,
         "source_url": "https://dune.com/springzhang/layerzero-users-ranking-for-potential-airdrop",
+    },
+    {
+        "name": "zkSync",
+        "data_source": "Dune Analytics",
+        "query_id": 2659961,
+        "source_url": "https://dune.com/sixdegree/zksync-airdrop-simulation-ranking",
     }
 ]
+
+MAIN_QUERY_ID = 2504714
 
 class Footprint:
     def __init__(self):
@@ -30,15 +39,13 @@ class Footprint:
         return sorted(SUPPORTED_CHAINS, key=lambda x: x['name'])
 
     async def get_dune_statistics(self, wallet_address, chain_name):
-        if chain_name.lower() == "Layer Zero".lower():
-            query_id = 2504714
-        else:
-            return None
+        query_id = [chain['query_id'] for chain in SUPPORTED_CHAINS if chain['name'].lower() == chain_name.lower()][0]
         query = Query(
             name="Wallet Statistics",
-            query_id=query_id,
+            query_id=MAIN_QUERY_ID,
             params=[
                 QueryParameter.text_type(name="wallet_address", value=wallet_address),
+                QueryParameter.text_type(name="query_id", value="query_"+str(query_id)),
             ],
         )
         try:
