@@ -49,10 +49,11 @@ class TelegramBot:
         self.dp.register_message_handler(self.cmd_start, Command(["start", "help"]))
         self.dp.register_message_handler(self.cmd_show_main_menu, Command(["menu"]))
         self.dp.register_message_handler(self.cmd_stop, commands=['stop'], commands_prefix='/', state='*')
-        self.dp.register_message_handler(self.cmd_show_footprint, commands=['footprint'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_contact, commands=['contact'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_add_wallet, Command("add_wallet"), content_types=types.ContentTypes.TEXT)
         self.dp.register_message_handler(self.cmd_show_subscriptions_plans, commands=['subscription'], commands_prefix='/', state='*')
+        self.dp.register_message_handler(self.cmd_footprint, commands=['footprint'], commands_prefix='/', state='*')
+        self.dp.register_message_handler(self.cmd_tips, commands=['tips'], commands_prefix='/', state='*')
         self.dp.register_callback_query_handler(self.on_menu_button_click)
 
     async def start_polling(self):
@@ -64,6 +65,7 @@ class TelegramBot:
                 types.BotCommand(command="subscription", description="Show subscription plans"),
                 types.BotCommand(command="add_wallet", description="Add a wallet"),
                 types.BotCommand(command="footprint", description="Show wallet footprint"),
+                types.BotCommand(command="tips", description="Show tips"),
                 types.BotCommand(command="help", description="Show help"),
                 types.BotCommand(command="contact", description="Contact support"),
             ]
@@ -110,7 +112,11 @@ class TelegramBot:
         user_id = message.from_user.id
         await self.bot.send_message(user_id,
                                     "Goodbye! The bot has been stopped. If you want to start again, just type /start")
-        # Delete all the messages
+        # TODO: Delete all user data
+
+    async def cmd_tips(self, message: types.Message):
+        tips = self.load_tips()
+        await self.bot.send_message(message.chat.id, tips)
 
     async def cmd_contact(self, message: types.Message = None, user_id: int = None, message_id=None):
         if user_id is None:
@@ -419,6 +425,10 @@ class TelegramBot:
                 await self.send_menu(query.from_user.id, params[0], message_id=query.message.message_id)
             elif params[0] == 'contact':
                 await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
+            elif params[0] == 'footprint':
+                await self.cmd_footprint(query.message)
+            elif params[0] == 'tips':
+                await self.cmd_tips(query.message)
             elif params[0] == 'manage_subscription':
                 await self.cmd_show_subscriptions_plans(user_id=query.from_user.id, message_id=query.message.message_id)
             elif params[0] == 'manage_airdrops':  # Go directly to edit airdrops when manage_airdrops is clicked
@@ -487,7 +497,7 @@ class TelegramBot:
             return True
         return False
 
-    async def cmd_show_footprint(self, message: types.Message):
+    async def cmd_footprint(self, message: types.Message):
         chat_id = message.chat.id
         try:
             command, params = message.text.strip().split(' ', 1)
@@ -571,6 +581,8 @@ class TelegramBot:
                 InlineKeyboardButton("👛 My wallets", callback_data="menu:manage_wallets"),
                 InlineKeyboardButton("📦 Subscription", callback_data="menu:manage_subscription"),
                 InlineKeyboardButton("📋 Logs", callback_data="menu:show_logs"),
+                InlineKeyboardButton("👣 Footprint", callback_data="menu:footprint"),
+                InlineKeyboardButton("💡 Tips", callback_data="menu:tips"),
                 InlineKeyboardButton("📤 Contact", callback_data="menu:contact"),
                 InlineKeyboardButton("⚙️ Settings", callback_data="menu:settings"),
                 InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"),
