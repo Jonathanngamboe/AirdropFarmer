@@ -68,6 +68,21 @@ class User:
             self.sys_logger.add_log(f"Error during wallet deletion: {e}", logging.ERROR)
             return False
 
+    async def remove_all_wallets(self):
+        try:
+            existing_wallets = await self.get_wallets()
+            if not existing_wallets:
+                self.sys_logger.add_log(f"No wallets found for user {self.telegram_id}")
+                return False
+            else:
+                for wallet in existing_wallets:
+                    self._secrets_manager.delete_wallet(self.telegram_id, wallet)
+                self.sys_logger.add_log(f"All wallets removed for user {self.telegram_id}")
+                return True
+        except Exception as e:
+            self.sys_logger.add_log(f"Error during wallet deletion: {e}", logging.ERROR)
+            return False
+
     async def get_wallets(self):
         try:
             # Add the user's wallets from secrets manager to the list of wallets
