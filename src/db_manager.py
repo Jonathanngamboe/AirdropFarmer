@@ -28,7 +28,8 @@ class DBManager:
                 airdrops JSONB,
                 twitter_credentials JSONB,
                 discord_credentials JSONB,
-                session_logs JSONB
+                session_logs JSONB,
+                referral_code VARCHAR(255)
             );
         ''')
         await self.execute_query('''
@@ -41,6 +42,16 @@ class DBManager:
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
             ''')
+        await self.execute_query('''
+                    CREATE TABLE IF NOT EXISTS referral_codes (
+                        code_id SERIAL PRIMARY KEY,
+                        code_value VARCHAR(255) UNIQUE NOT NULL,
+                        created_by INTEGER REFERENCES users (id) ON DELETE CASCADE,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        used_times INTEGER DEFAULT 0,
+                        status BOOLEAN DEFAULT TRUE
+                    );
+                ''')
 
     async def get_all_users(self):
         return await self.fetch_query("SELECT * FROM users;")
