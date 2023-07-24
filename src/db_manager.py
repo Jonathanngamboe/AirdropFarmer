@@ -46,7 +46,7 @@ class DBManager:
                     CREATE TABLE IF NOT EXISTS referral_codes (
                         code_id SERIAL PRIMARY KEY,
                         code_value VARCHAR(255) UNIQUE NOT NULL,
-                        created_by INTEGER REFERENCES users (id) ON DELETE CASCADE,
+                        created_by INTEGER REFERENCES users (telegram_id) ON DELETE CASCADE,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                         used_times INTEGER DEFAULT 0,
                         status BOOLEAN DEFAULT TRUE
