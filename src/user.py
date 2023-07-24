@@ -2,16 +2,16 @@
 import json
 import logging
 import hvac
-import random
+import shortuuid
 import string
 from config import settings
 from src.secret_manager import SecretsManager
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 
 class User:
     def __init__(self, telegram_id, username, subscription_level, logger, airdrops=None,
-                 twitter_credentials=None, discord_credentials=None, session_logs=None, subscription_expiry=None):
+                 twitter_credentials=None, discord_credentials=None, session_logs=None, subscription_expiry=None, referral_code=None):
         self.telegram_id = telegram_id
         self.username = username
         self.subscription_level = subscription_level
@@ -20,7 +20,7 @@ class User:
         self.discord_credentials = discord_credentials
         self.session_logs = session_logs if session_logs is not None else []
         self.subscription_expiry = subscription_expiry
-        self.referral_code = None
+        self.referral_code = referral_code
         self.sys_logger = logger
         self._secrets_manager = SecretsManager(url=settings.VAULT_URL, token=settings.VAULT_TOKEN, logger=self.sys_logger)
 
@@ -127,13 +127,17 @@ class User:
         return subscription_levels[self.subscription_level]
 
     @classmethod
-    async def create_user(cls, telegram_id, username, db_manager, logger):
+    async def create_user(cls, telegram_id, username, db_manager, logger, referral_code=None):
         user_data = {
             'telegram_id': telegram_id,
             'username': username,
             'subscription_level': 'Explorer (Free Plan)',
             'logger': logger  # include the logger in the user_data dictionary
         }
+        if referral_code:
+            # If the referral_code is not None, add it to the user_data dictionary
+            user_data['referral_code'] = referral_code
+
         user = cls(**user_data)
         try:
             await db_manager.execute_query(
@@ -147,10 +151,10 @@ class User:
 
     async def generate_referral_code(self, db_manager):
         # Generate a unique referral code
-        now = datetime.now()
-        referral_code = now.strftime('%Y%m%d%H%M%S') + ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+        referral_code = shortuuid.ShortUUID().random(length=6)  # adjust length according to your requirement
 
         # Check if user has already generated a referral code today
+        now = datetime.now(timezone.utc)
         start_of_day = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
         end_of_day = start_of_day + timedelta(days=1)
         existing_code = await db_manager.fetch_query(
@@ -176,6 +180,22 @@ class User:
         except Exception as e:
             self.sys_logger.add_log(f"Error during referral code generation: {e}", logging.ERROR)
             raise e
+
+    @staticmethod
+    async def check_referral_code(referral_code, db_manager, logger):
+        try:
+            result = await db_manager.fetch_query(
+                "SELECT * FROM referral_codes WHERE code_value = $1", referral_code
+            )
+            if result:
+                logger.add_log(f"Referral code {referral_code} is valid.", logging.INFO)
+                return True
+            else:
+                logger.add_log(f"Referral code {referral_code} is not valid.", logging.INFO)
+                return False
+        except Exception as e:
+            logger.add_log(f"Error during referral code check: {e}", logging.ERROR)
+            return False
 
     @classmethod
     async def get_user_by_telegram_id(cls, telegram_id: int, db_manager, logger) -> "User":
