@@ -2,8 +2,11 @@
 import json
 import logging
 import hvac
+import random
+import string
 from config import settings
 from src.secret_manager import SecretsManager
+from datetime import datetime, timedelta
 
 
 class User:
@@ -17,6 +20,7 @@ class User:
         self.discord_credentials = discord_credentials
         self.session_logs = session_logs if session_logs is not None else []
         self.subscription_expiry = subscription_expiry
+        self.referral_code = None
         self.sys_logger = logger
         self._secrets_manager = SecretsManager(url=settings.VAULT_URL, token=settings.VAULT_TOKEN, logger=self.sys_logger)
 
@@ -140,6 +144,38 @@ class User:
             logger.add_log(f"Error during user insertion: {e}", logging.ERROR)
             raise e
         return user
+
+    async def generate_referral_code(self, db_manager):
+        # Generate a unique referral code
+        now = datetime.now()
+        referral_code = now.strftime('%Y%m%d%H%M%S') + ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+
+        # Check if user has already generated a referral code today
+        start_of_day = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+        end_of_day = start_of_day + timedelta(days=1)
+        existing_code = await db_manager.fetch_query(
+            "SELECT code_value FROM referral_codes WHERE created_by = $1 AND created_at BETWEEN $2 AND $3",
+            self.telegram_id, start_of_day, end_of_day
+        )
+        if existing_code:
+            self.sys_logger.add_log(f"User {self.telegram_id} has already generated a referral code today")
+            raise Exception("You can only generate one referral code per day")
+
+        # Save referral code in database
+        try:
+            await db_manager.execute_query(
+                "INSERT INTO referral_codes (code_value, created_by) VALUES ($1, $2)",
+                referral_code, self.telegram_id
+            )
+            await db_manager.execute_query(
+                "UPDATE users SET referral_code = $1 WHERE telegram_id = $2",
+                referral_code, self.telegram_id
+            )
+            self.sys_logger.add_log(f"User {self.telegram_id} generated a new referral code")
+            return referral_code
+        except Exception as e:
+            self.sys_logger.add_log(f"Error during referral code generation: {e}", logging.ERROR)
+            raise e
 
     @classmethod
     async def get_user_by_telegram_id(cls, telegram_id: int, db_manager, logger) -> "User":
