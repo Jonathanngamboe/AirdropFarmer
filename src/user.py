@@ -202,12 +202,12 @@ class User:
 
             # If the referral code exists but has been used 3 times or more, raise an exception
             if result[0]['used_times'] >= MAX_REFERRAL_CODE_USES:
-                raise Exception(f"Referral code {referral_code} has already been used {MAX_REFERRAL_CODE_USES} times. Press /start to try again.")
+                raise Exception(f"Referral code *{referral_code}* has already been used *{MAX_REFERRAL_CODE_USES}* times. Press /start to try again.")
 
             # If the referral code exists and has been used less than 3 times, return True
             return True
         except Exception as e:
-            if str(e) == f"Referral code {referral_code} has already been used {MAX_REFERRAL_CODE_USES} times. Press /start to try again.":
+            if str(e) == f"Referral code *{referral_code}* has already been used *{MAX_REFERRAL_CODE_USES}* times. Press /start to try again.":
                 raise e
             else:
                 return False

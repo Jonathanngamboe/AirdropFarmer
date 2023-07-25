@@ -559,7 +559,7 @@ class TelegramBot:
             user = await self.get_user(query.from_user.id)
             try:
                 referral_code = await user.generate_referral_code(self.db_manager)
-                await self.bot.send_message(query.from_user.id, f"Your referral code is: {referral_code}")
+                await self.bot.send_message(query.from_user.id, f"Your referral code is: *{referral_code}*", parse_mode='Markdown')
             except Exception as e:
                 await self.bot.send_message(query.from_user.id, f"{e}")
 
@@ -1262,7 +1262,7 @@ class TelegramBot:
                 await self.bot.send_message(message.chat.id, "Invalid referral code. Press /start to try again.")
                 await BotStates.waiting_for_referral_code.set()
         except Exception as e:
-            await self.bot.send_message(message.chat.id, f"{e}")
+            await self.bot.send_message(message.chat.id, f"{e}", parse_mode='Markdown')
             await BotStates.waiting_for_referral_code.set()
 
         # Don't forget to reset the state at the end so it doesn't remain stuck waiting for the referral code.
