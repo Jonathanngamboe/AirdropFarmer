@@ -52,6 +52,15 @@ class DBManager:
                         status BOOLEAN DEFAULT TRUE
                     );
                 ''')
+        await self.execute_query('''
+                    CREATE TABLE IF NOT EXISTS rewards (
+                        reward_id SERIAL PRIMARY KEY,
+                        user_id INTEGER REFERENCES users (telegram_id) ON DELETE CASCADE,
+                        amount FLOAT NOT NULL,
+                        claimed BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                ''')
 
     async def get_all_users(self):
         return await self.fetch_query("SELECT * FROM users;")

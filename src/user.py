@@ -25,6 +25,28 @@ class User:
         self.sys_logger = logger
         self._secrets_manager = SecretsManager(url=settings.VAULT_URL, token=settings.VAULT_TOKEN, logger=self.sys_logger)
 
+    @classmethod
+    async def get_user_by_telegram_id(cls, telegram_id: int, db_manager, logger) -> "User":
+        user_data = await db_manager.fetch_query(
+            "SELECT * FROM users WHERE telegram_id = $1", telegram_id
+        )
+
+        if user_data:
+            record = user_data[0]
+            user_data = dict(record)
+            user_data.pop('id', None)
+            user_data.pop('created_at', None)
+
+            if user_data.get('airdrops'):
+                user_data['airdrops'] = json.loads(user_data['airdrops'])
+            else:
+                user_data['airdrops'] = []
+
+
+            user = cls(**user_data, logger=logger)
+            return user
+        return None
+
     async def add_airdrop(self, airdrop, db_manager):
         existing_airdrops = await self.get_airdrops(db_manager)
         if airdrop not in existing_airdrops:
@@ -212,24 +234,73 @@ class User:
             else:
                 return False
 
-    @classmethod
-    async def get_user_by_telegram_id(cls, telegram_id: int, db_manager, logger) -> "User":
-        user_data = await db_manager.fetch_query(
-            "SELECT * FROM users WHERE telegram_id = $1", telegram_id
-        )
+    async def get_referral_stats(self, db_manager):
+        try:
+            # Fetch referral data
+            referral_data = await db_manager.fetch_query(
+                "SELECT used_times, COUNT(subscription_level) as subscribed_users FROM referral_codes JOIN users ON referral_codes.code_value = users.referral_code WHERE created_by = $1 GROUP BY used_times;",
+                self.telegram_id
+            )
+            if not referral_data:
+                self.sys_logger.add_log(f"No referral data found for user {self.telegram_id}")
+                return None
 
-        if user_data:
-            record = user_data[0]
-            user_data = dict(record)
-            user_data.pop('id', None)
-            user_data.pop('created_at', None)
+            # Fetch reward data
+            reward_data = await db_manager.fetch_query(
+                "SELECT SUM(amount) as total_amount, SUM(case when claimed = FALSE then amount else 0 end) as unclaimed_amount FROM rewards WHERE user_id = $1",
+                self.telegram_id
+            )
 
-            if user_data.get('airdrops'):
-                user_data['airdrops'] = json.loads(user_data['airdrops'])
-            else:
-                user_data['airdrops'] = []
+            total_amount = reward_data[0]['total_amount'] if reward_data else 0
+            unclaimed_amount = reward_data[0]['unclaimed_amount'] if reward_data else 0
 
+            referred_users = referral_data[0]['used_times']
+            subscribed_users = referral_data[0]['subscribed_users']
 
-            user = cls(**user_data, logger=logger)
-            return user
-        return None
+            referral_stats = {
+                "• Total Referred Users": referred_users,
+                "• Subscribed Users": subscribed_users,
+                "• Total Amount Earned": total_amount,
+                "• Unclaimed Rewards": unclaimed_amount  # Added this line
+            }
+
+            return referral_stats
+        except Exception as e:
+            raise e
+
+    async def claim_reward(self, db_manager):
+        try:
+            reward = await db_manager.fetch_query(
+                "SELECT * FROM rewards WHERE user_id = $1 AND claimed = FALSE", self.telegram_id
+            )
+            if not reward:
+                self.sys_logger.add_log(f"No unclaimed reward found for user {self.telegram_id}")
+                return None
+
+            await db_manager.execute_query(
+                "UPDATE rewards SET claimed = TRUE WHERE user_id = $1 AND claimed = FALSE", self.telegram_id
+            )
+            self.sys_logger.add_log(f"User {self.telegram_id} claimed their reward")
+            return reward[0]['amount']
+        except Exception as e:
+            self.sys_logger.add_log(f"Error during reward claiming: {e}", logging.ERROR)
+            raise e
+
+    async def get_reward_status(self, db_manager):
+        try:
+            reward = await db_manager.fetch_query(
+                "SELECT * FROM rewards WHERE user_id = $1", self.telegram_id
+            )
+            if not reward:
+                self.sys_logger.add_log(f"No reward found for user {self.telegram_id}")
+                return None
+
+            reward_status = {
+                "Amount": reward[0]['amount'],
+                "Claimed": reward[0]['claimed']
+            }
+            self.sys_logger.add_log(f"Reward status for user {self.telegram_id}: {reward_status}")
+            return reward_status
+        except Exception as e:
+            self.sys_logger.add_log(f"Error during reward status retrieval: {e}", logging.ERROR)
+            raise e

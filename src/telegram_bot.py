@@ -55,6 +55,7 @@ class TelegramBot:
         self.referral_codes = {}
 
     def register_handlers(self):
+        # Register when the user types a command
         self.dp.register_message_handler(self.cmd_start, Command(["start"]))
         self.dp.register_message_handler(self.cmd_help, Command(["help"]))
         self.dp.register_message_handler(self.cmd_show_main_menu, Command(["menu"]))
@@ -64,10 +65,9 @@ class TelegramBot:
         self.dp.register_message_handler(self.cmd_show_subscriptions_plans, commands=['subscription'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_footprint, commands=['footprint'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_tips, commands=['tips'], commands_prefix='/', state='*')
-
-        # Register callback query handler
+        # Register when the user clicks on a button
         self.dp.register_callback_query_handler(self.on_menu_button_click)
-        # Register referral code handler
+        # Register when the user types a referral code
         self.dp.register_message_handler(self.process_referral_code, state=BotStates.waiting_for_referral_code)
 
     async def start_polling(self):
@@ -474,8 +474,6 @@ class TelegramBot:
                                      message_id=query.message.message_id, parse_mode='Markdown')
             elif params[0] == 'add_wallet':
                 await self.display_wallet_warning(query.message)
-            elif params[0] == 'show_logs':
-                await self.send_menu(query.from_user.id, params[0], message_id=query.message.message_id)
             elif params[0] == 'contact':
                 await self.cmd_contact(user_id=query.from_user.id, message_id=query.message.message_id)
             elif params[0] == 'footprint':
@@ -496,7 +494,6 @@ class TelegramBot:
                 await self.choose_currency(user_id=query.from_user.id, plan=params[1], duration=params[2], message_id=query.message.message_id)
             elif params[0] == 'choose_network':
                 await self.choose_network(user_id=query.from_user.id, message_id=query.message.message_id, plan=params[1], duration=params[2], coin_name=params[3])
-
             else:
                 await self.send_menu(query.from_user.id, params[0], message_id=query.message.message_id)
         elif action == 'add_airdrop':
@@ -788,9 +785,23 @@ class TelegramBot:
             parse_mode = 'Markdown'
             keyboard.add(
                 InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),
-                InlineKeyboardButton("📊 My stats", callback_data="referral_stats"),
+                InlineKeyboardButton("📊 My stats", callback_data="menu:referral_stats"),
                 InlineKeyboardButton("🎁 Generate code", callback_data="generate_referral_code"),
             )
+        elif menu == 'referral_stats':
+            keyboard.add(
+                InlineKeyboardButton("🔙 Back", callback_data="menu:referral"),
+                InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"),
+                InlineKeyboardButton("💰 Claim rewards", callback_data="claim_referral_rewards"),
+            )
+            stats = await user.get_referral_stats(self.db_manager)
+            # If the user has no referrals, display a message
+            if not stats:
+                stats = "You have no referrals yet."
+            # Convert dictionary to formatted string
+            formatted_stats = '\n'.join([f"{key}: {value}" for key, value in stats.items()])
+            message = f"📊 *Referral stats*\n\n{formatted_stats}"
+            parse_mode = 'Markdown'
         # Add more menus as needed
         else:
             return
