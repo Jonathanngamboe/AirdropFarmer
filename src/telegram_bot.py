@@ -1247,18 +1247,22 @@ class TelegramBot:
     async def process_referral_code(self, message: types.Message, state: FSMContext):
         referral_code = message.text
 
-        # Check if the referral code is valid
-        if await User.check_referral_code(referral_code, self.db_manager, self.sys_logger):
-            # Confirm the referral code is valid
-            await self.bot.send_message(message.chat.id, "Referral code accepted.")
-            # If the referral code is valid, show the conditions and buttons to accept or reject
-            await self.show_terms_and_conditions(message.chat.id)
+        try:
+            # Check if the referral code is valid
+            if await User.check_referral_code(referral_code, self.db_manager, self.sys_logger):
+                # Confirm the referral code is valid
+                await self.bot.send_message(message.chat.id, "Referral code accepted.")
+                # If the referral code is valid, show the conditions and buttons to accept or reject
+                await self.show_terms_and_conditions(message.chat.id)
 
-            # Save the referral code so it can be used later
-            self.referral_codes[message.chat.id] = referral_code
-        else:
-            # If the referral code is not valid, ask the user to try again
-            await self.bot.send_message(message.chat.id, "Invalid referral code. Press /start to try again.")
+                # Save the referral code so it can be used later
+                self.referral_codes[message.chat.id] = referral_code
+            else:
+                # If the referral code is not valid, ask the user to try again
+                await self.bot.send_message(message.chat.id, "Invalid referral code. Press /start to try again.")
+                await BotStates.waiting_for_referral_code.set()
+        except Exception as e:
+            await self.bot.send_message(message.chat.id, f"{e}")
             await BotStates.waiting_for_referral_code.set()
 
         # Don't forget to reset the state at the end so it doesn't remain stuck waiting for the referral code.
