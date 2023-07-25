@@ -8,6 +8,7 @@ from config import settings
 from src.secret_manager import SecretsManager
 from datetime import datetime, timezone, timedelta
 
+MAX_REFERRAL_CODE_USES = 5
 
 class User:
     def __init__(self, telegram_id, username, subscription_level, logger, airdrops=None,
@@ -195,11 +196,21 @@ class User:
             result = await db_manager.fetch_query(
                 "SELECT * FROM referral_codes WHERE code_value = $1", referral_code
             )
-            # If the referral code exists, return True else return False
-            return bool(result)
+            # If the referral code does not exist, return False
+            if not result:
+                return False
+
+            # If the referral code exists but has been used 3 times or more, raise an exception
+            if result[0]['used_times'] >= MAX_REFERRAL_CODE_USES:
+                raise Exception(f"Referral code {referral_code} has already been used {MAX_REFERRAL_CODE_USES} times. Press /start to try again.")
+
+            # If the referral code exists and has been used less than 3 times, return True
+            return True
         except Exception as e:
-            logger.add_log(f"Error during referral code check: {e}", logging.ERROR)
-            return False
+            if str(e) == f"Referral code {referral_code} has already been used {MAX_REFERRAL_CODE_USES} times. Press /start to try again.":
+                raise e
+            else:
+                return False
 
     @classmethod
     async def get_user_by_telegram_id(cls, telegram_id: int, db_manager, logger) -> "User":
