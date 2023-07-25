@@ -13,6 +13,7 @@ import logging
 from ecdsa import SECP256k1
 from eth_keys import keys
 from src.airdrop_execution import AirdropExecution
+from src.botStates import BotStates
 from src.discord_handler import DiscordHandler
 from src.footprint import Footprint
 from src.logger import Logger
@@ -22,16 +23,16 @@ from coinpayments import CoinPaymentsAPI
 import re
 from datetime import datetime, timezone
 from fuzzywuzzy import process
+from aiogram.dispatcher import FSMContext
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 logging.basicConfig(level=logging.INFO)
-
 
 class TelegramBot:
     def __init__(self, token, db_manager, system_logger):
         self.bot = Bot(token=token)
+        self.dp = Dispatcher(self.bot, storage=MemoryStorage())
         self.db_manager = db_manager
-        self.dp = Dispatcher(self.bot)
-        self.register_handlers()
         self.farming_users = {}  # Used to keep track of the users that are farming
         self.user_airdrop_executions = defaultdict(dict)
         self.airdrop_events = defaultdict(asyncio.Event)
@@ -50,6 +51,8 @@ class TelegramBot:
         self.contact_text = "If you need help using the bot, please visit our [wiki](https://defi-bots.gitbook.io/airdrop-farmer/).\n\n📤 If you have a specific question or want to discuss your suscription plan, click the button below."
         self.cp = CoinPaymentsAPI(public_key=settings.COINPAYMENTS_PUBLIC_KEY, private_key=settings.COINPAYMENTS_PRIVATE_KEY)
         self.sys_logger = system_logger
+        self.REFERRAL_SYSTEM = False
+        self.referral_codes = {}
 
     def register_handlers(self):
         self.dp.register_message_handler(self.cmd_start, Command(["start"]))
@@ -61,7 +64,11 @@ class TelegramBot:
         self.dp.register_message_handler(self.cmd_show_subscriptions_plans, commands=['subscription'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_footprint, commands=['footprint'], commands_prefix='/', state='*')
         self.dp.register_message_handler(self.cmd_tips, commands=['tips'], commands_prefix='/', state='*')
+
+        # Register callback query handler
         self.dp.register_callback_query_handler(self.on_menu_button_click)
+        # Register referral code handler
+        self.dp.register_message_handler(self.process_referral_code, state=BotStates.waiting_for_referral_code)
 
     async def start_polling(self):
         async def on_startup(dp):
@@ -108,14 +115,13 @@ class TelegramBot:
         # Check if the user is already registered
         user = await self.get_user(telegram_id, try_register=True)
         if user is None:
-            # If the user is not registered, show the conditions and buttons to accept or reject
-            keyboard = InlineKeyboardMarkup(row_width=2).add(
-                InlineKeyboardButton("✅ Accept", callback_data="accept"),
-                InlineKeyboardButton("❌ Reject", callback_data="reject"),
-            )
-            # Bot terms of use
-            terms = self.load_txt("resources/terms.txt")
-            await self.bot.send_message(telegram_id, terms, reply_markup=keyboard, parse_mode='Markdown')
+            if self.REFERRAL_SYSTEM:
+                # If the user is not registered and referral system is active, ask for a referral code
+                await self.bot.send_message(telegram_id, "Please enter your referral code.")
+                await BotStates.waiting_for_referral_code.set()
+            else:
+                # If the user is not registered and referral system is inactive, show the terms of use
+                await self.show_terms_and_conditions(telegram_id)
         else:
             # If the user is already registered, show the main menu
             await self.cmd_show_main_menu(message)
@@ -531,13 +537,16 @@ class TelegramBot:
                 # Delete the message that triggered the callback
                 await self.bot.delete_message(query.from_user.id, query.message.message_id)
                 # Create the user in the database
-                user = await User.create_user(query.from_user.id, query.from_user.first_name, self.db_manager, self.sys_logger)
+                user = await User.create_user(query.from_user.id, query.from_user.first_name, self.db_manager,
+                                              self.sys_logger, referral_code=self.referral_codes.get(query.from_user.id, None))
+                # Create the logger instance for the user
                 user.sysl_logger = self.sys_logger
                 user_logger = self.get_user_logger(query.from_user.id)  # This will create the logger instance for the user if it doesn't already exist
                 user_logger.add_log(f"User {query.from_user.first_name} (ID: {query.from_user.id}) started the bot.")
                 await self.send_menu(query.from_user.id, 'main', message=self.welcome_text,
                                      parse_mode='Markdown')  # Send the main menu
-            except Exception:
+            except Exception as e:
+                print(e)
                 await self.bot.send_message(query.from_user.id, "🤖 You have already accepted the terms and conditions. Please type /menu to get started.")
         elif action == "reject":
             if user is None:
@@ -546,6 +555,13 @@ class TelegramBot:
                 await self.bot.send_message(query.from_user.id, "🤖 Terms rejected. Bye!")
             else:
                 await self.bot.send_message(query.from_user.id, "🤖 Terms already accepted. If you don't want to use the bot anymore, type /stop.")
+        elif action == "generate_referral_code":
+            user = await self.get_user(query.from_user.id)
+            try:
+                referral_code = await user.generate_referral_code(self.db_manager)
+                await self.bot.send_message(query.from_user.id, f"Your referral code is: {referral_code}")
+            except Exception as e:
+                await self.bot.send_message(query.from_user.id, f"{e}")
 
         await self.retry_request(self.bot.answer_callback_query, query.id)
 
@@ -673,6 +689,9 @@ class TelegramBot:
                 InlineKeyboardButton("💡 Tips", callback_data="menu:tips"),
                 InlineKeyboardButton("📤 Contact", callback_data="menu:contact"),
                 InlineKeyboardButton("⚙️ Settings", callback_data="menu:settings"),
+                InlineKeyboardButton("👥 Referral", callback_data="menu:referral"),
+            )
+            keyboard.add(
                 InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"),
             )
         elif menu == 'manage_airdrops':
@@ -763,6 +782,14 @@ class TelegramBot:
             parse_mode = 'Markdown'
             keyboard.add(
                 InlineKeyboardButton("🔙 Back home", callback_data="menu:main")
+            )
+        elif menu == 'referral':
+            message = "👥 *Referral*\n\nGenerate a referral code to invite your friends and earn a commission of 10% on their subscription!\n\nEach code can be used up to 3 times and you can generate a new one every 24 hours.\n\nStart sharing now and reap the benefits together!"
+            parse_mode = 'Markdown'
+            keyboard.add(
+                InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),
+                InlineKeyboardButton("📊 My stats", callback_data="referral_stats"),
+                InlineKeyboardButton("🎁 Generate code", callback_data="generate_referral_code"),
             )
         # Add more menus as needed
         else:
@@ -1207,3 +1234,30 @@ class TelegramBot:
             return
         await user.remove_all_wallets()
         await self.db_manager.delete_user(query.from_user.id)
+
+    async def show_terms_and_conditions(self, chat_id):
+        keyboard = InlineKeyboardMarkup(row_width=2).add(
+            InlineKeyboardButton("✅ Accept", callback_data="accept"),
+            InlineKeyboardButton("❌ Reject", callback_data="reject"),
+        )
+        # Bot terms of use
+        terms = self.load_txt("resources/terms.txt")
+        await self.bot.send_message(chat_id, terms, reply_markup=keyboard, parse_mode='Markdown')
+
+    async def process_referral_code(self, message: types.Message, state: FSMContext):
+        referral_code = message.text
+
+        # Check if the referral code is valid
+        if await User.check_referral_code(referral_code, self.db_manager, self.sys_logger):
+            # If the referral code is valid, show the conditions and buttons to accept or reject
+            self.show_terms_and_conditions(message.chat.id)
+
+            # Save the referral code so it can be used later
+            self.referral_codes[message.chat.id] = referral_code
+        else:
+            # If the referral code is not valid, ask the user to try again
+            await self.bot.send_message(message.chat.id, "Invalid referral code. Press /start to try again.")
+            await BotStates.waiting_for_referral_code.set()
+
+        # Don't forget to reset the state at the end so it doesn't remain stuck waiting for the referral code.
+        await state.reset_state()
