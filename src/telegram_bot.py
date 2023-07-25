@@ -51,7 +51,7 @@ class TelegramBot:
         self.contact_text = "If you need help using the bot, please visit our [wiki](https://defi-bots.gitbook.io/airdrop-farmer/).\n\n📤 If you have a specific question or want to discuss your suscription plan, click the button below."
         self.cp = CoinPaymentsAPI(public_key=settings.COINPAYMENTS_PUBLIC_KEY, private_key=settings.COINPAYMENTS_PRIVATE_KEY)
         self.sys_logger = system_logger
-        self.REFERRAL_SYSTEM = False
+        self.REFERRAL_SYSTEM = True
         self.referral_codes = {}
 
     def register_handlers(self):
@@ -1249,8 +1249,10 @@ class TelegramBot:
 
         # Check if the referral code is valid
         if await User.check_referral_code(referral_code, self.db_manager, self.sys_logger):
+            # Confirm the referral code is valid
+            await self.bot.send_message(message.chat.id, "Referral code accepted.")
             # If the referral code is valid, show the conditions and buttons to accept or reject
-            self.show_terms_and_conditions(message.chat.id)
+            await self.show_terms_and_conditions(message.chat.id)
 
             # Save the referral code so it can be used later
             self.referral_codes[message.chat.id] = referral_code

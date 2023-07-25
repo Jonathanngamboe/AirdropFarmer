@@ -137,6 +137,14 @@ class User:
         if referral_code:
             # If the referral_code is not None, add it to the user_data dictionary
             user_data['referral_code'] = referral_code
+            # Update the referral code used times
+            try:
+                await db_manager.execute_query(
+                    "UPDATE referral_codes SET used_times = used_times + 1 WHERE code_value = $1", referral_code)
+                logger.add_log(f"Referral code {referral_code} used times updated successfully", logging.INFO)
+            except Exception as e:
+                logger.add_log(f"Error during updating referral code used times: {e}", logging.ERROR)
+                raise e
 
         user = cls(**user_data)
         try:
@@ -187,12 +195,8 @@ class User:
             result = await db_manager.fetch_query(
                 "SELECT * FROM referral_codes WHERE code_value = $1", referral_code
             )
-            if result:
-                logger.add_log(f"Referral code {referral_code} is valid.", logging.INFO)
-                return True
-            else:
-                logger.add_log(f"Referral code {referral_code} is not valid.", logging.INFO)
-                return False
+            # If the referral code exists, return True else return False
+            return bool(result)
         except Exception as e:
             logger.add_log(f"Error during referral code check: {e}", logging.ERROR)
             return False
