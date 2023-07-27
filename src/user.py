@@ -190,7 +190,6 @@ class User:
             self.telegram_id, start_of_day, end_of_day
         )
         if existing_code:
-            self.sys_logger.add_log(f"User {self.telegram_id} has already generated a referral code today")
             raise Exception(f"You can only generate {settings.MAX_REFERRAL_CODE_GENERATION_PER_DAY} referral code per day.")
 
         # Save referral code in database
