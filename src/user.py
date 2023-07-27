@@ -239,7 +239,6 @@ class User:
                 self.telegram_id
             )
             if not referral_data:
-                self.sys_logger.add_log(f"No referral data found for user {self.telegram_id}")
                 return None
 
             # Fetch reward data
