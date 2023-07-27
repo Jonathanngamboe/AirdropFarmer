@@ -235,7 +235,7 @@ class User:
         try:
             # Fetch referral data
             referral_data = await db_manager.fetch_query(
-                "SELECT used_times, COUNT(subscription_level) as subscribed_users FROM referral_codes JOIN users ON referral_codes.code_value = users.referral_code WHERE created_by = $1 GROUP BY used_times;",
+                f"SELECT SUM(used_times) as total_referred_users, COUNT(case when users.subscription_level != '{settings.SUBSCRIPTION_PLANS[0]['level']}' then 1 else null end) as subscribed_users FROM referral_codes LEFT JOIN users ON referral_codes.code_value = users.referral_code WHERE created_by = $1;",
                 self.telegram_id
             )
             if not referral_data:
@@ -250,14 +250,14 @@ class User:
             total_amount = reward_data[0]['total_amount'] if reward_data else 0
             unclaimed_amount = reward_data[0]['unclaimed_amount'] if reward_data else 0
 
-            referred_users = referral_data[0]['used_times']
-            subscribed_users = referral_data[0]['subscribed_users']
+            total_referred_users = referral_data[0]['total_referred_users'] or 0
+            subscribed_users = referral_data[0]['subscribed_users'] or 0
 
             referral_stats = {
-                "• Total Referred Users": referred_users,
+                "• Total Referred Users": total_referred_users,
                 "• Subscribed Users": subscribed_users,
-                "• Total Amount Earned": total_amount,
-                "• Unclaimed Rewards": unclaimed_amount  # Added this line
+                "• Total Amount Earned": f"${total_amount or 0:.2f}",  # Using string formatting to include the dollar sign and fix the number to 2 decimal places
+                "• Unclaimed Rewards": f"${unclaimed_amount or 0:.2f}" # Same here
             }
 
             return referral_stats
