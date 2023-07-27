@@ -3,12 +3,9 @@ import json
 import logging
 import hvac
 import shortuuid
-import string
 from config import settings
 from src.secret_manager import SecretsManager
 from datetime import datetime, timezone, timedelta
-
-MAX_REFERRAL_CODE_USES = 5
 
 class User:
     def __init__(self, telegram_id, username, subscription_level, logger, airdrops=None,
@@ -187,14 +184,14 @@ class User:
         # Check if user has already generated a referral code today
         now = datetime.now(timezone.utc)
         start_of_day = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
-        end_of_day = start_of_day + timedelta(days=1)
+        end_of_day = start_of_day + timedelta(days=settings.MAX_REFERRAL_CODE_GENERATION_PER_DAY)
         existing_code = await db_manager.fetch_query(
             "SELECT code_value FROM referral_codes WHERE created_by = $1 AND created_at BETWEEN $2 AND $3",
             self.telegram_id, start_of_day, end_of_day
         )
         if existing_code:
             self.sys_logger.add_log(f"User {self.telegram_id} has already generated a referral code today")
-            raise Exception("You can only generate one referral code per day")
+            raise Exception(f"You can only generate {settings.MAX_REFERRAL_CODE_GENERATION_PER_DAY} referral code per day.")
 
         # Save referral code in database
         try:
@@ -223,13 +220,13 @@ class User:
                 return False
 
             # If the referral code exists but has been used 3 times or more, raise an exception
-            if result[0]['used_times'] >= MAX_REFERRAL_CODE_USES:
-                raise Exception(f"Referral code *{referral_code}* has already been used *{MAX_REFERRAL_CODE_USES}* times. Press /start to try again.")
+            if result[0]['used_times'] >= settings.MAX_REFERRAL_CODE_USES:
+                raise Exception(f"Referral code *{referral_code}* has already been used *{settings.MAX_REFERRAL_CODE_USES}* times. Press /start to try again.")
 
             # If the referral code exists and has been used less than 3 times, return True
             return True
         except Exception as e:
-            if str(e) == f"Referral code *{referral_code}* has already been used *{MAX_REFERRAL_CODE_USES}* times. Press /start to try again.":
+            if str(e) == f"Referral code *{referral_code}* has already been used *{settings.MAX_REFERRAL_CODE_USES}* times. Press /start to try again.":
                 raise e
             else:
                 return False

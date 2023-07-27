@@ -781,7 +781,7 @@ class TelegramBot:
                 InlineKeyboardButton("🔙 Back home", callback_data="menu:main")
             )
         elif menu == 'referral':
-            message = "👥 *Referral*\n\nGenerate a referral code to invite your friends and earn a commission of 10% on their subscription!\n\nEach code can be used up to 5 times and you can generate a new one every 24 hours.\n\nStart sharing now and reap the benefits together!"
+            message = f"👥 *Referral*\n\nGenerate a referral code to invite your friends and earn a commission of 10% on their subscription!\n\nEach code can be used up to {settings.MAX_REFERRAL_CODE_USES} times and you can generate a new one every 24 hours.\n\nStart sharing now and reap the benefits together!"
             parse_mode = 'Markdown'
             keyboard.add(
                 InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),
