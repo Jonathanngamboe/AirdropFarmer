@@ -20,7 +20,7 @@ Please note that our bot *does not guarantee* the receipt of specific airdrops. 
 
 Feel free to consult our /tips to maximize your chances of obtaining airdrops.
 
-For a detailed guide on how to use our bot, please visit our GitBook here: [GitBook Link](https://defi-bots.gitbook.io/airdrop-farmer/)
+For a detailed guide on how to use our bot, please visit our [Wiki](https://defi-bots.gitbook.io/airdrop-farmer/)
 
 If you have any questions or need additional help, don't hesitate to use the /contact command to get in touch with us. We're here to help!
 
