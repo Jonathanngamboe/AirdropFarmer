@@ -170,17 +170,17 @@ class TelegramBot:
         else:
             await self.bot.send_message(user_id, self.contact_text, reply_markup=keyboard, parse_mode='Markdown')
 
-    async def cmd_send_contact_message(self, message: types.Message):
+    async def send_contact_message(self, message: types.Message):
         user_id = message.chat.id
         admin_id = settings.ADMIN_TELEGRAM_ID
         user_message = message.text
         if user_message.lower() == "cancel":
-            await self.bot.send_message(user_id, "Contact request canceled.")
+            await self.bot.send_message(user_id, "Request canceled.")
         else:
             await self.bot.send_message(admin_id,
                                         f"Message from @{message.from_user.username} (ID: {user_id}): {user_message}")
             await self.bot.send_message(user_id,
-                                        "Your message has been sent to our support team. We will get back to you as soon as possible.")
+                                        "Your request has been sent to our support team. We will get back to you as soon as possible.")
 
     async def cmd_show_subscriptions_plans(self, message: types.Message = None, user_id: int = None, message_id=None):
         if user_id is None:
@@ -463,7 +463,7 @@ class TelegramBot:
         params = data[1:]
 
         # Check if the user is in the database
-        try_register = True if action == 'reject' or action == 'accept' else False
+        try_register = True if action == 'reject' or action == 'accept' or action =='contact_us' else False
         user = await self.get_user(query.from_user.id, try_register)
         if user is None and try_register is False:
             return
@@ -515,7 +515,7 @@ class TelegramBot:
         elif action == "contact_us":
             user_id = query.from_user.id
             await self.bot.send_message(user_id, "Please type your message in the chat or type 'cancel' to cancel:")
-            self.dp.register_message_handler(self.cmd_send_contact_message, lambda msg: msg.from_user.id == user_id)
+            self.dp.register_message_handler(self.send_contact_message, lambda msg: msg.from_user.id == user_id)
         elif action == "send_txn_info":
             await self.send_txn_info(query.from_user.id, chosen_plan=params[0], duration=params[1], chosen_coin=params[2])
         elif action == "stop":
@@ -559,6 +559,20 @@ class TelegramBot:
                 await self.bot.send_message(query.from_user.id, f"Your referral code is: *{referral_code}*", parse_mode='Markdown')
             except Exception as e:
                 await self.bot.send_message(query.from_user.id, f"{e}")
+        elif action == "claim_referral_rewards":
+            stats = await user.get_referral_stats(self.db_manager)
+            # If the user has no reward to claim, tell him
+            unclaimed_amount = 0
+            if stats is not None:
+                unclaimed_amount = stats.get('unclaimed_amount', 0)
+            if unclaimed_amount == 0 or unclaimed_amount is None:
+                await self.bot.send_message(query.from_user.id, "You have no referral rewards to claim.")
+                return
+            # If the user has rewards to claim, ask for his wallet address
+            user_id = query.from_user.id
+            # Tell the user on what currency and what network the payment will be done and ask for the user's wallet adress
+            await self.bot.send_message(query.from_user.id, "To claim your referral rewards, please send your wallet address on the *BNB* network. The rewards will be sent in *USDT*. Type 'cancel' to cancel.", parse_mode='Markdown')
+            self.dp.register_message_handler(self.send_contact_message, lambda msg: msg.from_user.id == user_id)
 
         await self.retry_request(self.bot.answer_callback_query, query.id)
 
@@ -798,9 +812,10 @@ class TelegramBot:
             # If the user has no referrals, display a message
             if not stats:
                 stats = "You have no referrals yet."
-            # Convert dictionary to formatted string
-            formatted_stats = '\n'.join([f"{key}: {value}" for key, value in stats.items()])
-            message = f"📊 *Referral stats*\n\n{formatted_stats}"
+            elif isinstance(stats, dict):
+                # Convert dictionary to formatted string
+                stats = '\n'.join([f"{key}: {value}" for key, value in stats.items()])
+            message = f"📊 *Referral stats*\n\n{stats}"
             parse_mode = 'Markdown'
         # Add more menus as needed
         else:
