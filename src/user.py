@@ -213,7 +213,7 @@ class User:
             raise e
 
     @staticmethod
-    async def check_referral_code(referral_code, db_manager, logger):
+    async def check_referral_code(referral_code, db_manager):
         try:
             result = await db_manager.fetch_query(
                 "SELECT * FROM referral_codes WHERE code_value = $1", referral_code

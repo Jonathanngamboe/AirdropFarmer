@@ -781,7 +781,7 @@ class TelegramBot:
                 InlineKeyboardButton("🔙 Back home", callback_data="menu:main")
             )
         elif menu == 'referral':
-            message = "👥 *Referral*\n\nGenerate a referral code to invite your friends and earn a commission of 10% on their subscription!\n\nEach code can be used up to 3 times and you can generate a new one every 24 hours.\n\nStart sharing now and reap the benefits together!"
+            message = "👥 *Referral*\n\nGenerate a referral code to invite your friends and earn a commission of 10% on their subscription!\n\nEach code can be used up to 5 times and you can generate a new one every 24 hours.\n\nStart sharing now and reap the benefits together!"
             parse_mode = 'Markdown'
             keyboard.add(
                 InlineKeyboardButton("🔙 Back home", callback_data="menu:main"),
@@ -1260,7 +1260,7 @@ class TelegramBot:
 
         try:
             # Check if the referral code is valid
-            if await User.check_referral_code(referral_code, self.db_manager, self.sys_logger):
+            if await User.check_referral_code(referral_code, self.db_manager):
                 # Confirm the referral code is valid
                 await self.bot.send_message(message.chat.id, "Referral code accepted.")
                 # If the referral code is valid, show the conditions and buttons to accept or reject
