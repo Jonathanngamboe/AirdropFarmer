@@ -224,6 +224,21 @@ class DBManager:
                 raise e
 
     async def delete_user(self, telegram_id):
+        # Get all referral_codes created by the user
+        referral_codes = await self.fetch_query('''
+            SELECT code_value FROM referral_codes
+            WHERE created_by=$1
+        ''', telegram_id)
+
+        # Update referral_code to NULL for all users who used any of this user's referral_codes
+        for row in referral_codes:
+            referral_code = row['code_value']
+            await self.execute_query('''
+                UPDATE users
+                SET referral_code = NULL
+                WHERE referral_code = $1
+            ''', referral_code)
+
         # Here we are using DELETE CASCADE to delete all related entries in transactions table
         await self.execute_query('''
             DELETE FROM users
