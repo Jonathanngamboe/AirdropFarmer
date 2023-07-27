@@ -41,8 +41,8 @@ class TelegramBot:
         self.register_handlers()
         self.welcome_text = "👋 *Welcome to Airdrop Farmer Bot!*\n\n" \
                             "Ready to start farming? Here's what you can do:\n\n" \
-                            "🔑 Use the command `/add_wallet` to add a new wallet.\n" \
-                            "🎁 Use 'My airdrops' in the menu to explore airdrops.\n" \
+                            "👛 Use the command `/add_wallet` to add a new wallet.\n" \
+                            "💸 Use 'My airdrops' in the menu to explore airdrops.\n" \
                             "🚀 Click on 'start farming' to begin the process.\n\n" \
                             "For a complete list of commands and further assistance, type /help.\n\n" \
                             "Let's start farming now! Enjoy your journey!"
