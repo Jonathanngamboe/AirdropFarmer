@@ -124,10 +124,37 @@ class IPNHandler:
         message = f"Your payment for transaction {transaction_id} has been refunded. This is usually due to sending the wrong amount. If you need help, please type /contact to contact the support team and send your transaction ID: {transaction_id}"
         await self.send_payment_notification(user_id, message, telegram_bot)
 
+    # TODO: Test this
     async def notify_payment_complete(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the payment completion
         message = f"Your payment for transaction {transaction_id} has been received! Your subscription has been activated. Type /subscription to view your subscription details."
         await self.send_payment_notification(user_id, message, telegram_bot)
+
+        transaction_data = await self.db_manager.get_transaction_by_id(transaction_id)
+        if transaction_data is None:  # Check if transaction_data is None
+            self.sys_logger.add_log(f"No transaction data found for transaction ID {transaction_id}", logging.ERROR)
+            return
+
+        # Extract ipn_data from transaction_data
+        ipn_data = json.loads(transaction_data['ipn_data'])
+
+        # Get the subscription amount
+        subscription_amount = float(ipn_data.get('amount', 0))
+
+        # Calculate reward as 10% of the subscription amount
+        reward_amount = settings.REWARD_PERCENTAGE * subscription_amount / 100
+
+        # Insert reward into rewards table
+        try:
+            await self.db_manager.execute_query(
+                "INSERT INTO rewards (user_id, amount) VALUES ($1, $2)",
+                user_id,
+                reward_amount  # The amount of reward
+            )
+            self.sys_logger.add_log(f"Inserted reward for user {user_id}")
+        except Exception as e:
+            self.sys_logger.add_log(f"Error during reward insertion: {e}", logging.ERROR)
+            raise e
 
     async def notify_pending_payment(self, user_id, transaction_id, telegram_bot):
         # Notify the user of the pending payment
