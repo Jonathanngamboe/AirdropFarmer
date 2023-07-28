@@ -661,19 +661,20 @@ class TelegramBot:
                       f"*👛 Wallet:* {wallet_address}\n\n"
             # Add all the data to the message
             for key, value in result.items():
-                if key not in ['rank', 'total_user_count', 'user_address', 'source', 'source_url']:
+                if key not in ['rank', 'total_user_count', 'user_address', 'source', 'source_url', 'rank_score']:
                     if key in ['last_transaction', 'first_transaction']:
                         value = value.split(' ')[0]
-                    elif key in ['volume', 'bridged_amount']:
+                    elif key in ['volume', 'bridged_amount', 'balance_amount']:
                         value = "${:,}".format(value)  # value here should be a number (float or int)
                     message += f"• *{key.replace('_', ' ').title()}:* {value}\n"
 
-            # Add the ranking
-            percentile = (result['rank'] / result['total_user_count']) * 100
-            message += f"\n*🏆 Ranking*\n\nBased on previous airdrop eligibility criteria such as Arbitrum or Optimism, your wallet is ranked **{result['rank']:,}** out of **{result['total_user_count']:,}** wallets on {best_match.title()}. This places you ahead of **{100 - percentile:.2f}%** of all wallets."
+            if result['rank']:
+                # Add the ranking
+                percentile = (result['rank'] / result['total_user_count']) * 100
+                message += f"\n*🏆 Ranking*\n\nYour wallet is ranked *{result['rank']:,}* out of *{result['total_user_count']:,}* wallets on {best_match.title()}. This places you ahead of *{100 - percentile:.2f}%* of all wallets."
 
             # Add the source
-            message += f"\n\n*📊 Source*\n\nThe data is sourced from {result['source']}: {result['source_url']}."
+            message += f"\n\n*📊 Source*: [{result['source']}]({result['source_url']})"
 
             await self.bot.send_message(chat_id, message, parse_mode='Markdown')
         except Exception as e:
