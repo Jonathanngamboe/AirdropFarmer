@@ -41,9 +41,9 @@ class TelegramBot:
         self.register_handlers()
         self.welcome_text = "👋 *Welcome to Airdrop Farmer Bot!*\n\n" \
                             "Ready to start farming? Here's what you can do:\n\n" \
-                            "👛 Use the command `/add_wallet` to add a new wallet.\n" \
-                            "💸 Use 'My airdrops' in the menu to explore airdrops.\n" \
-                            "🚀 Click on 'start farming' to begin the process.\n\n" \
+                            "👛 Type `/add_wallet` to add a new wallet.\n" \
+                            "💸 Explore airdrops in 'My airdrops' menu.\n" \
+                            "🚀 Click on 'Start farming'.\n\n" \
                             "For a complete list of commands and further assistance, type /help.\n\n" \
                             "Let's start farming now! Enjoy your journey!"
         self.MAX_RETRIES = 3
@@ -69,6 +69,9 @@ class TelegramBot:
         self.dp.register_callback_query_handler(self.on_menu_button_click)
         # Register when the user types a referral code
         self.dp.register_message_handler(self.process_referral_code, state=BotStates.waiting_for_referral_code)
+        # Register for admin commands
+        self.dp.register_message_handler(self.cmd_send_update_notifications, commands=['send_update'],
+                                         commands_prefix='/', state='*')
 
     async def start_polling(self):
         async def on_startup(dp):
@@ -172,13 +175,13 @@ class TelegramBot:
 
     async def send_contact_message(self, message: types.Message):
         user_id = message.chat.id
-        admin_id = settings.ADMIN_TELEGRAM_ID
         user_message = message.text
         if user_message.lower() == "cancel":
             await self.bot.send_message(user_id, "Request canceled.")
         else:
-            await self.bot.send_message(admin_id,
-                                        f"Message from @{message.from_user.username} (ID: {user_id}): {user_message}")
+            for support_tg_id in settings.SUPPORT_TG_IDS:
+                await self.bot.send_message(support_tg_id,
+                                            f"Message from @{message.from_user.username} (ID: {user_id}): {user_message}")
             await self.bot.send_message(user_id,
                                         "Your request has been sent to our support team. We will get back to you as soon as possible.")
 
@@ -1294,3 +1297,29 @@ class TelegramBot:
 
         # Don't forget to reset the state at the end so it doesn't remain stuck waiting for the referral code.
         await state.reset_state()
+
+    async def cmd_send_update_notifications(self, message: types.Message):
+        # Check if the user is an admin
+        if message.chat.id in settings.ADMIN_IDS:
+            update_message = message.text.replace("/send_update", "").strip()
+            await message.answer("Update notification sent")
+            error_messages = await self.send_update_notification(update_message)
+            if error_messages:
+                for error in error_messages:
+                    await message.answer(error)
+        else:
+            await message.answer("You are not allowed to use this command")
+
+    async def send_update_notification(self, update_message):
+        # Send a notification to all users
+        users = await self.db_manager.get_all_users()
+        error_messages = []
+        for user in users:
+            try:
+                print(user['telegram_id'])
+                await self.bot.send_message(user['telegram_id'], update_message, parse_mode='Markdown')
+            except Exception as e:
+                self.sys_logger.add_log({e})
+                error_messages.append(f"Error for user {user['telegram_id']}: {str(e)}")
+        return error_messages
+
