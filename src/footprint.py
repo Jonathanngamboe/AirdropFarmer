@@ -16,12 +16,12 @@ SUPPORTED_CHAINS = [
     {
         "name": "zkSync",
         "data_source": "Dune Analytics",
-        "query_id": 2659961,
+        "query_id": 2780596,
         "source_url": "https://dune.com/sixdegree/zksync-airdrop-simulation-ranking",
     }
 ]
 
-MAIN_QUERY_ID = 2504714
+MAIN_QUERY_ID = 2781085
 
 class Footprint:
     def __init__(self):
@@ -52,7 +52,6 @@ class Footprint:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(self.executor, self.dune.refresh, query)
             self.executor.shutdown()
-            print(result.result.rows)
             return result.result.rows[0]
         except Exception as e:
             print(e)
@@ -63,6 +62,8 @@ class Footprint:
         data_source = [chain['data_source'] for chain in SUPPORTED_CHAINS if chain['name'].lower() == chain_name.lower()][0]
         if data_source == "Dune Analytics":
             datas = await self.get_dune_statistics(wallet_address, chain_name)
+        if datas is None:
+            return None
         # Add the source url to the data
         datas['source'] = data_source
         datas['source_url'] = [chain['source_url'] for chain in SUPPORTED_CHAINS if chain['name'].lower() == chain_name.lower()][0]
