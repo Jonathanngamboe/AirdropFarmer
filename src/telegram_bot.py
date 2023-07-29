@@ -118,7 +118,7 @@ class TelegramBot:
         # Check if the user is already registered
         user = await self.get_user(telegram_id, try_register=True)
         if user is None:
-            if self.REFERRAL_SYSTEM:
+            if self.REFERRAL_SYSTEM and telegram_id not in settings.ADMIN_TG_IDS and telegram_id not in settings.SUPPORT_TG_IDS:
                 # If the user is not registered and referral system is active, ask for a referral code
                 await self.bot.send_message(telegram_id, "Please enter your referral code.")
                 await BotStates.waiting_for_referral_code.set()
@@ -1300,7 +1300,7 @@ class TelegramBot:
 
     async def cmd_send_update_notifications(self, message: types.Message):
         # Check if the user is an admin
-        if message.chat.id in settings.ADMIN_IDS:
+        if message.chat.id in settings.ADMIN_TG_IDS:
             update_message = message.text.replace("/send_update", "").strip()
             await message.answer("Update notification sent")
             error_messages = await self.send_update_notification(update_message)
