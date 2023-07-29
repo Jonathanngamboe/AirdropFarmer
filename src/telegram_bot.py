@@ -7,7 +7,7 @@ from collections import defaultdict
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils.exceptions import InvalidQueryID
 from aiogram.dispatcher.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputFile
 from config import settings
 import logging
 from ecdsa import SECP256k1
@@ -18,7 +18,6 @@ from src.discord_handler import DiscordHandler
 from src.footprint import Footprint
 from src.logger import Logger
 from src.user import User
-from aiogram.types import InputFile
 from coinpayments import CoinPaymentsAPI
 import re
 from datetime import datetime, timezone
@@ -53,6 +52,18 @@ class TelegramBot:
         self.sys_logger = system_logger
         self.REFERRAL_SYSTEM = True
         self.referral_codes = {}
+        # Set bot commands in the chat menu
+        self.bot_commands = [
+                types.BotCommand(command="start", description="Start the bot"),
+                types.BotCommand(command="menu", description="Show the main menu"),
+                types.BotCommand(command="subscription", description="Show subscription plans"),
+                types.BotCommand(command="add_wallet", description="Add a wallet"),
+                types.BotCommand(command="footprint", description="Show wallet footprint"),
+                types.BotCommand(command="tips", description="Show tips"),
+                types.BotCommand(command="help", description="Show help"),
+                types.BotCommand(command="contact", description="Contact support"),
+                types.BotCommand(command="stop", description="Stop the bot"),
+            ]
 
     def register_handlers(self):
         # Register when the user types a command
@@ -77,19 +88,7 @@ class TelegramBot:
 
     async def start_polling(self):
         async def on_startup(dp):
-            # Set bot commands in the chat menu
-            bot_commands = [
-                types.BotCommand(command="start", description="Start the bot"),
-                types.BotCommand(command="menu", description="Show the main menu"),
-                types.BotCommand(command="subscription", description="Show subscription plans"),
-                types.BotCommand(command="add_wallet", description="Add a wallet"),
-                types.BotCommand(command="footprint", description="Show wallet footprint"),
-                types.BotCommand(command="tips", description="Show tips"),
-                types.BotCommand(command="help", description="Show help"),
-                types.BotCommand(command="contact", description="Contact support"),
-                types.BotCommand(command="stop", description="Stop the bot"),
-            ]
-            await self.bot.set_my_commands(bot_commands)
+            await self.bot.set_my_commands(self.bot_commands)
 
         async def on_shutdown(dp):
             # Remove webhook (if set)
@@ -130,6 +129,17 @@ class TelegramBot:
         else:
             # If the user is already registered, show the main menu
             await self.cmd_show_main_menu(message)
+
+        # Add more user commands based on their role
+        await self.set_user_commands(telegram_id)
+
+    async def set_user_commands(self, telegram_id):
+        if telegram_id in settings.ADMIN_TG_IDS or telegram_id in settings.SUPPORT_TG_IDS:
+            if telegram_id in settings.ADMIN_TG_IDS:
+                self.bot_commands.extend(settings.ADMIN_COMMANDS)
+            elif telegram_id in settings.SUPPORT_TG_IDS:
+                self.bot_commands.extend(settings.SUPPORT_COMMANDS)
+            await self.bot.set_my_commands(self.bot_commands)
 
     async def cmd_stop(self, message: types.Message):
         user_id = message.chat.id

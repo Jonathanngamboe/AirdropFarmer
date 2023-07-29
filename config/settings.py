@@ -1,11 +1,19 @@
 # settings.py
 
 from decouple import config
+from aiogram import types
 
 # Telegram
 TELEGRAM_TOKEN = config("TELEGRAM_TOKEN")
 ADMIN_TG_IDS = [1892238442]
+ADMIN_COMMANDS = [
+    types.BotCommand(command="send_update", description="Send an update to all users"),
+    types.BotCommand(command="send_message", description="Send a message to a user"),
+]
 SUPPORT_TG_IDS = [1892238442]
+SUPPORT_COMMANDS = [
+    types.BotCommand(command="send_message", description="Send a message to a user"),
+]
 MAX_WALLET_NAME_LENGTH = 20
 
 ## Web3
