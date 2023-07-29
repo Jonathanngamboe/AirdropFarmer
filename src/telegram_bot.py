@@ -1346,6 +1346,7 @@ class TelegramBot:
                 await message.answer("Message sent")
             except Exception as e:
                 await message.answer(f"Error: {str(e)}")
+                await message.answer("Usage: /send_message <user_id>:<message>")
         else:
             await message.answer("You are not allowed to use this command")
 
