@@ -1327,7 +1327,7 @@ class TelegramBot:
     
     async def cmd_send_message_to_user(self, message: types.Message):
         # Check if the user is an admin
-        if message.chat.id in settings.ADMIN_TG_IDS:
+        if message.chat.id in settings.ADMIN_TG_IDS or message.chat.id in settings.SUPPORT_TG_IDS:
             try:
                 # Get the user id and message from message text (e.g. /send_message_to_user 1234567890:Hello)
                 user_id = message.text.split(" ")[1].split(":")[0]
