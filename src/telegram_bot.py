@@ -69,8 +69,10 @@ class TelegramBot:
         self.dp.register_callback_query_handler(self.on_menu_button_click)
         # Register when the user types a referral code
         self.dp.register_message_handler(self.process_referral_code, state=BotStates.waiting_for_referral_code)
-        # Register for admin commands
-        self.dp.register_message_handler(self.cmd_send_update_notifications, commands=['send_update'],
+        # Registers for admin commands
+        self.dp.register_message_handler(self.cmd_send_update_notification, commands=['send_update'],
+                                         commands_prefix='/', state='*')
+        self.dp.register_message_handler(self.cmd_send_message_to_user, commands=['send_message'],
                                          commands_prefix='/', state='*')
 
     async def start_polling(self):
@@ -1299,7 +1301,7 @@ class TelegramBot:
         # Don't forget to reset the state at the end so it doesn't remain stuck waiting for the referral code.
         await state.reset_state()
 
-    async def cmd_send_update_notifications(self, message: types.Message):
+    async def cmd_send_update_notification(self, message: types.Message):
         # Check if the user is an admin
         if message.chat.id in settings.ADMIN_TG_IDS:
             update_message = message.text.replace("/send_update", "").strip()
@@ -1323,4 +1325,18 @@ class TelegramBot:
                 self.sys_logger.add_log({e})
                 error_messages.append(f"Error for user {user['telegram_id']}: {str(e)}")
         return error_messages
+    
+    async def cmd_send_message_to_user(self, message: types.Message):
+        # Check if the user is an admin
+        if message.chat.id in settings.ADMIN_TG_IDS:
+            try:
+                # Get the user id and message from message text (e.g. /send_message_to_user 1234567890:Hello)
+                user_id = message.text.split(" ")[1].split(":")[0]
+                message_text = message.text.split(" ")[1].split(":")[1]
+                await self.bot.send_message(user_id, message_text, parse_mode='Markdown')
+                await message.answer("Message sent")
+            except Exception as e:
+                await message.answer(f"Error: {str(e)}")
+        else:
+            await message.answer("You are not allowed to use this command")
 
