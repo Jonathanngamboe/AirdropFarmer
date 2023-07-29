@@ -1318,7 +1318,6 @@ class TelegramBot:
         error_messages = []
         for user in users:
             try:
-                print(user['telegram_id'])
                 await self.bot.send_message(user['telegram_id'], update_message, parse_mode='Markdown')
             except Exception as e:
                 self.sys_logger.add_log({e})
@@ -1331,7 +1330,8 @@ class TelegramBot:
             try:
                 # Get the user id and message from message text (e.g. /send_message_to_user 1234567890:Hello)
                 user_id = message.text.split(" ")[1].split(":")[0]
-                message_text = message.text.split(" ")[1].split(":")[1]
+                # Get all the text after the first space
+                message_text = message.text.split(" ", 1)[1].split(":", 1)[1]
                 await self.bot.send_message(user_id, message_text, parse_mode='Markdown')
                 await message.answer("Message sent")
             except Exception as e:
