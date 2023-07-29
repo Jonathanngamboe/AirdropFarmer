@@ -7,7 +7,7 @@ from collections import defaultdict
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils.exceptions import InvalidQueryID
 from aiogram.dispatcher.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputFile
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputFile, InputMediaPhoto
 from config import settings
 import logging
 from ecdsa import SECP256k1
@@ -44,12 +44,13 @@ class TelegramBot:
                             "💸 Explore airdrops in 'My airdrops' menu.\n" \
                             "🚀 Click on 'Start farming'.\n\n" \
                             "For a complete list of commands and further assistance, type /help.\n\n" \
-                            "Let's start farming now! Enjoy your journey!"
+                            "Let's start farming now!"
         self.MAX_RETRIES = 3
         self.RETRY_DELAY = 5
         self.contact_text = "If you need help using the bot, please visit our [wiki](https://defi-bots.gitbook.io/airdrop-farmer/).\n\n📤 If you have a specific question or want to discuss your suscription plan, click the button below."
         self.cp = CoinPaymentsAPI(public_key=settings.COINPAYMENTS_PUBLIC_KEY, private_key=settings.COINPAYMENTS_PRIVATE_KEY)
         self.sys_logger = system_logger
+        self.default_media = "https://blogs.airdropalert.com/wp-content/uploads/2019/01/CryptoAirdrop.png"
         self.REFERRAL_SYSTEM = True
         self.referral_codes = {}
         # Set bot commands in the chat menu
@@ -153,7 +154,7 @@ class TelegramBot:
             InlineKeyboardButton("✅ Yes", callback_data="stop"),
             InlineKeyboardButton("❌ No", callback_data="cancel"),
         )
-        await self.bot.send_message(user_id, "Are you sure you want to stop the bot? All your data will be deleted including your subscription.", reply_markup=keyboard)
+        await self.bot.send_photo(photo=self.default_media, chat_id=user_id, caption="Are you sure you want to stop the bot? All your data will be deleted including your subscription.", reply_markup=keyboard)
 
     async def cmd_help(self, message: types.Message):
         # Check if the user is already registered
@@ -161,7 +162,7 @@ class TelegramBot:
         if user is None:
             return
         help_text = self.load_txt("resources/help.txt")
-        await self.bot.send_message(message.chat.id, help_text, parse_mode='Markdown')
+        await self.bot.send_message(message.chat.id, help_text, parse_mode='Markdown', disable_web_page_preview=True)
 
     async def cmd_tips(self, message: types.Message):
         # Check if the user is already registered
@@ -180,10 +181,10 @@ class TelegramBot:
             InlineKeyboardButton("💬 Write us here", callback_data="contact_us")
         )
         if message_id:
-            await self.bot.edit_message_text(chat_id=user_id, message_id=message_id, text=self.contact_text,
+            await self.bot.edit_message_caption(chat_id=user_id, message_id=message_id, caption=self.contact_text,
                                              reply_markup=keyboard, parse_mode='Markdown')
         else:
-            await self.bot.send_message(user_id, self.contact_text, reply_markup=keyboard, parse_mode='Markdown')
+            await self.bot.send_photo(photo=self.default_media, chat_id=user_id, caption=self.contact_text, reply_markup=keyboard, parse_mode='Markdown')
 
     async def send_contact_message(self, message: types.Message):
         user_id = message.chat.id
@@ -200,7 +201,7 @@ class TelegramBot:
     async def cmd_show_subscriptions_plans(self, message: types.Message = None, user_id: int = None, message_id=None):
         if user_id is None:
             user_id = message.chat.id
-        message_text = "🚀 *Airdrop Farmer Subscription Plans*\n\n"
+        message_text = "🚀 *Airdrop Farmer Plans*\n\n"
         # Current user subscription
         user = await self.get_user(user_id)
         if user is None:
@@ -208,7 +209,7 @@ class TelegramBot:
 
         current_plan_index = 0
         if user.subscription_level is not None:
-            message_text += f"🔸 *Current Plan*: {user.subscription_level}\n\n"
+            message_text += f"🔸 *Current*: {user.subscription_level}\n\n"
             current_plan_index = next(
                 (i for i, plan in enumerate(settings.SUBSCRIPTION_PLANS) if plan['level'] == user.subscription_level),
                 0)
@@ -236,30 +237,32 @@ class TelegramBot:
                 message_text += "💥 *Most Popular*\n"
             message_text += "\n"
 
-        # Show the plans to choose from only if the user is not subscribed to the highest plan
-        if current_plan_index < len(settings.SUBSCRIPTION_PLANS) - 1:
-            message_text += "Choose a plan to subscribe to:"
-
-        keyboard = InlineKeyboardMarkup()
-        for i, plan in enumerate(settings.SUBSCRIPTION_PLANS[current_plan_index:]):
-            if i >= current_plan_index and i != 0: # Only show the plans after the current one and not the first one (free plan)
-                plan = plan['level'].split('(', 1)[0].strip()
-                keyboard.add(InlineKeyboardButton(f"{plan}", callback_data=f"menu:choose_plan_type:{plan}"))
-
-        keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"))
-
+        # Delete the previous message if it exists
         if message_id:
-            await self.bot.edit_message_text(
+            await self.bot.delete_message(user_id, message_id)
+
+        await self.bot.send_message(
+            user_id,
+            message_text,
+            parse_mode=types.ParseMode.MARKDOWN
+        )
+
+            # Show the plans to choose from only if the user is not subscribed to the highest plan
+        if current_plan_index < len(settings.SUBSCRIPTION_PLANS) - 1:
+            message_text = "Choose a plan to subscribe to:"
+
+            keyboard = InlineKeyboardMarkup()
+            for i, plan in enumerate(settings.SUBSCRIPTION_PLANS[current_plan_index:]):
+                if i >= current_plan_index and i != 0:  # Only show the plans after the current one and not the first one (free plan)
+                    plan = plan['level'].split('(', 1)[0].strip()
+                    keyboard.add(InlineKeyboardButton(f"{plan}", callback_data=f"menu:choose_plan_type:{plan}"))
+
+            keyboard.add(InlineKeyboardButton("🔙 Back home", callback_data="menu:main"))
+
+            await self.bot.send_photo(
                 chat_id=user_id,
-                message_id=message_id,
-                text=message_text,
-                reply_markup=keyboard,
-                parse_mode=types.ParseMode.MARKDOWN
-            )
-        else:
-            await self.bot.send_message(
-                user_id,
-                message_text,
+                photo=self.default_media,
+                caption=message_text,
                 reply_markup=keyboard,
                 parse_mode=types.ParseMode.MARKDOWN
             )
@@ -274,10 +277,10 @@ class TelegramBot:
             {"text": "🔙 Back", "callback_data": "menu:manage_subscription"},
         ]
         keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons_row1, buttons_row2])
-        await self.bot.edit_message_text(
+        await self.bot.edit_message_caption(
             chat_id=user_id,
             message_id=message_id,
-            text=message_text,
+            caption=message_text,
             reply_markup=keyboard,
             parse_mode=types.ParseMode.MARKDOWN,
         )
@@ -303,10 +306,10 @@ class TelegramBot:
         keyboard.add(InlineKeyboardButton("🔙 Back", callback_data=f"menu:choose_plan_type:{plan}"))
 
         if message_id:
-            await self.bot.edit_message_text(
+            await self.bot.edit_message_caption(
                 chat_id=user_id,
                 message_id=message_id,
-                text=message_text,
+                caption=message_text,
                 reply_markup=keyboard,
                 parse_mode=types.ParseMode.MARKDOWN
             )
@@ -347,15 +350,15 @@ class TelegramBot:
 
         keyboard.add(InlineKeyboardButton("🔙 Back", callback_data=f"menu:choose_currency:{plan}:{duration}"))
 
-        await self.bot.edit_message_text(
+        await self.bot.edit_message_caption(
             chat_id=user_id,
             message_id=message_id,
-            text=message_text,
+            caption=message_text,
             reply_markup=keyboard,
             parse_mode=types.ParseMode.MARKDOWN
         )
 
-    async def send_txn_info(self, user_id, chosen_plan, duration, chosen_coin):
+    async def send_txn_info(self, user_id, chosen_plan, duration, chosen_coin, message_id):
         user = await self.get_user(user_id)
         if user is None:
             return
@@ -451,6 +454,8 @@ class TelegramBot:
             try:
                 await self.db_manager.save_transaction_details(user_id, transaction_id, json.dumps(response['result']),
                                                                duration_days)
+                # delete the previous message
+                await self.bot.delete_message(user_id, message_id)
                 await self.bot.send_message(user_id, payment_details, parse_mode='Markdown')
             except Exception as e:
                 self.sys_logger.add_log(f"Error saving transaction details: {e}", logging.ERROR)
@@ -482,6 +487,12 @@ class TelegramBot:
         user = await self.get_user(query.from_user.id, try_register)
         if user is None and try_register is False:
             return
+
+        media = InputMediaPhoto(media=self.default_media, parse_mode='Markdown')
+        try:
+            await self.bot.edit_message_media(chat_id=query.message.chat.id, message_id=query.message.message_id, media=media)
+        except:
+            pass
 
         if action == 'menu':
             if params[0] == 'main':
@@ -526,16 +537,16 @@ class TelegramBot:
         elif action == "stop_farming":
             await self.cmd_stop_farming(query.from_user.id, query.from_user.id)
         elif action == "display_log":
-            await self.cmd_display_log(query.from_user.id, query.from_user.id, params[0])
+            await self.cmd_display_log(query.from_user.id, query.from_user.id, params[0], query.message.message_id)
         elif action == "contact_us":
             user_id = query.from_user.id
             await self.bot.send_message(user_id, "Please type your message in the chat or type 'cancel' to cancel:")
             self.dp.register_message_handler(self.send_contact_message, lambda msg: msg.from_user.id == user_id)
         elif action == "send_txn_info":
-            await self.send_txn_info(query.from_user.id, chosen_plan=params[0], duration=params[1], chosen_coin=params[2])
+            await self.send_txn_info(user_id=query.from_user.id, chosen_plan=params[0], duration=params[1], chosen_coin=params[2], message_id=query.message.message_id)
         elif action == "stop":
             # Edit the message that triggered the callback
-            await self.bot.edit_message_text("👋 Goodbye! The bot has been stopped and all your data has been deleted. If you want to use the bot again, you will have to start it again with the /start command.", query.from_user.id, query.message.message_id)
+            await self.bot.edit_message_caption(caption="👋 Goodbye! The bot has been stopped and all your data has been deleted. If you want to use the bot again, you will have to start it again with the /start command.", chat_id=query.from_user.id, message_id=query.message.message_id)
             await self.cmd_stop_farming(query.from_user.id, query.from_user.id, stop_requested=True)
             user_logger = self.get_user_logger(query.from_user.id)
             user_logger.delete_user_logs();
@@ -545,9 +556,9 @@ class TelegramBot:
             await self.bot.delete_message(query.from_user.id, query.message.message_id)
             await self.bot.send_message(query.from_user.id, "Operation cancelled.")
         elif action == "accept":
+            # Delete the message that triggered the callback
+            await self.bot.delete_message(query.from_user.id, query.message.message_id)
             try:
-                # Delete the message that triggered the callback
-                await self.bot.delete_message(query.from_user.id, query.message.message_id)
                 # Create the user in the database
                 user = await User.create_user(query.from_user.id, query.from_user.first_name, self.db_manager,
                                               self.sys_logger, referral_code=self.referral_codes.get(query.from_user.id, None))
@@ -561,20 +572,24 @@ class TelegramBot:
                 print(e)
                 await self.bot.send_message(query.from_user.id, "🤖 You have already accepted the terms and conditions. Please type /menu to get started.")
         elif action == "reject":
+            # Delete the message that triggered the callback
+            await self.bot.delete_message(query.from_user.id, query.message.message_id)
             if user is None:
-                # Delete the message that triggered the callback
-                await self.bot.delete_message(query.from_user.id, query.message.message_id)
                 await self.bot.send_message(query.from_user.id, "🤖 Terms rejected. Bye!")
             else:
                 await self.bot.send_message(query.from_user.id, "🤖 Terms already accepted. If you don't want to use the bot anymore, type /stop.")
         elif action == "generate_referral_code":
             user = await self.get_user(query.from_user.id)
+            # delete the message that triggered the callback
+            await self.bot.delete_message(query.from_user.id, query.message.message_id)
             try:
                 referral_code = await user.generate_referral_code(self.db_manager)
+                # Send the referral code to the user
                 await self.bot.send_message(query.from_user.id, f"Your referral code is: *{referral_code}*", parse_mode='Markdown')
             except Exception as e:
                 await self.bot.send_message(query.from_user.id, f"{e}")
         elif action == "claim_referral_rewards":
+            await self.bot.delete_message(query.from_user.id, query.message.message_id)
             stats = await user.get_referral_stats(self.db_manager)
             # If the user has no reward to claim, tell him
             unclaimed_amount = 0
@@ -623,6 +638,9 @@ class TelegramBot:
         user = await self.get_user(chat_id)
         if not user:
             return
+
+        # delete the message that triggered the command
+        await self.bot.delete_message(chat_id, message.message_id)
 
         try:
             command, params = message.text.strip().split(' ', 1)
@@ -786,6 +804,8 @@ class TelegramBot:
             log_dates = user_logger.get_log_dates()
 
             if not log_dates:
+                # delete the message that triggered the menu
+                await self.bot.delete_message(chat_id, message_id)
                 await self.bot.send_message(chat_id, "No logs found.")
                 return
 
@@ -839,22 +859,24 @@ class TelegramBot:
 
         if message_id:
             try:
-                await self.bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=f"{message}",
+                await self.bot.edit_message_caption(chat_id=chat_id, message_id=message_id, caption=f"{message}",
                                              reply_markup=keyboard, parse_mode=parse_mode if parse_mode else None)
             except Exception as e:
                 self.sys_logger.add_log(f"Error editing message: {e}", logging.ERROR)
         else:
             try:
-                await self.bot.send_message(chat_id=chat_id, text=f"{message}", reply_markup=keyboard,
+                await self.bot.send_photo(photo=self.default_media, chat_id=chat_id, caption=f"{message}", reply_markup=keyboard,
                                         parse_mode=parse_mode if parse_mode else None)
             except Exception as e:
                 self.sys_logger.add_log(f"Error sending message: {e}", logging.ERROR)
 
-    async def cmd_display_log(self, user_id, chat_id, log_date):
+    async def cmd_display_log(self, user_id, chat_id, log_date, message_id):
         # Check if user plan permits to view logs
         user = await self.get_user(user_id)
         if user is None:
             return
+
+        await self.bot.delete_message(chat_id, message_id)
 
         user_plan_features = next(
             (plan for plan in settings.SUBSCRIPTION_PLANS if plan['level'] == user.subscription_level),
@@ -882,16 +904,18 @@ class TelegramBot:
         user_airdrops = await user.get_airdrops(self.db_manager)
         user_wallets = await user.get_wallets()
 
+        await self.bot.delete_message(chat_id, message_id)
+
         if user_id in self.farming_users.keys():
-            await self.bot.send_message(chat_id, "Airdrop farming is already in progress. Please wait or press the 'Stop farming' button to stop.")
+            await self.bot.send_message(user_id, "Airdrop farming is already in progress. Please wait or press the 'Stop farming' button to stop.")
             return
 
         if not user_airdrops:
-            await self.bot.send_message(chat_id, "You must have at least one airdrop registered to start farming.")
+            await self.bot.send_message(user_id, "You must have at least one airdrop registered to start farming.")
             return
 
         if not user_wallets:
-            await self.bot.send_message(chat_id, "You must have at least one wallet registered to start farming.")
+            await self.bot.send_message(user_id, "You must have at least one wallet registered to start farming.")
             return
 
         airdrop_execution = AirdropExecution(self.discord_handler, self.get_user_logger(user_id), user_wallets)
@@ -997,9 +1021,9 @@ class TelegramBot:
             for action in actions:
                 if action["isActivated"]:
                     if "description" in action:
-                        action_text = f"🔸 <b>{action['platform'].capitalize()}:</b> {action['description']}"
+                        action_text = f"🔸 *{action['platform'].capitalize()}:* {action['description']}"
                     else:
-                        action_text = f"🔸 <b>{action['platform'].capitalize()}:</b> {action['action'].replace('_', ' ').title()}"
+                        action_text = f"🔸 *{action['platform'].capitalize()}:* {action['action'].replace('_', ' ').title()}"
                         if "blockchain" in action:
                             action_text += f" ({action['blockchain'].capitalize().replace('_', ' ')})\n"
                         action_details = []
@@ -1025,7 +1049,7 @@ class TelegramBot:
                         action_text += "\n".join(action_details)
                     actions_text.append(action_text)
 
-            description = f"<b>Airdrop:</b> {airdrop_name}\n\n<b>Actions:</b>\n" + "\n\n".join(actions_text)
+            description = f"*Airdrop:* {airdrop_name}\n\n*Actions:*\n" + "\n\n".join(actions_text)
         else:
             description = "Airdrop description not found."
 
@@ -1038,12 +1062,18 @@ class TelegramBot:
             InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"),
         )
 
-        await self.bot.edit_message_text(chat_id=query.from_user.id, message_id=query.message.message_id, text=message,
-                                         reply_markup=keyboard, parse_mode='HTML')
+        if airdrop and "image" in airdrop:
+            media = InputMediaPhoto(media=airdrop["image"], caption=message, parse_mode='Markdown')
+            await self.bot.edit_message_media(chat_id=query.from_user.id, message_id=query.message.message_id,
+                                              media=media, reply_markup=keyboard)
+        else:
+            media = InputMediaPhoto(media=self.default_media, caption=message, parse_mode='Markdown')
+            await self.bot.edit_message_media(chat_id=query.from_user.id, message_id=query.message.message_id,
+                                              media=media, reply_markup=keyboard)
 
     async def cmd_edit_airdrop(self, query: CallbackQuery, airdrop_name: str):
         keyboard = InlineKeyboardMarkup(row_width=2)
-        message = f"<b>Airdrop:</b> {airdrop_name}"
+        message = f"*Airdrop:* {airdrop_name}"
 
         airdrops = AirdropExecution(logger=self.sys_logger).get_active_airdrops()
         airdrop = next((a for a in airdrops if a["name"] == airdrop_name), None)
@@ -1055,6 +1085,14 @@ class TelegramBot:
                     # Store a tuple of the action and its parameters
                     for param in action["editable_params"]:
                         editable_params.append((action["action"], param.replace("_", " ").title()))
+            if "image" in airdrop:
+                media = InputMediaPhoto(media=airdrop["image"], caption=message, parse_mode='Markdown')
+                await self.bot.edit_message_media(chat_id=query.from_user.id, message_id=query.message.message_id,
+                                                  media=media, reply_markup=keyboard)
+            else:
+                media = InputMediaPhoto(media=self.default_media, caption=message, parse_mode='Markdown')
+                await self.bot.edit_message_media(chat_id=query.from_user.id, message_id=query.message.message_id,
+                                                  media=media, reply_markup=keyboard)
 
         if airdrop is None:
             message += "\nAirdrop not found."
@@ -1076,8 +1114,8 @@ class TelegramBot:
             InlineKeyboardButton("🏠 Main menu", callback_data="menu:main"),
         )
 
-        await self.bot.edit_message_text(chat_id=query.from_user.id, message_id=query.message.message_id, text=message,
-                                         reply_markup=keyboard, parse_mode='HTML')
+        await self.bot.edit_message_caption(chat_id=query.from_user.id, message_id=query.message.message_id, caption=message,
+                                         reply_markup=keyboard, parse_mode='Markdown')
 
     async def cmd_add_airdrop(self, query: CallbackQuery):
         user = await self.get_user(query.from_user.id)
@@ -1199,11 +1237,10 @@ class TelegramBot:
             return
         user_wallets = await user.get_wallets()
         wallet = next((wallet for wallet in user_wallets if wallet['name'] == wallet_name), None)
+        await self.bot.delete_message(chat_id=query.from_user.id, message_id=query.message.message_id)
         if wallet in user_wallets:
             await user.remove_wallet(wallet)
             message = f"Wallet {wallet['name']} removed successfully!"
-            # Delete the last menu message
-            await self.bot.delete_message(chat_id=query.from_user.id, message_id=query.message.message_id)
             await self.bot.send_message(chat_id=query.from_user.id, text=message)
             # Send the wallets menu again
             await self.send_menu(query.from_user.id, "manage_wallets")
