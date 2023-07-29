@@ -118,13 +118,14 @@ class TelegramBot:
         # Check if the user is already registered
         user = await self.get_user(telegram_id, try_register=True)
         if user is None:
-            if self.REFERRAL_SYSTEM and telegram_id not in settings.ADMIN_TG_IDS and telegram_id not in settings.SUPPORT_TG_IDS:
-                # If the user is not registered and referral system is active, ask for a referral code
-                await self.bot.send_message(telegram_id, "Please enter your referral code.")
-                await BotStates.waiting_for_referral_code.set()
-            else:
-                # If the user is not registered and referral system is inactive, show the terms of use
-                await self.show_terms_and_conditions(telegram_id)
+            if telegram_id not in settings.ADMIN_TG_IDS and telegram_id not in settings.SUPPORT_TG_IDS:
+                if self.REFERRAL_SYSTEM:
+                    # If the user is not registered and referral system is active, ask for a referral code
+                    await self.bot.send_message(telegram_id, "Please enter your referral code.")
+                    await BotStates.waiting_for_referral_code.set()
+                else:
+                    # If the user is not registered and referral system is inactive, show the terms of use
+                    await self.show_terms_and_conditions(telegram_id)
         else:
             # If the user is already registered, show the main menu
             await self.cmd_show_main_menu(message)
