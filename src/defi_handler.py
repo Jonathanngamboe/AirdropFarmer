@@ -24,7 +24,7 @@ class DeFiHandler:
             raise ValueError(f"Settings for blockchain '{blockchain}' not found.")
             return None
 
-        endpoint = getattr(settings, blockchain_settings['endpoint'])
+        endpoint = blockchain_settings['endpoint']
         web3 = Web3(Web3.HTTPProvider(endpoint))
 
         self.wrapped_native_token_address = getattr(settings, blockchain_settings['weth_address'])
@@ -95,7 +95,7 @@ class DeFiHandler:
                 wallet = action["wallet"],
                 token_in_address = self.web3.to_checksum_address(action["token_in_address"].strip('"')),
                 token_out_address = self.web3.to_checksum_address(action["token_out_address"].strip('"')),
-                amount_in = int(action["amount_in"]),
+                amount_in = int(action["amount_in_wei"]),
                 slippage_tolerance = action["slippage"],
                 exchange_address = self.web3.to_checksum_address(action["exchange_address"].strip('"')),
                 exchange_abi = action["exchange_abi"],
