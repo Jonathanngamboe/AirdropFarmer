@@ -85,6 +85,8 @@ class AirdropExecution:
                 message = f"INFO - No airdrop to execute"
                 print(message)
                 self.logger.add_log(message)
+            # Wait for a random time between 1 and 5 seconds
+            await asyncio.sleep(random.randint(30, 300))
 
         self.finished = True
 
