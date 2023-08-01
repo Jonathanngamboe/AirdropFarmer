@@ -18,29 +18,19 @@ class DeFiHandler:
         self.web3 = self.connect_to_blockchain(blockchain)
 
     def connect_to_blockchain(self, blockchain):
-        if blockchain == 'ethereum':
-            web3 = Web3(Web3.HTTPProvider(settings.ETHEREUM_MAINNET_ENDPOINT))
-            self.wrapped_native_token_address = settings.ETHEREUM_MAINNET_WETH_ADDRESS
-            self.wrapped_native_token_abi = self.get_token_abi('weth_mainnet_abi.json')
-            self.token_abi = self.get_token_abi('erc20_abi.json')
-        elif blockchain == 'goerli':
-            web3 = Web3(Web3.HTTPProvider(settings.ETHEREUM_GOERLI_ENDPOINT))
-            self.wrapped_native_token_address = settings.ETHEREUM_GOERLI_WETH_ADDRESS
-            self.wrapped_native_token_abi = self.get_token_abi('weth_mainnet_abi.json')
-            self.token_abi = self.get_token_abi('erc20_abi.json')
-        elif blockchain == 'base_goerli':
-            web3 = Web3(Web3.HTTPProvider(settings.BASE_GOERLI_ENDPOINT))
-            self.wrapped_native_token_address = settings.BASE_GOERLI_WETH_ADDRESS
-            self.wrapped_native_token_abi = self.get_token_abi('weth_base_abi.json')
-            self.token_abi = self.get_token_abi('erc20_abi.json')
-        elif blockchain == 'arbitrum_one':
-            web3 = Web3(Web3.HTTPProvider(settings.ARBITRUM_ONE_MAINNET_ENDPOINT))
-            self.wrapped_native_token_address = settings.ARBITRUM_ONE_MAINNET_WETH_ADDRESS
-            self.wrapped_native_token_abi = self.get_token_abi('weth_mainnet_abi.json')
-        # Add more blockchains here if needed
-        else:
-            raise ValueError(f"INFO - Unsupported blockchain.")
+        try:
+            blockchain_settings = settings.BLOCKCHAIN_SETTINGS[blockchain]
+        except KeyError:
+            raise ValueError(f"Settings for blockchain '{blockchain}' not found.")
             return None
+
+        endpoint = getattr(settings, blockchain_settings['endpoint'])
+        web3 = Web3(Web3.HTTPProvider(endpoint))
+
+        self.wrapped_native_token_address = getattr(settings, blockchain_settings['weth_address'])
+        self.wrapped_native_token_abi = self.get_token_abi(blockchain_settings['weth_abi'])
+        self.token_abi = self.get_token_abi(blockchain_settings['token_abi'])
+
         if web3.is_connected():
             message = f"INFO - Connected to {blockchain} blockchain."
             print(message)
