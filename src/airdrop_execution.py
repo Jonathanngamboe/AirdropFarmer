@@ -78,6 +78,10 @@ class AirdropExecution:
                 break
             if airdrop["isActivated"] and airdrop["name"] in self.airdrops_to_execute:
                 await self.execute_single_airdrop(airdrop)
+                # Wait for a random time
+                waiting_time = random.randint(30, 300)
+                self.logger.add_log(f"INFO - Waiting for {waiting_time} seconds before executing the next action")
+                await asyncio.sleep(waiting_time)
 
                 # Yield control back to the event loop
                 await asyncio.sleep(0)
@@ -85,10 +89,6 @@ class AirdropExecution:
                 message = f"INFO - No airdrop to execute"
                 print(message)
                 self.logger.add_log(message)
-            # Wait for a random time
-            waiting_time = random.randint(30, 300)
-            self.logger.add_log(f"INFO - Waiting for {waiting_time} seconds before executing the next action")
-            await asyncio.sleep(waiting_time)
 
         self.finished = True
 
