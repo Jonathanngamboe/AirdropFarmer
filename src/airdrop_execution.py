@@ -2,6 +2,8 @@
 import asyncio
 import random
 import traceback
+
+from config import settings
 from src.defi_handler import DeFiHandler
 from src.twitter_handler import TwitterHandler
 import os
@@ -78,10 +80,13 @@ class AirdropExecution:
                 break
             if airdrop["isActivated"] and airdrop["name"] in self.airdrops_to_execute:
                 await self.execute_single_airdrop(airdrop)
-                # Wait for a random time
-                waiting_time = random.randint(30, 300)
-                self.logger.add_log(f"INFO - Waiting for {waiting_time} seconds before executing the next action")
-                await asyncio.sleep(waiting_time)
+                # Wait for a random time if there are more airdrops to execute
+                if airdrop != self.airdrop_info[-1]:
+                    waiting_time = random.randint(settings.MIN_WAITING_SEC, settings.MAX_WAITING_SEC)
+                    message = f"INFO - Waiting for {waiting_time} seconds before executing the next airdrop"
+                    print(message)
+                    self.logger.add_log(message)
+                    await asyncio.sleep(waiting_time)
 
                 # Yield control back to the event loop
                 await asyncio.sleep(0)
@@ -98,7 +103,7 @@ class AirdropExecution:
         success = True  # Initialize success as True
         active_actions = [action for action in airdrop_info["actions"] if action["isActivated"]]
         # Shuffle the list
-        random.shuffle(active_actions)
+        #random.shuffle(active_actions)
 
         if not active_actions:
             message = f"INFO - No active actions found for {airdrop_info['name']} airdrop."
@@ -142,5 +147,12 @@ class AirdropExecution:
                     traceback.print_exc() # Uncomment this line to print the full stack trace
                 print(message)
                 self.logger.add_log(message)
+                # Wait for a random time if there are more actions to execute
+                if action != active_actions[-1]:
+                    waiting_time = random.randint(settings.MIN_WAITING_SEC, settings.MAX_WAITING_SEC)
+                    message = f"INFO - Waiting for {waiting_time} seconds before executing the next action"
+                    print(message)
+                    self.logger.add_log(message)
+                    await asyncio.sleep(waiting_time)
 
         return success
