@@ -49,7 +49,7 @@ BLOCKCHAIN_SETTINGS = {
     'zkSync': {
         'endpoint': 'https://mainnet.era.zksync.io',
         'explorer': 'https://explorer.zksync.io',
-        'weth_address': '0x000000000000000000000000000000000000800A',
+        'weth_address': '0x5aea5775959fbc2557cc8789bc1bf90a239d9a91',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
     },
