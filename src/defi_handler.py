@@ -27,7 +27,7 @@ class DeFiHandler:
         endpoint = blockchain_settings['endpoint']
         web3 = Web3(Web3.HTTPProvider(endpoint))
 
-        self.wrapped_native_token_address = getattr(settings, blockchain_settings['weth_address'])
+        self.wrapped_native_token_address = blockchain_settings['weth_address']
         self.wrapped_native_token_abi = self.get_token_abi(blockchain_settings['weth_abi'])
         self.token_abi = self.get_token_abi(blockchain_settings['token_abi'])
 
