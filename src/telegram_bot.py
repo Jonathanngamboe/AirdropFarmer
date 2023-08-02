@@ -38,7 +38,7 @@ class TelegramBot:
         self.discord_handler = DiscordHandler(self.airdrop_events)
         self.user_loggers = {}  # Used to store Logger instances for each user
         self.register_handlers()
-        self.welcome_text = "👋 *Welcome to Airdrop Farmer Bot!*\n\n" \
+        self.welcome_text = "👋 *Welcome !*\n\n" \
                             "Ready to start farming? Here's what you can do:\n\n" \
                             "👛 Type `/add_wallet` to add a new wallet.\n" \
                             "💸 Explore airdrops in 'My airdrops' menu.\n" \
@@ -535,7 +535,7 @@ class TelegramBot:
         elif action == 'start_farming':
             await self.cmd_start_farming(query.from_user.id, query.from_user.id, query.message.message_id)
         elif action == "stop_farming":
-            await self.cmd_stop_farming(query.from_user.id, query.from_user.id)
+            await self.cmd_stop_farming(query.from_user.id, query.from_user.id, query.message.message_id)
         elif action == "display_log":
             await self.cmd_display_log(query.from_user.id, query.from_user.id, params[0], query.message.message_id)
         elif action == "contact_us":
@@ -547,7 +547,7 @@ class TelegramBot:
         elif action == "stop":
             # Edit the message that triggered the callback
             await self.bot.edit_message_caption(caption="👋 Goodbye! The bot has been stopped and all your data has been deleted. If you want to use the bot again, you will have to start it again with the /start command.", chat_id=query.from_user.id, message_id=query.message.message_id)
-            await self.cmd_stop_farming(query.from_user.id, query.from_user.id, stop_requested=True)
+            await self.cmd_stop_farming(query.from_user.id, query.from_user.id, query.message.message_id, stop_requested=True)
             user_logger = self.get_user_logger(query.from_user.id)
             user_logger.delete_user_logs();
             await self.delete_user_data(query)
@@ -736,9 +736,15 @@ class TelegramBot:
                 InlineKeyboardButton("⚙️ Settings", callback_data="menu:settings"),
                 InlineKeyboardButton("👥 Referral", callback_data="menu:referral"),
             )
-            keyboard.add(
-                InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"),
-            )
+            # Check if the user has any farming in progress
+            if chat_id in self.farming_users:
+                keyboard.add(
+                    InlineKeyboardButton("🛑 Stop farming", callback_data="stop_farming"),
+                )
+            else:
+                keyboard.add(
+                    InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"),
+                )
         elif menu == 'manage_airdrops':
             available_airdrops = AirdropExecution(logger=self.sys_logger).get_active_airdrops()
             available_airdrop_names = [airdrop["name"] for airdrop in available_airdrops]
@@ -932,9 +938,7 @@ class TelegramBot:
             'status': True,
             'message_id': message_id
         }
-        await self.bot.send_message(chat_id, "Airdrop farming started.")
-
-        await self.update_keyboard_layout(user_id)
+        await self.bot.send_message(chat_id, "Airdrop farming started. You will be notified when the farming is complete.")
 
         airdrop_execution.airdrops_to_execute = valid_airdrops
 
@@ -943,16 +947,16 @@ class TelegramBot:
 
         asyncio.create_task(self.notify_airdrop_execution(user_id))
 
-    async def cmd_stop_farming(self, user_id, chat_id, stop_requested=False):
+    async def cmd_stop_farming(self, user_id, chat_id, message_id, stop_requested=False):
         if user_id in self.farming_users.keys():
             airdrop_execution, airdrop_execution_task = self.user_airdrop_executions.get(user_id, (None, None))
             if airdrop_execution:
                 airdrop_execution.stop_requested = True
                 self.get_user_logger(user_id).add_log("WARNING - Stop farming requested.")
+                await self.bot.delete_message(chat_id, message_id)  # Delete the old message
                 await self.bot.send_message(chat_id,
                                             "Stopping airdrop farming. This may take a few minutes. Please wait...")
                 await asyncio.gather(airdrop_execution_task)
-                await self.update_keyboard_layout(chat_id)
             else:
                 if not stop_requested:
                     await self.bot.send_message(chat_id, "Airdrop farming is not running.")
@@ -986,23 +990,8 @@ class TelegramBot:
             await asyncio.sleep(1)  # Add a short delay before updating the keyboard layout and displaying the menu
 
         self.farming_users[user_id]['status'] = False
-        await self.update_keyboard_layout(user_id)
         del self.user_airdrop_executions[user_id]
         del self.farming_users[user_id]
-
-    async def update_keyboard_layout(self, chat_id, menu='main'):
-        user_id = chat_id  # Assuming the chat_id corresponds to the user_id in this case
-        message_id = self.farming_users[user_id]['message_id']  # Get the old stored message_id
-        if menu == 'main':
-            keyboard = types.InlineKeyboardMarkup()
-            if self.farming_users[user_id]['status']:  # If the user is farming, show the 'Stop farming' button
-                keyboard.add(types.InlineKeyboardButton("🛑 Stop farming", callback_data="stop_farming"))
-
-            else:
-                await self.bot.delete_message(chat_id, message_id)  # Delete the old message
-                await self.send_menu(chat_id, 'main', message=self.welcome_text,
-                                     parse_mode='Markdown')  # Send the main menu again
-                keyboard.add(types.InlineKeyboardButton("🚀 Start farming", callback_data="start_farming"))
 
     def get_user_logger(self, user_id):
         if user_id not in self.user_loggers:
