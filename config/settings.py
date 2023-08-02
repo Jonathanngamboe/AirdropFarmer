@@ -47,7 +47,7 @@ BLOCKCHAIN_SETTINGS = {
         'token_abi': 'erc20_abi.json'
     },
     'zkSync': {
-        'endpoint': 'https://zksync-api.zksync.io/jsrpc',
+        'endpoint': 'https://mainnet.era.zksync.io',
         'explorer': 'https://explorer.zksync.io',
         'weth_address': '0x000000000000000000000000000000000000800A',
         'weth_abi': 'weth_mainnet_abi.json',
