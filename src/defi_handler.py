@@ -1,5 +1,7 @@
 # defi_handler.py
 import asyncio
+from statistics import median
+
 from web3.exceptions import TransactionNotFound
 from web3 import Web3
 import requests
@@ -112,8 +114,11 @@ class DeFiHandler:
                     if isinstance(item, dict):
                         self.replace_placeholder_with_value(item, placeholder, value)
             elif dictionary[key] == placeholder:
-                if value.startswith('0x') and len(value) == 42:  # Check if it's an EVM address
-                    dictionary[key] = self.web3.to_checksum_address(value)  # Convert to checksum address
+                if value.startswith('0x'):
+                    if len(value) == 42:  # Check if it's an EVM address
+                        dictionary[key] = self.web3.to_checksum_address(value)  # Convert to checksum address
+                    elif len(value) == 4 or len(value) == 66:  # Check if it's a signature component
+                        dictionary[key] = value  # Replace with the signature component
                 else:
                     dictionary[key] = value
 
@@ -217,11 +222,12 @@ class DeFiHandler:
         return token_name
 
     async def build_and_send_transaction(self, wallet, function_call, msg_value=None):
-        print(f"DEBUG - Building transaction for {wallet['address']}")
+        print(f"DEBUG - Building transaction for wallet {wallet['address']}")
         gas_price = self.web3.eth.gas_price
 
         # Estimate gas_limit
         try:
+            print(f"DEBUG - Estimating gas limit for wallet {wallet['address']}")
             estimated_gas_limit = function_call.estimate_gas({
                 "from": wallet["address"],
                 "value": msg_value if msg_value is not None else 0,
@@ -232,13 +238,13 @@ class DeFiHandler:
                 message = f"ERROR - {error_message}. Using default gas limit but transaction may fail."
                 print(message)
                 self.logger.add_log(message)
-                estimated_gas_limit = 100000 # Set a default gas limit
+                estimated_gas_limit = int(median(t.gas for t in self.web3.eth.get_block("latest", full_transactions=True).transactions))
             else:
                 message = f"ERROR - Error estimating gas limit : {error_message}"
                 print(message)
                 self.logger.add_log(message)
                 return None
-        # print(f"INFO - Estimated gas limit : {estimated_gas_limit}")
+        print(f"DEBUG - Estimated gas limit : {estimated_gas_limit}")
 
         nonce = self.web3.eth.get_transaction_count(wallet["address"], "pending")  # Get the nonce for the wallet, including pending transactions
 
@@ -596,3 +602,15 @@ class DeFiHandler:
         contract = self.web3.eth.contract(address=token_address, abi=self.token_abi)
         function_call = contract.functions.transfer(recipient_address, amount)
         return await self.build_and_send_transaction(wallet, function_call)
+
+    async def sign_message(self, wallet, message):
+        """
+        Sign a message with a wallet's private key
+        :param wallet: The wallet used to sign the message
+        :param message: The message to sign
+        :return: signature object with v, r, and s components
+        """
+        from eth_account.messages import encode_defunct
+        msg = encode_defunct(text=message)
+        signed_message = self.web3.eth.account.sign_message(msg, private_key=wallet["private_key"])
+        return signed_message
