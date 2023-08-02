@@ -159,7 +159,7 @@ class DeFiHandler:
         current_directory = os.path.dirname(os.path.abspath(__file__))
 
         # Construct the path to the erc20_abi.json file
-        token_abi_path = os.path.join(current_directory, '..', 'resources', filename)
+        token_abi_path = os.path.join(current_directory, '..', 'resources', 'abis', filename)
 
         # Read the token_abi.json file
         with open(token_abi_path, 'r') as f:
@@ -508,15 +508,6 @@ class DeFiHandler:
         # Get the deposit function from the wrapped token contract
         contract = self.web3.eth.contract(address=self.wrapped_native_token_address, abi=self.wrapped_native_token_abi)
         deposit_function = contract.functions.deposit()
-
-        # Estimate gas for the deposit function
-        try:
-            gas_estimate = deposit_function.estimate_gas({"from": wallet["address"], "value": amount})
-        except Exception as e:
-            message = f"ERROR - Error estimating gas limit: {str(e)}"
-            print(message)
-            self.logger.add_log(message)
-            return None
 
         # Build and send the deposit transaction
         txn_hash_hex = await self.build_and_send_transaction(wallet, deposit_function, msg_value=amount)
