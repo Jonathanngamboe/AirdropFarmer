@@ -1,0 +1,31 @@
+{
+  "types": {
+    "EIP712Domain": [
+      { "name": "name", "type": "string" },
+      { "name": "version", "type": "string" },
+      { "name": "chainId", "type": "uint256" },
+      { "name": "verifyingContract", "type": "address" }
+    ],
+    "Permit": [
+      { "name": "holder", "type": "address" },
+      { "name": "spender", "type": "address" },
+      { "name": "nonce", "type": "uint256" },
+      { "name": "expiry", "type": "uint256" },
+      { "name": "allowed", "type": "bool" }
+    ]
+  },
+  "primaryType": "Permit",
+  "domain": {
+    "name": "<Token Name>",
+    "version": "<Token Version>",
+    "chainId": "<Chain Id>",
+    "verifyingContract": "<Token Contract Address>"
+  },
+  "message": {
+    "holder": "<Holder Address>",
+    "spender": "<Spender Address>",
+    "nonce": "<Nonce>",
+    "expiry": "<Expiry Timestamp>",
+    "allowed": true
+  }
+}
