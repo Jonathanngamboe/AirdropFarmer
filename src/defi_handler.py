@@ -1,7 +1,8 @@
 # defi_handler.py
 import asyncio
+import datetime
 from statistics import median
-
+from src.utils.file_utils import load_json
 from web3.exceptions import TransactionNotFound
 from web3 import Web3
 import requests
@@ -9,6 +10,8 @@ import json
 import time
 import os
 import config.settings as settings
+from eth_account.messages import encode_defunct, encode_structured_data
+
 
 # TODO: Implement feature to automatically vary activities across user wallets (e.g., token bridging on one, token swapping on another).
 # TODO: Detect and alert users if they're synchronizing actions across multiple wallets (like simultaneous withdrawals or identical transactions).
@@ -63,7 +66,6 @@ class DeFiHandler:
                 contract_address=action["contract_address"],
                 abi = action["abi"],
                 function_name = action["function_name"],
-                blockchain = action["blockchain"],
                 msg_value = action["msg_value"] if "msg_value" in action else None,
                 **function_args,
             )
@@ -104,23 +106,47 @@ class DeFiHandler:
                 deadline_minutes = action["deadline_minutes"],
                 blockchain = action["blockchain"]
             )
+        elif action["action"] == "swap_with_permit":
+            return await self.swap_with_permit(
+                wallet = action["wallet"],
+                token_in_address = self.web3.to_checksum_address(action["token_in_address"].strip('"')),
+                pool_address = self.web3.to_checksum_address(action["pool_address"].strip('"')),
+                amount_In = int(action["amount_in_wei"]),
+                exchange_address = self.web3.to_checksum_address(action["exchange_address"].strip('"')),
+                exchange_abi = action["exchange_abi"],
+            )
 
-    def replace_placeholder_with_value(self, dictionary, placeholder, value):
-        for key in dictionary:
-            if isinstance(dictionary[key], dict):
-                self.replace_placeholder_with_value(dictionary[key], placeholder, value)
-            elif isinstance(dictionary[key], list):
-                for item in dictionary[key]:
-                    if isinstance(item, dict):
-                        self.replace_placeholder_with_value(item, placeholder, value)
-            elif dictionary[key] == placeholder:
-                if value.startswith('0x'):
-                    if len(value) == 42:  # Check if it's an EVM address
-                        dictionary[key] = self.web3.to_checksum_address(value)  # Convert to checksum address
-                    elif len(value) == 4 or len(value) == 66:  # Check if it's a signature component
-                        dictionary[key] = value  # Replace with the signature component
-                else:
-                    dictionary[key] = value
+    def replace_placeholder_with_value(self, obj, placeholder, value):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if isinstance(v, (dict, list, tuple)):
+                    obj[k] = self.replace_placeholder_with_value(v, placeholder, value)
+                elif v == placeholder:
+                    obj[k] = self.replace_value_with_appropriate_format(value)
+        elif isinstance(obj, list):
+            for i in range(len(obj)):
+                if isinstance(obj[i], (dict, list, tuple)):
+                    obj[i] = self.replace_placeholder_with_value(obj[i], placeholder, value)
+                elif obj[i] == placeholder:
+                    obj[i] = self.replace_value_with_appropriate_format(value)
+        elif isinstance(obj, tuple):
+            obj = list(obj)
+            for i in range(len(obj)):
+                if isinstance(obj[i], (dict, list, tuple)):
+                    obj[i] = self.replace_placeholder_with_value(obj[i], placeholder, value)
+                elif obj[i] == placeholder:
+                    obj[i] = self.replace_value_with_appropriate_format(value)
+            obj = tuple(obj)
+        return obj
+
+    def replace_value_with_appropriate_format(self, value):
+        if str(value).startswith('0x'):
+            if len(value) == 42:  # Check if it's an EVM address
+                return self.web3.to_checksum_address(value)  # Convert to checksum address
+            elif len(value) == 4 or len(value) == 66:  # Check if it's a signature component
+                return value  # Replace with the signature component
+        else:
+            return value
 
     def cancel_pending_transactions(self, blockchain, wallet):
         nonce = self.web3.eth.get_transaction_count(wallet["address"], 'pending')
@@ -365,7 +391,7 @@ class DeFiHandler:
 
         return pending_transactions
 
-    async def approve_token_spend(self, wallet, token_address, spender, amount, blockchain):
+    async def approve_token_spend(self, wallet, token_address, spender, amount):
         message = f"INFO - Approving token spend..."
         print(message)
         self.logger.add_log(message)
@@ -378,17 +404,24 @@ class DeFiHandler:
 
         return await self.build_and_send_transaction(wallet, function_call)
 
-    async def interact_with_contract(self, wallet, contract_address, abi, function_name, blockchain, msg_value=None, *args, **kwargs):
+    async def interact_with_contract(self, wallet, contract_address, abi, function_name, msg_value=None, *args, **kwargs):
         contract = self.web3.eth.contract(address=contract_address, abi=abi)
         function = contract.functions[function_name]
         try:
             function_call = function(*args, **kwargs)
         except Exception as e:
             self.logger.add_log(f"ERROR - Error while building function call : {e}")
-            # Print the kwargs
-            self.logger.add_log(f"INFO - Arguments passed to the function :")
-            self.logger.add_log(kwargs)
             print(f"ERROR - Error while building function call : {e}")
+            # Show all the arguments passed and their types
+            if args:
+                print(f"INFO - Positional arguments passed to the function '{function_name}' of the contract {contract_address}:")
+                for arg in args:
+                    print(f"INFO - {arg} ({type(arg)})")
+            if kwargs:
+                print(f"INFO - Keyword arguments passed to the function '{function_name}' of the contract {contract_address}:")
+                for key, value in kwargs.items():
+                    print(f"INFO - {key} = {value} ({type(value)})")
+
             return
 
         self.logger.add_log(f"INFO - Interacting with the function '{function_name}' of the contract {contract_address}")
@@ -437,7 +470,6 @@ class DeFiHandler:
                 token_in_address,
                 exchange_address,
                 amount_in,
-                blockchain,
             )
             if approval_txn_hash is None:
                 message = f"ERROR - Token approval failed."
@@ -470,7 +502,6 @@ class DeFiHandler:
             exchange_address,
             exchange_abi,
             "swapExactTokensForTokens",
-            blockchain,
             None,
             amount_in,
             min_amount_out,
@@ -505,6 +536,74 @@ class DeFiHandler:
             swap_txn_hash = await self.swap_tokens(wallet, token_address, self.wrapped_native_token_address, amount, exchange_address,
                                              exchange_abi, blockchain, slippage_tolerance, deadline_minutes)
             return swap_txn_hash
+
+    async def swap_with_permit(self, wallet, pool_address, amount_In, exchange_address, exchange_abi, token_in_address):
+        """
+        Swap Token A for Token B using permit signature
+
+        :param wallet: str - Wallet
+        :param pool_address: str - Pool address
+        :param amount_In: int - Amount of token to swap
+        :param exchange_address: str - Exchange address
+        :param exchange_abi: str - Exchange ABI
+        :param token_in_address: str - Token address
+        :return: str - Transaction hash
+        """
+
+        # Set deadline
+        deadline = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=5)).timestamp())
+
+        # Create permit signature
+        replacements = {
+            '<Holder Address>': wallet['address'],
+            '<Spender Address>': exchange_address,
+            '<Nonce>': self.web3.eth.get_transaction_count(wallet['address']),
+            '<Expiry Timestamp>': deadline,
+            '<Token Name>': self.web3.eth.contract(address=token_in_address,
+                                                   abi=self.get_token_abi("erc20_abi.json")).functions.name().call(),
+            '<Token Version>': '1.0',
+            '<Chain Id>': self.web3.eth.chain_id,
+            '<Token Contract Address>': token_in_address,
+        }
+        message = await self.read_and_replace_message('../../resources/messages/erc20_token_permit.json', replacements)
+        signature = await self.sign_message({'address': wallet['address'], 'private_key': wallet['private_key']}, message)
+
+        # Build function arguments
+        function_args = {
+            "paths": [
+                (
+                    [
+                        (
+                            pool_address,
+                            bytes.fromhex(hex(amount_In)[2:].zfill(64)),
+                            "0x0000000000000000000000000000000000000000",
+                            bytes.fromhex("")
+                        ),
+                    ],
+                    "0x0000000000000000000000000000000000000000",
+                    amount_In
+                )
+            ],
+            "amountOutMin": int(amount_In * 0.75),
+            "deadline": int(deadline),
+            "permit": {
+                'token': pool_address,
+                'approveAmount': int(amount_In),
+                'deadline': int(deadline),
+                'v': int(signature["v"]),
+                'r': bytes.fromhex(hex(signature["r"])[2:]),
+                's': bytes.fromhex(hex(signature["s"])[2:])
+            }
+        }
+
+        # Interact with contract
+        return await self.interact_with_contract(
+            wallet=wallet,
+            contract_address=exchange_address,
+            abi=exchange_abi,
+            function_name="swapWithPermit",
+            **function_args
+        )
 
     async def wrap_native_token(self, wallet, amount):
         message = f"INFO - Wrapping {self.web3.from_wei(amount, 'ether')} native tokens"
@@ -603,6 +702,14 @@ class DeFiHandler:
         function_call = contract.functions.transfer(recipient_address, amount)
         return await self.build_and_send_transaction(wallet, function_call)
 
+    async def read_and_replace_message(self, filepath, replacements):
+        message = load_json(filepath)
+
+        for placeholder, value in replacements.items():
+            self.replace_placeholder_with_value(message, placeholder, value)
+
+        return message
+
     async def sign_message(self, wallet, message):
         """
         Sign a message with a wallet's private key
@@ -610,7 +717,6 @@ class DeFiHandler:
         :param message: The message to sign
         :return: signature object with v, r, and s components
         """
-        from eth_account.messages import encode_defunct
-        msg = encode_defunct(text=message)
+        msg = encode_structured_data(text=json.dumps(message))
         signed_message = self.web3.eth.account.sign_message(msg, private_key=wallet["private_key"])
         return signed_message
