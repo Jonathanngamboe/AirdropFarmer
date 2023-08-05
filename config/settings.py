@@ -53,6 +53,13 @@ BLOCKCHAIN_SETTINGS = {
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
     },
+    'zkSync Era Testnet': {
+        'endpoint': 'https://rpc.ankr.com/zksync_era_testnet',
+        'explorer': 'https://goerli.explorer.zksync.io',
+        'weth_address': '0x20b28b1e4665fff290650586ad76e977eab90c5d',
+        'weth_abi': 'weth_mainnet_abi.json',
+        'token_abi': 'erc20_abi.json'
+    }
     # Add more blockchains here
 }
 
