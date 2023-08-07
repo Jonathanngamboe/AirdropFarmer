@@ -5,12 +5,13 @@ from statistics import median
 from src.utils.file_utils import load_json
 from web3.exceptions import TransactionNotFound
 from web3 import Web3
+import web3
 import requests
 import json
 import time
 import os
 import config.settings as settings
-from eth_account.messages import encode_defunct, encode_structured_data
+from eth_account.messages import encode_structured_data
 
 
 # TODO: Implement feature to automatically vary activities across user wallets (e.g., token bridging on one, token swapping on another).
@@ -32,7 +33,7 @@ class DeFiHandler:
         endpoint = blockchain_settings['endpoint']
         web3 = Web3(Web3.HTTPProvider(endpoint))
 
-        self.wrapped_native_token_address = blockchain_settings['weth_address']
+        self.wrapped_native_token_address = web3.to_checksum_address(blockchain_settings['weth_address'])
         self.wrapped_native_token_abi = self.get_token_abi(blockchain_settings['weth_abi'])
         self.token_abi = self.get_token_abi(blockchain_settings['token_abi'])
 
@@ -97,7 +98,7 @@ class DeFiHandler:
         elif action["action"] == "swap_tokens":
             return await self.swap_tokens(
                 wallet = action["wallet"],
-                token_in_address = self.web3.to_checksum_address(action["token_in_address"].strip('"')),
+                token_address = self.web3.to_checksum_address(action["token_address"].strip('"')),
                 token_out_address = self.web3.to_checksum_address(action["token_out_address"].strip('"')),
                 amount_in = int(action["amount_in_wei"]),
                 slippage_tolerance = action["slippage"],
@@ -106,14 +107,15 @@ class DeFiHandler:
                 deadline_minutes = action["deadline_minutes"],
                 blockchain = action["blockchain"]
             )
-        elif action["action"] == "swap_with_permit":
+
+        elif action["action"] == "swap_tokens_with_routes":
             return await self.swap_with_permit(
                 wallet = action["wallet"],
-                token_in_address = self.web3.to_checksum_address(action["token_in_address"].strip('"')),
-                pool_address = self.web3.to_checksum_address(action["pool_address"].strip('"')),
-                amount_In = int(action["amount_in_wei"]),
+                routes = action["routes"],
+                amount_out_min = int(action["amount_out_min"]),
                 exchange_address = self.web3.to_checksum_address(action["exchange_address"].strip('"')),
                 exchange_abi = action["exchange_abi"],
+                deadline_minutes = action["deadline_minutes"] if "deadline_minutes" in action else 5,
             )
 
     def replace_placeholder_with_value(self, obj, placeholder, value):
@@ -428,7 +430,8 @@ class DeFiHandler:
 
         return await self.build_and_send_transaction(wallet, function_call, msg_value)
 
-    async def swap_tokens(self, wallet, token_in_address, token_out_address, amount_in, exchange_address, exchange_abi, blockchain, slippage_tolerance=0.1, deadline_minutes=3):
+    async def swap_tokens(self, wallet, token_in_address, token_out_address, amount_in, exchange_address, exchange_abi,
+                          blockchain, slippage_tolerance=0.1, deadline_minutes=3):
         message = f"INFO - Swapping {self.get_token_name(token_in_address)} for {self.get_token_name(token_out_address)} on contract {exchange_address}"
         print(message)
         self.logger.add_log(message)
@@ -470,6 +473,7 @@ class DeFiHandler:
                 token_in_address,
                 exchange_address,
                 amount_in,
+                blockchain,
             )
             if approval_txn_hash is None:
                 message = f"ERROR - Token approval failed."
@@ -483,7 +487,7 @@ class DeFiHandler:
             # print(f"INFO - Token allowance is sufficient.")
             pass
 
-        path = [token_in_address, token_out_address] # Path of tokens to swap
+        path = [token_in_address, token_out_address]  # Path of tokens to swap
 
         # Calculate the min_amount_out by applying the slippage tolerance
         # Estimate the output amount by calling the `getAmountsOut` function
@@ -502,6 +506,7 @@ class DeFiHandler:
             exchange_address,
             exchange_abi,
             "swapExactTokensForTokens",
+            blockchain,
             None,
             amount_in,
             min_amount_out,
@@ -537,73 +542,102 @@ class DeFiHandler:
                                              exchange_abi, blockchain, slippage_tolerance, deadline_minutes)
             return swap_txn_hash
 
-    async def swap_with_permit(self, wallet, pool_address, amount_In, exchange_address, exchange_abi, token_in_address):
+    async def swap_tokens_with_routes(self, wallet, routes, amount_out_min, exchange_address, exchange_abi,
+                                      deadline_minutes=5):
+        assert exchange_address is not None and exchange_abi is not None, "contract_address and contract_abi must be provided"
         """
-        Swap Token A for Token B using permit signature
-
-        :param wallet: str - Wallet
-        :param pool_address: str - Pool address
-        :param amount_In: int - Amount of token to swap
-        :param exchange_address: str - Exchange address
-        :param exchange_abi: str - Exchange ABI
-        :param token_in_address: str - Token address
-        :return: str - Transaction hash
+        Swap tokens with routes
+        :param wallet: wallet to use for the swap
+        :param routes: list of routes to swap
+        :param amount_out_min: minimum amount of tokens to receive
+        :param exchange_address: address of the exchange contract
+        :param exchange_abi: abi of the exchange contract
+        :param deadline_minutes: deadline in minutes
+        :return: transaction hash
         """
+        message = f"INFO - Initiating swap on contract {exchange_address}"
+        print(message)
+        self.logger.add_log(message)
 
         # Set deadline
-        deadline = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=5)).timestamp())
+        deadline = int(
+            (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=deadline_minutes)).timestamp())
 
-        # Create permit signature
-        replacements = {
-            '<Holder Address>': wallet['address'],
-            '<Spender Address>': exchange_address,
-            '<Nonce>': self.web3.eth.get_transaction_count(wallet['address']),
-            '<Expiry Timestamp>': deadline,
-            '<Token Name>': self.web3.eth.contract(address=token_in_address,
-                                                   abi=self.get_token_abi("erc20_abi.json")).functions.name().call(),
-            '<Token Version>': '1.0',
-            '<Chain Id>': self.web3.eth.chain_id,
-            '<Token Contract Address>': token_in_address,
-        }
-        message = await self.read_and_replace_message('../../resources/messages/erc20_token_permit.json', replacements)
-        signature = await self.sign_message({'address': wallet['address'], 'private_key': wallet['private_key']}, message)
+        # Prepare the paths data
+        paths_data = []
+        for path in routes:
+            path_token_in_route = path['stepsWithAmount'][0]['tokenIn']
+            path_token_in = web3.Web3.ZERO_ADDRESS if path_token_in_route == 'ETH' else path_token_in_route
 
-        # Build function arguments
-        function_args = {
-            "paths": [
-                (
-                    [
-                        (
-                            pool_address,
-                            bytes.fromhex(hex(amount_In)[2:].zfill(64)),
-                            "0x0000000000000000000000000000000000000000",
-                            bytes.fromhex("")
-                        ),
-                    ],
-                    "0x0000000000000000000000000000000000000000",
-                    amount_In
-                )
-            ],
-            "amountOutMin": int(amount_In * 0.75),
-            "deadline": int(deadline),
-            "permit": {
-                'token': pool_address,
-                'approveAmount': int(amount_In),
-                'deadline': int(deadline),
-                'v': int(signature["v"]),
-                'r': bytes.fromhex(hex(signature["r"])[2:]),
-                's': bytes.fromhex(hex(signature["s"])[2:])
+            # Create permit signature for each token in route
+            if path_token_in != web3.Web3.ZERO_ADDRESS:
+                replacements = {
+                    '<Holder Address>': wallet['address'],
+                    '<Spender Address>': exchange_address,
+                    '<Nonce>': self.web3.eth.get_transaction_count(wallet['address']),
+                    '<Expiry Timestamp>': deadline,
+                    '<Token Name>': self.web3.eth.contract(address=path_token_in,
+                                                           abi=self.get_token_abi(
+                                                               "erc20_abi.json")).functions.name().call(),
+                    '<Token Version>': '1.0',
+                    '<Chain Id>': self.web3.eth.chain_id,
+                    '<Token Contract Address>': path_token_in,
+                }
+                message = await self.read_and_replace_message('../../resources/messages/EIP712Message.json',
+                                                              replacements)
+                signature = await self.sign_message(
+                    {'address': wallet['address'], 'private_key': wallet['private_key']}, message)
+                v = int(signature["v"]),
+                r = bytes.fromhex(hex(signature["r"])[2:]),
+                s = bytes.fromhex(hex(signature["s"])[2:])
+
+                # Assuming the contract has a permit function that matches the EIP-2612 standard
+                permit = [wallet['address'], exchange_address, self.web3.eth.get_transaction_count(wallet['address']),
+                          deadline, True, v, r, s]
+                # call the permit function before making the swap
+                await self.interact_with_contract(wallet, path_token_in, self.get_token_abi("erc20_abi.json"), "permit",
+                                                  permit)
+
+            # continue with swap operation...
+            path_data = {
+                'steps': [],
+                'tokenIn': path_token_in,
+                'amountIn': path['amountIn']
             }
-        }
 
-        # Interact with contract
-        return await self.interact_with_contract(
-            wallet=wallet,
-            contract_address=exchange_address,
-            abi=exchange_abi,
-            function_name="swapWithPermit",
-            **function_args
+            for i, step in enumerate(path['stepsWithAmount']):
+                is_last_step = i == (len(path['stepsWithAmount']) - 1)
+                step_to = step['pool']['pool'] if not is_last_step else path['to']
+                withdraw_mode = 1 if (is_last_step and path['ethOut']) else (2 if is_last_step else 0)
+
+                # Encode step data
+                data = web3.Web3.soliditySha3(['address', 'address', 'uint8'],
+                                              [step['tokenIn'], step_to, withdraw_mode])
+
+                # Step data
+                step_data = {
+                    'pool': step['pool']['pool'],
+                    'data': data,
+                    'callback': web3.Web3.ZERO_ADDRESS,  # No callback provided
+                    'callbackData': b''
+                }
+
+                path_data['steps'].append(step_data)
+
+            paths_data.append(path_data)
+
+        args = [paths_data, amount_out_min, deadline]
+
+        # Interact with the smart contract
+        txn_hash_hex = await self.interact_with_contract(
+            wallet,
+            exchange_address,
+            exchange_abi,
+            "swap",
+            args
         )
+
+        return txn_hash_hex
 
     async def wrap_native_token(self, wallet, amount):
         message = f"INFO - Wrapping {self.web3.from_wei(amount, 'ether')} native tokens"
