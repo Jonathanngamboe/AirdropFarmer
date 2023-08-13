@@ -4,6 +4,7 @@ import random
 import traceback
 
 from config import settings
+from config.settings import BLOCKCHAIN_SETTINGS
 from src.defi_handler import DeFiHandler
 from src.twitter_handler import TwitterHandler
 import os
@@ -139,7 +140,7 @@ class AirdropExecution:
                             message = f"ERROR - Due to an error while executing {platform} action for {airdrop_info['name']} airdrop, skipping this action."
                             success = False  # Set success to False if an error occurs
                         else:
-                            message = f"INFO - Transaction hash : {txn_hash}"
+                            message = f"INFO - Transaction hash : {BLOCKCHAIN_SETTINGS[action['blockchain']]['explorer_url']}{txn_hash}"
                     # If any exception occurs, log it and set success to False
                 except Exception as e:
                     success = False
