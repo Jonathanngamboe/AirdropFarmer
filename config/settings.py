@@ -20,42 +20,42 @@ MAX_WALLET_NAME_LENGTH = 20
 BLOCKCHAIN_SETTINGS = {
     'ethereum': {
         'endpoint': 'https://eth.llamarpc.com',
-        'explorer': 'https://etherscan.io',
+        'explorer_url': 'https://etherscan.io',
         'weth_address': '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
     },
     'goerli': {
         'endpoint': 'https://eth-goerli.public.blastapi.io',
-        'explorer': 'https://goerli.etherscan.io',
+        'explorer_url': 'https://goerli.etherscan.io',
         'weth_address': '0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
     },
     'base_goerli': {
         'endpoint': 'https://base-goerli.public.blastapi.io',
-        'explorer': 'https://goerli.etherscan.io',
+        'explorer_url': 'https://goerli.etherscan.io',
         'weth_address': '0x4200000000000000000000000000000000000006',
         'weth_abi': 'weth_base_abi.json',
         'token_abi': 'erc20_abi.json'
     },
     'arbitrum_one': {
         'endpoint': 'https://endpoints.omniatech.io/v1/arbitrum/one/public',
-        'explorer': 'https://arbiscan.io',
+        'explorer_url': 'https://arbiscan.io',
         'weth_address': '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
     },
-    'zkSync': {
+    'zkSync Era Mainnet': {
         'endpoint': 'https://mainnet.era.zksync.io',
-        'explorer': 'https://explorer.zksync.io',
+        'explorer_url': 'https://zkscan.io/tx/',
         'weth_address': '0x5aea5775959fbc2557cc8789bc1bf90a239d9a91',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
     },
     'zkSync Era Testnet': {
         'endpoint': 'https://rpc.ankr.com/zksync_era_testnet',
-        'explorer': 'https://goerli.explorer.zksync.io',
+        'explorer_url': 'https://zksync2-testnet.zkscan.io/tx/',
         'weth_address': '0x20b28b1e4665fff290650586ad76e977eab90c5d',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
@@ -105,7 +105,7 @@ AIRDROP_FARMER_DATABASE_URL = config("AIRDROP_FARMER_DATABASE_URL")
 # It's important to keep the order of the plans
 SUBSCRIPTION_PLANS = [
     {
-        'level': 'Explorer (Free Plan)',
+        'level': 'explorer_url (Free Plan)',
         'features': ['Access to basic airdrops', 'Single wallet'],
         'price_monthly': 0,
         'price_yearly': 0,
