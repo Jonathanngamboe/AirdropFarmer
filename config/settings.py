@@ -20,28 +20,28 @@ MAX_WALLET_NAME_LENGTH = 20
 BLOCKCHAIN_SETTINGS = {
     'ethereum': {
         'endpoint': 'https://eth.llamarpc.com',
-        'explorer_url': 'https://etherscan.io',
+        'explorer_url': 'https://etherscan.io/tx/',
         'weth_address': '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
     },
     'goerli': {
         'endpoint': 'https://eth-goerli.public.blastapi.io',
-        'explorer_url': 'https://goerli.etherscan.io',
+        'explorer_url': 'https://goerli.etherscan.io/tx/',
         'weth_address': '0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
     },
     'base_goerli': {
         'endpoint': 'https://base-goerli.public.blastapi.io',
-        'explorer_url': 'https://goerli.etherscan.io',
+        'explorer_url': 'https://goerli.etherscan.io/tx/',
         'weth_address': '0x4200000000000000000000000000000000000006',
         'weth_abi': 'weth_base_abi.json',
         'token_abi': 'erc20_abi.json'
     },
     'arbitrum_one': {
         'endpoint': 'https://endpoints.omniatech.io/v1/arbitrum/one/public',
-        'explorer_url': 'https://arbiscan.io',
+        'explorer_url': 'https://arbiscan.io/tx/',
         'weth_address': '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
