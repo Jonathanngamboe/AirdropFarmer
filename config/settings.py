@@ -48,13 +48,13 @@ BLOCKCHAIN_SETTINGS = {
     },
     'zkSync Era Mainnet': {
         'endpoint': 'https://mainnet.era.zksync.io',
-        'explorer_url': 'https://zkscan.io/tx/',
+        'explorer_url': 'https://explorer.zksync.io/tx/',
         'weth_address': '0x5aea5775959fbc2557cc8789bc1bf90a239d9a91',
         'weth_abi': 'weth_mainnet_abi.json',
         'token_abi': 'erc20_abi.json'
     },
     'zkSync Era Testnet': {
-        'endpoint': 'https://rpc.ankr.com/zksync_era_testnet',
+        'endpoint': 'https://testnet.era.zksync.dev',
         'explorer_url': 'https://zksync2-testnet.zkscan.io/tx/',
         'weth_address': '0x20b28b1e4665fff290650586ad76e977eab90c5d',
         'weth_abi': 'weth_mainnet_abi.json',
