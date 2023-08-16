@@ -2,7 +2,7 @@
 import asyncio
 import datetime
 from statistics import median
-from src.utils.file_utils import load_json, construct_compact_swap_data
+from src.utils.file_utils import load_json
 from web3.exceptions import TransactionNotFound
 from web3 import Web3
 import json
