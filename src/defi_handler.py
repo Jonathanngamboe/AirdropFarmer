@@ -1007,12 +1007,8 @@ class DeFiHandler:
 
         contract = self.web3.eth.contract(address=router_address, abi=router_abi)
 
-        print(amount_b_desired)
-        return None
-
         # Approve the router to spend the tokens
         await self.ensure_token_approval(wallet, token_a_address, router_address, liquidity)
-
 
         if is_native:
             function_call = contract.functions.removeLiquidityETHSupportingFeeOnTransferTokens(
