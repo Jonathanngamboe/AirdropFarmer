@@ -34,7 +34,7 @@ BLOCKCHAIN_SETTINGS = {
     },
     'base_goerli': {
         'endpoint': 'https://base-goerli.public.blastapi.io',
-        'explorer_url': 'https://goerli.etherscan.io/tx/',
+        'explorer_url': 'https://base-goerli.blockscout.com/tx/',
         'weth_address': '0x4200000000000000000000000000000000000006',
         'weth_abi': 'weth_base_abi.json',
         'token_abi': 'erc20_abi.json'
@@ -105,7 +105,7 @@ AIRDROP_FARMER_DATABASE_URL = config("AIRDROP_FARMER_DATABASE_URL")
 # It's important to keep the order of the plans
 SUBSCRIPTION_PLANS = [
     {
-        'level': 'explorer_url (Free Plan)',
+        'level': 'Explorer (Free Plan)',
         'features': ['Access to basic airdrops', 'Single wallet'],
         'price_monthly': 0,
         'price_yearly': 0,
