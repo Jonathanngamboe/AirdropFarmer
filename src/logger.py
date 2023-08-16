@@ -5,6 +5,7 @@ from datetime import timedelta, timezone
 from config import settings
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import requests
 
 class Logger:
     def __init__(self, user_id=None, log_dir='logs', app_log=False):
@@ -28,6 +29,23 @@ class Logger:
         log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         log_handler.setFormatter(log_formatter)
         self.logger.addHandler(log_handler)
+
+    def send_message_to_admins(self, message):
+        base_url = f"https://api.telegram.org/bot{settings.TELEGRAM_TOKEN}/sendMessage"
+
+        for admin_id in settings.ADMIN_TG_IDS:
+            payload = {
+                'chat_id': admin_id,
+                'text': message
+            }
+
+            response = requests.post(base_url, data=payload)
+
+            if response.status_code != 200:
+                # Logging the failure might be useful for debugging purposes
+                self.logger.error(f"Failed to send Telegram message to admin {admin_id}. Response: {response.text}")
+            else:
+                self.logger.info(f"Successfully sent Telegram message to admin {admin_id}")
 
     def get_log_filename(self):
         today = datetime.datetime.now(timezone.utc)
@@ -57,6 +75,11 @@ class Logger:
     def add_log(self, log_message, log_level=logging.INFO):
         if self.app_log:
             self.logger.log(log_level, log_message)
+            # Send the log message to admins
+            if log_level == logging.ERROR:
+                # Send a notification with the error message to admins
+                message = f"⚠️ An error occurred in the app:\n\n{log_message}\n\nPlease check the logs for more details."
+                self.send_message_to_admins(message)
         else:
             log_path = self.log_dir / self.log_filename
             timestamp = datetime.datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
