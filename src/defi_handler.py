@@ -153,7 +153,21 @@ class DeFiHandler:
                 stable=action["stable"] if "stable" in action else False,
                 deadline_minutes=int(action["deadline_minutes"]) if "deadline_minutes" in action else 30,
             )
-
+        elif action["action"] == "remove_liquidity":
+            return await self.remove_liquidity(
+                wallet=action["wallet"],
+                router_address=self.web3.to_checksum_address(action["router_address"].strip('"')),
+                router_abi=action["router_abi"],
+                is_native=action["is_native"],
+                token_a_address=self.web3.to_checksum_address(action["token_a_address"].strip('"')),
+                liquidity=int(action["liquidity"]),
+                amount_a_min=int(action["amount_a_min"]),
+                amount_b_desired=int(action["amount_b_desired"]),
+                token_b_address=self.web3.to_checksum_address(action["token_b_address"].strip('"')) if "token_b_address" in action else None,
+                amount_b_min=int(action["amount_b_min"]) if "amount_b_min" in action else None,
+                stable=action["stable"] if "stable" in action else False,
+                deadline_minutes=int(action["deadline_minutes"]) if "deadline_minutes" in action else 30,
+            )
 
     def replace_placeholder_with_value(self, obj, placeholder, value):
         if isinstance(obj, dict):
@@ -980,3 +994,48 @@ class DeFiHandler:
             )
 
         return await self.build_and_send_transaction(wallet, function_call, msg_value=int(1.5*amount_b_desired) if is_native else 0)
+
+    async def remove_liquidity(self, wallet, router_address, router_abi, token_a_address, liquidity, amount_a_min,
+                            amount_b_desired, deadline_minutes, is_native, token_b_address=None, amount_b_min=None, stable=None):
+        message = f"INFO - Removing liquidity for {self.get_token_name(token_a_address)}..."
+        print(message)
+        self.logger.add_log(message)
+
+        # Calculate the deadline timestamp
+        deadline_timestamp = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+            minutes=deadline_minutes)).timestamp())
+
+        contract = self.web3.eth.contract(address=router_address, abi=router_abi)
+
+        print(amount_b_desired)
+        return None
+
+        # Approve the router to spend the tokens
+        await self.ensure_token_approval(wallet, token_a_address, router_address, liquidity)
+
+
+        if is_native:
+            function_call = contract.functions.removeLiquidityETHSupportingFeeOnTransferTokens(
+                token=token_a_address,
+                liquidity=liquidity,
+                amountTokenMin=amount_a_min,
+                amountETHMin=amount_b_desired,
+                to=wallet["address"],
+                deadline=deadline_timestamp,
+                stable=stable
+            )
+        else:
+            # Approve the router to spend the tokens
+            await self.ensure_token_approval(wallet, token_b_address, router_address, amount_b_min)
+            function_call = contract.functions.removeLiquidity(
+                tokenA=token_a_address,
+                tokenB=token_b_address,
+                liquidity=liquidity,
+                amountAMin=amount_a_min,
+                amountBMin=amount_b_min,
+                to=wallet["address"],
+                deadline=deadline_timestamp,
+                stable=stable
+            )
+
+        return await self.build_and_send_transaction(wallet, function_call, msg_value=0)
