@@ -1,5 +1,5 @@
 {
-  "name": "web3modal-demo",
+  "name": "web3modal",
   "version": "1.0.0",
   "description": "",
   "keywords": [],
@@ -47,5 +47,5 @@
     "not ie <= 11",
     "not op_mini all"
   ],
-  "homepage": "https://Jonathanngamboe.github.io/AirdropFarmer"
+  "homepage": "https://Jonathanngamboe.github.io/AirdropFarmer/connect"
 }
