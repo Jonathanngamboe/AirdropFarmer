@@ -1,0 +1,17 @@
+{
+  "files": {
+    "main.js": "/AirdropFarmer/static/js/main.d6c60895.chunk.js",
+    "main.js.map": "/AirdropFarmer/static/js/main.d6c60895.chunk.js.map",
+    "runtime-main.js": "/AirdropFarmer/static/js/runtime-main.9fdb95d0.js",
+    "runtime-main.js.map": "/AirdropFarmer/static/js/runtime-main.9fdb95d0.js.map",
+    "static/js/2.47b23cb7.chunk.js": "/AirdropFarmer/static/js/2.47b23cb7.chunk.js",
+    "static/js/2.47b23cb7.chunk.js.map": "/AirdropFarmer/static/js/2.47b23cb7.chunk.js.map",
+    "index.html": "/AirdropFarmer/index.html",
+    "static/js/2.47b23cb7.chunk.js.LICENSE.txt": "/AirdropFarmer/static/js/2.47b23cb7.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.9fdb95d0.js",
+    "static/js/2.47b23cb7.chunk.js",
+    "static/js/main.d6c60895.chunk.js"
+  ]
+}
