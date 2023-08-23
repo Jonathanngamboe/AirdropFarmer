@@ -157,9 +157,6 @@ export default function Home() {
 
   return (
     <>
-      <Text position="absolute" top={0} right="15px">
-        If you're in the sandbox, first "Open in New Window" ⬆️
-      </Text>
       <VStack justifyContent="center" alignItems="center" h="100vh">
         <HStack marginBottom="10px">
           <Text
@@ -176,12 +173,12 @@ export default function Home() {
             fontSize={["1.5em", "2em", "3em", "4em"]}
             fontWeight="600"
             sx={{
-              background: "linear-gradient(90deg, #1652f0 0%, #b9cbfb 70.35%)",
+              background: "linear-gradient(90deg, #16bff0 0%, #85ddf2 70.35%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent"
             }}
           >
-            Web3Modal
+            AirdropFarmer Bot
           </Text>
         </HStack>
         <HStack>
@@ -220,11 +217,12 @@ export default function Home() {
                   Switch Network
                 </Button>
                 <Select placeholder="Select network" onChange={handleNetwork}>
-                  <option value="3">Ropsten</option>
-                  <option value="4">Rinkeby</option>
-                  <option value="42">Kovan</option>
-                  <option value="1666600000">Harmony</option>
-                  <option value="42220">Celo</option>
+                  <option value="1">Ethereum Mainnet</option>
+                  <option value="324">zkSync Era Mainnet</option>
+                  <option value="42161">Arbitrum One</option>
+                  <option value="1101">Polygon zkEVM</option>
+                  <option value="8453">Base</option>
+                  <option value="59144">Linea</option>
                 </Select>
               </VStack>
             </Box>
