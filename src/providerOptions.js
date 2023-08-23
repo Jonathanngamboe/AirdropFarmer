@@ -5,7 +5,7 @@ export const providerOptions = {
   walletlink: {
     package: CoinbaseWalletSDK, // Required
     options: {
-      appName: "Web 3 Modal Demo", // Required
+      appName: "Web 3 Modal", // Required
       infuraId: process.env.INFURA_KEY // Required unless you provide a JSON RPC url; see `rpc` below
     }
   },
