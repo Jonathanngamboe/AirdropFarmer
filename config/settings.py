@@ -141,6 +141,7 @@ PLATEFORM_WAIT_TIMES = {
 # Database
 MAX_DB_RETRIES = 5 # Number of times to retry a query if it fails
 DB_TIMEOUT = 90 # Timeout for database queries
+DELAY_BETWEEN_DB_RETRIES = 5 # Delay between retries in seconds
 
 # Referral
 MAX_REFERRAL_CODE_USES = 3
