@@ -3,20 +3,23 @@ import asyncpg
 from config import settings
 from datetime import datetime, timedelta, timezone
 from src.user import User
-
+import asyncio
 
 class DBManager:
     def __init__(self, logger):
+        """Initialize the database manager."""
         self.dsn = settings.AIRDROP_FARMER_DATABASE_URL
         self.timeout = settings.DB_TIMEOUT
         self.pool = None
         self.sys_logger = logger
 
     async def init_db(self):
+        """Initialize the database connection and tables."""
         self.pool = await asyncpg.create_pool(dsn=self.dsn, min_size=1, max_size=5, timeout=self.timeout)
         await self.create_tables()
 
     async def create_tables(self):
+        """Create tables if they don't exist."""
         await self.execute_query('''
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -69,56 +72,42 @@ class DBManager:
         if self.pool:
             await self.pool.close()
 
-    async def execute_query(self, query, *args, **kwargs):
-        async with self.pool.acquire() as connection:
-            try:
-                result = await connection.execute(query, *args, **kwargs)
-                return result
-            except asyncpg.exceptions.UndefinedTableError:
-                await self.init_db()
-            except asyncpg.exceptions.InterfaceError:
-                # Reconnect and retry if a connection error occurs
-                connection.close()
-                async with self.pool.acquire() as connection:
-                    result = await connection.execute(query, *args, **kwargs)
+    async def attempt_query(self, query_fn, query, *args, **kwargs):
+        """Attempt to execute a query with retries."""
+        retries = settings.MAX_DB_RETRIES
+        delay = settings.DELAY_BETWEEN_DB_RETRIES  # in seconds
+
+        for i in range(retries):
+            async with self.pool.acquire() as connection:
+                try:
+                    result = await query_fn(connection, query, *args, **kwargs)
                     return result
-            except Exception as e:
-                # Handle other exceptions as appropriate
-                raise e
+                except asyncpg.exceptions.UndefinedTableError:
+                    self.sys_logger.add_log("Table not found. Creating tables.")
+                    await self.init_db()
+                except (asyncpg.exceptions.InterfaceError, OSError):
+                    if i < retries - 1:  # don't sleep on the last attempt
+                        await asyncio.sleep(delay)
+                        delay *= 2  # double the delay for exponential backoff
+                    else:
+                        raise  # if we've tried enough times, give up and raise the exception
+                except Exception as e:
+                    # Handle other exceptions as appropriate
+                    self.sys_logger.add_log(f"An error occurred while executing query in the database: {e}")
+                    raise e
+
+    async def execute_query(self, query, *args, **kwargs):
+        """Execute a single query."""
+        return await self.attempt_query(lambda con, q, *a, **kw: con.execute(q, *a, **kw), query, *args, **kwargs)
 
     async def fetch_query(self, query, *args, **kwargs):
-        async with self.pool.acquire() as connection:
-            try:
-                result = await connection.fetch(query, *args, **kwargs)
-                return result
-            except asyncpg.exceptions.UndefinedTableError:
-                await self.init_db()
-            except asyncpg.exceptions.InterfaceError:
-                # Reconnect and retry if a connection error occurs
-                connection.close()
-                async with self.pool.acquire() as connection:
-                    result = await connection.execute(query, *args, **kwargs)
-                    return result
-            except Exception as e:
-                # Handle other exceptions as appropriate
-                raise e
+        return await self.attempt_query(lambda con, q, *a, **kw: con.fetch(q, *a, **kw), query, *args, **kwargs)
 
     async def fetchval_query(self, query, *args, **kwargs):
-        async with self.pool.acquire() as connection:
-            try:
-                result = await connection.fetchval(query, *args, **kwargs)
-                return result
-            except asyncpg.exceptions.InterfaceError:
-                # Reconnect and retry if a connection error occurs
-                connection.close()
-                async with self.pool.acquire() as connection:
-                    result = await connection.execute(query, *args, **kwargs)
-                    return result
-            except Exception as e:
-                # Handle other exceptions as appropriate
-                raise e
+        return await self.attempt_query(lambda con, q, *a, **kw: con.fetchval(q, *a, **kw), query, *args, **kwargs)
 
     async def save_transaction_details(self, user_id, transaction_id, ipn_data_json, duration):
+        """Save transaction details."""
         self.sys_logger.add_log(f"Saving transaction {transaction_id} for user {user_id}")
         try:
             # Check if the user_id exists in the users table
@@ -156,7 +145,7 @@ class DBManager:
             return False
 
     async def update_user_subscription(self, user_id, plan_name, duration):
-        # Update the user's subscription in your database
+        """Update the user's subscription."""
         subscription_expiry = datetime.now(timezone.utc) + timedelta(days=duration)
         await self.execute_query('''
             UPDATE users
@@ -169,15 +158,17 @@ class DBManager:
         current_date = datetime.now(timezone.utc)
 
         try:
-            # Query for all users whose subscriptions have expired
+            # Query for all users whose subscriptions have expired and are not yet set to 'expired'
             expired_users = await self.fetch_query(
-                "SELECT * FROM users WHERE subscription_expiry <= $1;", current_date)
+                "SELECT * FROM users WHERE subscription_expiry <= $1 AND subscription_level != $2;",
+                current_date, settings.SUBSCRIPTION_PLANS[0]['level'])
 
             # Update user plans
             for user in expired_users:
                 user_id = user['telegram_id']
                 await self.execute_query(
-                    "UPDATE users SET subscription_level = $1 WHERE telegram_id = $2;", settings.SUBSCRIPTION_PLANS[0]['level'],user_id)
+                    "UPDATE users SET subscription_level = $1 WHERE telegram_id = $2;",
+                    settings.SUBSCRIPTION_PLANS[0]['level'], user_id)
                 self.sys_logger.add_log(f"Subscription for user {user_id} has been set to 'expired'")
         except Exception as e:
             self.sys_logger.add_log(f"Failed to update expired subscriptions: {e}")
@@ -224,6 +215,7 @@ class DBManager:
                 raise e
 
     async def delete_user(self, telegram_id):
+        """Delete a user and their related data."""
         # Get all referral_codes created by the user
         referral_codes = await self.fetch_query('''
             SELECT code_value FROM referral_codes
