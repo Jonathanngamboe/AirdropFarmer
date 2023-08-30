@@ -1,21 +1,28 @@
 # secrets_manager.py
 import logging
+from datetime import datetime
 from typing import Optional
 import hvac
 
 
 class SecretsManager:
+    _is_authenticated = False  # Class attribute to store the authentication status
+
     def __init__(self, url: str, token: str, logger):
         self.client = hvac.Client(url=url, token=token)
         self.logger = logger
+        self.authenticate()  # Call the authenticate method during initialization
 
-        # DEBUG
-        # if self.client.is_authenticated():
-        #    token = self.client.lookup_token()['data']
-        #    self.logger.add_log(f"Successfully authenticated in Vault as {token['display_name']}", logging.INFO)
-        #else:
-        #    self.logger.add_log(f"Failed to authenticate with Vault", logging.ERROR)
-        #    raise Exception('Failed to authenticate with Vault')
+    def authenticate(self):
+        # Check if already authenticated
+        if not SecretsManager._is_authenticated:
+            if self.client.is_authenticated():
+                token = self.client.lookup_token()['data']
+                self.logger.add_log(f"Successfully authenticated in Vault as {token['display_name']}", logging.INFO)
+                SecretsManager._is_authenticated = True  # Update the class attribute
+            else:
+                self.logger.add_log(f"Failed to authenticate with Vault", logging.ERROR)
+                raise Exception('Failed to authenticate with Vault')
 
     def store_wallet(self, user_id: str, wallet: dict):
         try:
@@ -39,7 +46,8 @@ class SecretsManager:
                 )
 
         except Exception as e:
-            raise e
+            self.logger.add_log(f"Error while storing wallet for user {user_id}: {str(e)}", logging.ERROR)
+            raise
 
     def delete_wallet(self, user_id: str, wallet: dict):
         try:
@@ -61,7 +69,8 @@ class SecretsManager:
                     )
 
         except Exception as e:
-            raise e
+            self.logger.add_log(f"Error while deleting wallet for user {user_id}: {str(e)}", logging.ERROR)
+            raise
 
     def get_wallet(self, user_id: str) -> Optional[list]:
         try:
@@ -73,16 +82,14 @@ class SecretsManager:
             if read_response and 'data' in read_response:
                 wallets = read_response['data'].get('wallets', [])
                 if wallets:
-                    # self.logger.add_log(f"Retrieved wallets for user {user_id}", logging.INFO)
+                    self.logger.add_log(f"Retrieved wallets for user {user_id}", logging.INFO)
                     return wallets
                 else:
-                    # self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
+                    self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
                     return None
             else:
-                # self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
+                self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
                 return None
-        except hvac.exceptions.InvalidPath:
-            return None
         except Exception as e:
             self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {str(e)}", logging.ERROR)
             return None
