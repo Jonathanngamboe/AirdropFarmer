@@ -26,11 +26,6 @@ MAIN_QUERY_ID = 2781085
 class Footprint:
     def __init__(self):
         self.executor = ThreadPoolExecutor(max_workers=2) # Create a thread pool executor to run blocking code
-        # Transpose API
-        self.transpose_header = {
-            'Content-Type': 'application/json',
-            'X-API-KEY': settings.TRANSPOSE_API_KEY,
-        }
         # Dune Analytics API
         self.dune = DuneClient(settings.DUNE_API_KEY)
 
