@@ -82,13 +82,13 @@ class SecretsManager:
             if read_response and 'data' in read_response:
                 wallets = read_response['data'].get('wallets', [])
                 if wallets:
-                    self.logger.add_log(f"Retrieved wallets for user {user_id}", logging.INFO)
+                    # self.logger.add_log(f"Retrieved wallets for user {user_id}", logging.INFO)
                     return wallets
                 else:
-                    self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
+                    # self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
                     return None
             else:
-                self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
+                # self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
                 return None
         except Exception as e:
             self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {str(e)}", logging.ERROR)
