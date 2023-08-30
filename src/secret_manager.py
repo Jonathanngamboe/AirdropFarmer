@@ -44,10 +44,8 @@ class SecretsManager:
                     secret={'wallets': existing_wallets},
                     mount_point='secret',
                 )
-
         except Exception as e:
-            self.logger.add_log(f"Error while storing wallet for user {user_id}: {str(e)}", logging.ERROR)
-            raise
+            raise e
 
     def delete_wallet(self, user_id: str, wallet: dict):
         try:
@@ -67,10 +65,8 @@ class SecretsManager:
                         path=f'users/{user_id}/wallets',
                         mount_point='secret',
                     )
-
         except Exception as e:
-            self.logger.add_log(f"Error while deleting wallet for user {user_id}: {str(e)}", logging.ERROR)
-            raise
+            raise e
 
     def get_wallet(self, user_id: str) -> Optional[list]:
         try:
@@ -90,6 +86,8 @@ class SecretsManager:
             else:
                 # self.logger.add_log(f"No wallets found for user {user_id}", logging.INFO)
                 return None
+        except hvac.exceptions.InvalidPath:
+            return None
         except Exception as e:
             self.logger.add_log(f"Error during wallet retrieval for user {user_id}: {str(e)}", logging.ERROR)
             return None

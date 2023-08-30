@@ -108,15 +108,11 @@ class User:
             return False
 
     async def get_wallets(self):
-        try:
-            # Add the user's wallets from secrets manager to the list of wallets
-            wallets = self._secrets_manager.get_wallet(self.telegram_id)
-            if wallets is None:
-                return []
-            return wallets
-        except hvac.exceptions.InvalidPath:
-            self.sys_logger.add_log(f"Error during wallet retrieval: No wallets found for user {self.telegram_id}")
+        # Add the user's wallets from secrets manager to the list of wallets
+        wallets = self._secrets_manager.get_wallet(self.telegram_id)
+        if wallets is None:
             return []
+        return wallets
 
     def set_twitter_credentials(self, twitter_credentials):
         self.twitter_credentials = twitter_credentials
