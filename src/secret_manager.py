@@ -24,7 +24,7 @@ class SecretsManager:
                 self.logger.add_log(f"Failed to authenticate with Vault", logging.ERROR)
                 raise Exception('Failed to authenticate with Vault')
 
-    def store_wallet(self, user_id: str, wallet: dict):
+    async def store_wallet(self, user_id: str, wallet: dict):
         try:
             existing_wallets = self.get_wallet(user_id)
             if existing_wallets is None:
@@ -47,7 +47,7 @@ class SecretsManager:
         except Exception as e:
             raise e
 
-    def delete_wallet(self, user_id: str, wallet: dict):
+    async def delete_wallet(self, user_id: str, wallet: dict):
         try:
             existing_wallets = self.get_wallet(user_id) or []
             if wallet in existing_wallets:
@@ -68,7 +68,7 @@ class SecretsManager:
         except Exception as e:
             raise e
 
-    def get_wallet(self, user_id: str) -> Optional[list]:
+    async def get_wallet(self, user_id: str) -> Optional[list]:
         try:
             # Proceed with retrieval.
             read_response = self.client.secrets.kv.v1.read_secret(

@@ -73,7 +73,7 @@ class User:
 
     async def add_wallet(self, wallet):
         try:
-            self._secrets_manager.store_wallet(self.telegram_id, wallet)
+            await self._secrets_manager.store_wallet(self.telegram_id, wallet)
             return True
         except Exception as e:
             self.sys_logger.add_log(f"Error during wallet addition: {e}", logging.ERROR)
@@ -83,7 +83,7 @@ class User:
         try:
             existing_wallets = await self.get_wallets()
             if wallet in existing_wallets:
-                self._secrets_manager.delete_wallet(self.telegram_id, wallet)
+                await self._secrets_manager.delete_wallet(self.telegram_id, wallet)
                 return True
             else:
                 self.sys_logger.add_log(f"Wallet {wallet} not found for user {self.telegram_id}")
@@ -100,7 +100,7 @@ class User:
                 return False
             else:
                 for wallet in existing_wallets:
-                    self._secrets_manager.delete_wallet(self.telegram_id, wallet)
+                    await self._secrets_manager.delete_wallet(self.telegram_id, wallet)
                 self.sys_logger.add_log(f"All wallets removed for user {self.telegram_id}")
                 return True
         except Exception as e:
@@ -109,7 +109,7 @@ class User:
 
     async def get_wallets(self):
         # Add the user's wallets from secrets manager to the list of wallets
-        wallets = self._secrets_manager.get_wallet(self.telegram_id)
+        wallets = await self._secrets_manager.get_wallet(self.telegram_id)
         if wallets is None:
             return []
         return wallets
