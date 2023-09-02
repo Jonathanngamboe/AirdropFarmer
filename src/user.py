@@ -30,9 +30,10 @@ class User:
 
         if user_data:
             record = user_data[0]
-            user_data = dict(record)
-            user_data.pop('id', None)
-            user_data.pop('created_at', None)
+            if record:
+                user_data = dict(record)
+                user_data.pop('id', None)
+                user_data.pop('created_at', None)
 
             if user_data.get('airdrops'):
                 user_data['airdrops'] = json.loads(user_data['airdrops'])
