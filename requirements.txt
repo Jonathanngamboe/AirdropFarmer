@@ -6,7 +6,7 @@ eth-account>=0.5.6
 eth-abi>=2.1.1
 beautifulsoup4>=4.10.0
 requests>=2.27.1
-aiogram
+aiogram==2.25.1
 pyrogram
 asyncpg
 tenacity
