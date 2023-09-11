@@ -157,3 +157,24 @@ class AirdropExecution:
                     await asyncio.sleep(waiting_time)
 
         return success
+
+    async def prepare_defi_transactions(self, airdrop_names, public_key):
+        prepared_txns = []
+
+        for airdrop_name in airdrop_names:
+            # Trouver l'objet d'information d'airdrop correspondant au nom
+            airdrop = next((item for item in self.airdrop_info if item["name"] == airdrop_name), None)
+            if airdrop is None:
+                self.logger.add_log(f"ERROR - Airdrop {airdrop_name} not found")
+                continue
+
+            if airdrop['isActivated']:
+                actions = airdrop['actions']
+                for action in actions:
+                    if action['platform'] == 'defi' and action['isActivated']:
+                        defi_handler = DeFiHandler(action["blockchain"], self.logger, self.stop_requested)
+                        prepared_tx = await defi_handler.prepare_transaction(action, public_key)
+                        prepared_txns.append(prepared_tx)
+
+        return prepared_txns
+
