@@ -921,7 +921,7 @@ class TelegramBot:
 
         await self.bot.delete_message(chat_id, message_id)
 
-        if user_id in self.farming_users.keys():
+        if user_id in self.farming_users and self.farming_users[user_id]['status']:
             await self.bot.send_message(user_id, "Airdrop farming is already in progress. Please wait or press the 'Stop farming' button to stop.")
             return
 
@@ -974,7 +974,7 @@ class TelegramBot:
 
     async def cmd_stop_farming(self, user_id, chat_id, message_id, stop_requested=False):
         await self.bot.delete_message(chat_id, message_id)
-        if user_id in self.farming_users.keys():
+        if user_id in self.farming_users and self.farming_users[user_id]['status']:
             airdrop_execution, airdrop_execution_task = self.user_airdrop_executions.get(user_id, (None, None))
             if airdrop_execution:
                 airdrop_execution.stop_requested = True
@@ -1038,6 +1038,8 @@ class TelegramBot:
             # Prepare transactions
             valid_airdrops = await self.get_valid_user_airdrops(user_id)
             airdrop_execution = AirdropExecution(logger=self.get_user_logger(user_id))
+            await self.bot.send_message(user_id,
+                                  "⌛ Please wait while we validate your public key and prepare the transactions...")
             txn_key = await airdrop_execution.prepare_defi_transactions(user_id, self.db_manager, valid_airdrops, hex_public_key)
             await self.bot.send_message(user_id,
                                         f"🎉 Great! You've successfully imported your public key. \n\n"
@@ -1049,7 +1051,7 @@ class TelegramBot:
         except Exception as e:
             self.sys_logger.add_log(f"ERROR - {e}")
             print(f"ERROR - {e}")
-            await self.bot.send_message(user_id, "Error preparing transactions. Please try again by clicking 'Start farming'.")
+            await self.bot.send_message(user_id, "Error preparing transactions. Please try again by clicking 'Start farming'. If the error persists, please /contact us.")
             return
 
     def get_user_logger(self, user_id):
