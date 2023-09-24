@@ -26,6 +26,9 @@ jobs:
       - name: Modify requirements.txt on non-Windows runner
         run: sed -i '/pywin32==305/d' requirements.txt
 
+      - name: Print modified requirements.txt
+        run: cat requirements.txt
+
       - name: Install dependencies
         run: |
           sudo apt-get update
