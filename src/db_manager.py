@@ -4,6 +4,7 @@ from config import settings
 from datetime import datetime, timedelta, timezone
 from src.user import User
 import asyncio
+import uuid
 
 class DBManager:
     def __init__(self, logger):
@@ -245,3 +246,12 @@ class DBManager:
             DELETE FROM users
             WHERE telegram_id=$1
         ''', telegram_id)
+
+    async def insert_prepared_transaction(self, user_id, transaction_data):
+        unique_key = str(uuid.uuid4())
+        await self.execute_query('''
+            INSERT INTO prepared_transactions (user_id, transaction_data, unique_key)
+            VALUES ($1, $2, $3)
+        ''', user_id, transaction_data, unique_key)
+        self.sys_logger.add_log(f"Successfully inserted prepared transaction for user {user_id} with unique_key {unique_key}")
+        return unique_key
