@@ -64,6 +64,15 @@ class DBManager:
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                     );
                 ''')
+        await self.execute_query('''
+            CREATE TABLE IF NOT EXISTS prepared_transactions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users (telegram_id) ON DELETE CASCADE,
+                transaction_data JSONB,
+                unique_key VARCHAR(255) UNIQUE NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        ''')
 
     async def get_all_users(self):
         return await self.fetch_query("SELECT * FROM users;")
