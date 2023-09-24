@@ -34,7 +34,6 @@ jobs:
                   if 'pywin32==305' not in line:
                       file.write(line)
           "
-          cat requirements.txt
 
       - name: Install dependencies
         run: |
