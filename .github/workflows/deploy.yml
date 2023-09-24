@@ -23,6 +23,10 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Modify requirements.txt on non-Windows runner
+        if: runner.os != 'Windows'
+        run: sed -i '/pywin32==305/d' requirements.txt
+
       - name: Install dependencies
         run: |
           sudo apt-get update
