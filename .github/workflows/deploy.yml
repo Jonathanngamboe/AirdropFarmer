@@ -24,10 +24,10 @@ jobs:
           python-version: '3.10'
 
       - name: Modify requirements.txt on non-Windows runner
-        run: sed -i '/pywin32==305/d' requirements.txt
-
-      - name: Print modified requirements.txt
-        run: cat requirements.txt
+        if: runner.os != 'Windows'
+        run: |
+          sed -i '/pywin32==305/d' requirements.txt
+          cat requirements.txt 
 
       - name: Install dependencies
         run: |
