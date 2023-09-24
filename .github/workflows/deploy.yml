@@ -27,6 +27,9 @@ jobs:
         if: runner.os != 'Windows'
         run: sed -i '/pywin32==305/d' requirements.txt
 
+      - name: Debug - Print modified requirements.txt
+        run: cat requirements.txt
+
       - name: Install dependencies
         run: |
           sudo apt-get update
