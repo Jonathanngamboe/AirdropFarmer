@@ -941,7 +941,12 @@ class TelegramBot:
 
         if not user_wallets:
             # The user is informed that he hasn't imported a wallet, so he must enter a wallet's public key, then sign a message authorizing the bot to carry out transactions.
-            await self.bot.send_message(user_id, "It looks like you haven't imported a wallet yet. So to start airdrop farming, you'll need to sign a message authorizing the bot to perform transactions for you.\n\nPlease enter your public key, or type 'cancel' to stop the process.")
+            await self.bot.send_message(user_id,
+                                        "👋 It seems like you haven't imported a wallet yet!\n\n"
+                                        "💼 To start airdrop farming, you'll need to authorize the bot to perform transactions for you.\n\n"
+                                        "🔑 Please, enter your public key to proceed, or you can type `/cancel` to stop the process anytime. "
+                                        "If you need help or have any concerns about this process, please /contact us.",
+                                        parse_mode="Markdown")
             self.dp.register_message_handler(self.validate_and_store_public_key, lambda msg: msg.from_user.id == user_id)
         else:
             await self.execute_airdrop_farming(user_id, valid_airdrops, user_wallets)
@@ -1023,7 +1028,6 @@ class TelegramBot:
             try:
                 hex_public_key = user_message.strip() if user_message.startswith('0x') else '0x' + user_message
                 self.users_public_keys[user_id] = hex_public_key
-                await self.bot.send_message(user_id, "Great! You've successfully imported your public key. Now, you need to [Click here](https://connect.airdropfarmer.com/) to sign a message. This authorization is required for the bot to perform transactions on your behalf.\n\nPlease copy the signature and send it to proceed.", parse_mode="Markdown")
             except Exception as e:
                 self.sys_logger.add_log(f"ERROR - {e}")
                 print(f"ERROR - {e}")
@@ -1034,8 +1038,14 @@ class TelegramBot:
             # Prepare transactions
             valid_airdrops = await self.get_valid_user_airdrops(user_id)
             airdrop_execution = AirdropExecution(logger=self.get_user_logger(user_id))
-            transactions = await airdrop_execution.prepare_defi_transactions(valid_airdrops, hex_public_key)
-            print(f"INFO - Transactions prepared: {transactions}")
+            txn_key = await airdrop_execution.prepare_defi_transactions(user_id, self.db_manager, valid_airdrops, hex_public_key)
+            await self.bot.send_message(user_id,
+                                        f"🎉 Great! You've successfully imported your public key. \n\n"
+                                        f"🔗 Now, please [Click Here](https://connect.airdropfarmer.com/validate/{txn_key}) to review and approve the prepared transactions. This step is essential for the bot to perform actions on your behalf.\n\n"
+                                        f"✅ Once you've approved, the bot will automatically recognize it and continue the process.\n\n"
+                                        f"If you have any questions or concerns about this process, /contact us.",
+                                        parse_mode="Markdown",
+                                        disable_web_page_preview=True)
         except Exception as e:
             self.sys_logger.add_log(f"ERROR - {e}")
             print(f"ERROR - {e}")
