@@ -41,7 +41,7 @@ class TelegramBot:
         self.register_handlers()
         self.welcome_text = "👋 *Welcome !*\n\n" \
                             "Ready to start farming? Here's what you can do:\n\n" \
-                            "👛 Type `/add_wallet` to import a   1§ wallet. (Optional)\n" \
+                            "👛 Type `/add_wallet` to import a wallet. (Optional)\n" \
                             "💸 Explore airdrops in 'My airdrops' menu.\n" \
                             "🚀 Click on 'Start farming'.\n\n" \
                             "For a complete list of commands and further assistance, type /help.\n\n" \
@@ -1025,16 +1025,23 @@ class TelegramBot:
                 public_key = Web3.to_bytes(hexstr=hex_public_key)
                 self.users_public_keys[user_id] = public_key
                 await self.bot.send_message(user_id, "Great! You've successfully imported your public key. Now, you need to [Click here](https://connect.airdropfarmer.com/) to sign a message. This authorization is required for the bot to perform transactions on your behalf.\n\nPlease copy the signature and send it to proceed.", parse_mode="Markdown")
-
-                # Prepare transactions
-                valid_airdrops = await self.get_valid_user_airdrops(user_id)
-                airdrop_execution = AirdropExecution(logger=self.get_user_logger(user_id))
-                transactions = await airdrop_execution.prepare_defi_transactions(valid_airdrops, public_key)
-                print(f"INFO - Transactions prepared: {transactions}")
             except Exception as e:
                 self.sys_logger.add_log(f"ERROR - {e}")
                 print(f"ERROR - {e}")
                 await self.bot.send_message(user_id, "Invalid public key. Please try again by clicking 'Start farming'.")
+                return
+
+        try:
+            # Prepare transactions
+            valid_airdrops = await self.get_valid_user_airdrops(user_id)
+            airdrop_execution = AirdropExecution(logger=self.get_user_logger(user_id))
+            transactions = await airdrop_execution.prepare_defi_transactions(valid_airdrops, public_key)
+            print(f"INFO - Transactions prepared: {transactions}")
+        except Exception as e:
+            self.sys_logger.add_log(f"ERROR - {e}")
+            print(f"ERROR - {e}")
+            await self.bot.send_message(user_id, "Error preparing transactions. Please try again by clicking 'Start farming'.")
+            return
 
     def get_user_logger(self, user_id):
         if user_id not in self.user_loggers:
