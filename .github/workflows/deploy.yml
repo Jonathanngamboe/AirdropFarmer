@@ -35,6 +35,19 @@ jobs:
                       file.write(line)
           "
 
+      - name: Adjust requirements.txt to resolve dependency conflicts
+        run: |
+          python -c "
+          with open('requirements.txt', 'r') as file:
+              lines = file.readlines()
+          with open('requirements.txt', 'w') as file:
+              for line in lines:
+                  if line.startswith(('blinker==', 'flask==', 'quart==')):
+                      file.write(line.split('==')[0] + '\n')
+                  else:
+                      file.write(line)
+          "
+
       - name: Install dependencies
         run: |
           sudo apt-get update
