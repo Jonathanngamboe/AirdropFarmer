@@ -159,10 +159,10 @@ class AirdropExecution:
         return success
 
     async def prepare_defi_transactions(self, airdrop_names, public_key):
+        self.logger.add_log("INFO - Preparing DeFi transactions")
         prepared_txns = []
 
         for airdrop_name in airdrop_names:
-            # Trouver l'objet d'information d'airdrop correspondant au nom
             airdrop = next((item for item in self.airdrop_info if item["name"] == airdrop_name), None)
             if airdrop is None:
                 self.logger.add_log(f"ERROR - Airdrop {airdrop_name} not found")
