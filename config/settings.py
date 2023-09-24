@@ -33,7 +33,7 @@ BLOCKCHAIN_SETTINGS = {
         'token_abi': 'erc20_abi.json'
     },
     'base_goerli': {
-        'endpoint': 'https://base-goerli.public.blastapi.io',
+        'endpoint': 'https://1rpc.io/base-goerli',
         'explorer_url': 'https://base-goerli.blockscout.com/tx/',
         'weth_address': '0x4200000000000000000000000000000000000006',
         'weth_abi': 'weth_base_abi.json',
