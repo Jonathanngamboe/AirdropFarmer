@@ -40,7 +40,8 @@ class DeFiHandler:
         self.token_abi = self.get_token_abi(blockchain_settings['token_abi'])
 
         if web3.is_connected():
-            message = f"INFO - Connected to {blockchain} blockchain."
+            message = "------------------------\n"
+            message += f"INFO - Connected to {blockchain} blockchain."
             print(message)
             self.logger.add_log(message)
         else:
@@ -80,7 +81,6 @@ class DeFiHandler:
                 wallet=action["wallet"],
                 amount_in_wei=int(action["amount_in_wei"]),
                 recipient_address=self.web3.to_checksum_address(action["recipient_address"].strip('"')),
-                blockchain=action["blockchain"],
             )
         elif action["action"] == "transfer_token":
             return await self.transfer_token(
@@ -110,7 +110,6 @@ class DeFiHandler:
                 exchange_address=self.web3.to_checksum_address(action["exchange_address"].strip('"')),
                 exchange_abi=action["exchange_abi"],
                 deadline_minutes=action["deadline_minutes"],
-                blockchain=action["blockchain"]
             )
 
         elif action["action"] == "swap_tokens_with_steps":
@@ -224,6 +223,9 @@ class DeFiHandler:
             'nonce': nonce,
             'chainId': self.web3.eth.chain_id
         }
+
+        if wallet["private_key"] is None:
+            return transaction
 
         signed_txn = self.web3.eth.account.sign_transaction(transaction, wallet["private_key"])
         txn_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
@@ -347,6 +349,9 @@ class DeFiHandler:
             "value": msg_value if msg_value is not None else 0,
         })
 
+        if wallet["private_key"] is None:
+            return transaction
+
         # Send the transaction and wait for it to be mined
         signed_txn = self.web3.eth.account.sign_transaction(transaction, wallet["private_key"])
         try:
@@ -422,6 +427,9 @@ class DeFiHandler:
             "nonce": nonce,
             "chainId": self.web3.eth.chain_id,
         }
+
+        if wallet["private_key"] is None:
+            return transaction
 
         signed_txn = self.web3.eth.account.sign_transaction(transaction, wallet["private_key"])
         txn_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
@@ -512,7 +520,7 @@ class DeFiHandler:
         return await self.build_and_send_transaction(wallet, function_call, msg_value)
 
     async def swap_tokens(self, wallet, token_in_address, token_out_address, amount_in, exchange_address, exchange_abi,
-                          blockchain, slippage_tolerance=0.1, deadline_minutes=3):
+                          slippage_tolerance=0.1, deadline_minutes=3):
         message = f"INFO - Swapping {self.get_token_name(token_in_address)} for {self.get_token_name(token_out_address)} on contract {exchange_address}"
         print(message)
         self.logger.add_log(message)
@@ -554,7 +562,6 @@ class DeFiHandler:
                 token_in_address,
                 exchange_address,
                 amount_in,
-                blockchain,
             )
             if approval_txn_hash is None:
                 message = f"ERROR - Token approval failed."
@@ -587,7 +594,6 @@ class DeFiHandler:
             exchange_address,
             exchange_abi,
             "swapExactTokensForTokens",
-            blockchain,
             None,
             amount_in,
             min_amount_out,
@@ -614,15 +620,13 @@ class DeFiHandler:
 
             # Perform swap
             swap_txn_hash = await self.swap_tokens(wallet, self.wrapped_native_token_address, token_address, amount,
-                                                   exchange_address,
-                                                   exchange_abi, blockchain, slippage_tolerance, deadline_minutes)
+                                                   exchange_address, exchange_abi, slippage_tolerance, deadline_minutes)
             return swap_txn_hash
 
         else:  # Swap another token for the native token
             # Perform swap
             swap_txn_hash = await self.swap_tokens(wallet, token_address, self.wrapped_native_token_address, amount,
-                                                   exchange_address,
-                                                   exchange_abi, blockchain, slippage_tolerance, deadline_minutes)
+                                                   exchange_address, exchange_abi, slippage_tolerance, deadline_minutes)
             return swap_txn_hash
 
     async def swap_tokens_with_steps(self, wallet, pool_address, token_in, amount_in,
@@ -700,6 +704,9 @@ class DeFiHandler:
                 'nonce': self.web3.eth.get_transaction_count(wallet['address'], 'latest'),
                 'value': amount_in if token_in == 'ETH' else 0,
             })
+
+            if wallet["private_key"] is None:
+                return transaction
 
             try:
                 # Signs and sends the transaction.
@@ -816,6 +823,9 @@ class DeFiHandler:
         transaction["from"] = self.web3.to_checksum_address(transaction["from"])
         transaction["to"] = self.web3.to_checksum_address(transaction["to"])
 
+        if wallet["private_key"] is None:
+            return transaction
+
         try:
             # Sign the transaction
             signed_tx = self.web3.eth.account.sign_transaction(transaction, wallet["private_key"])
@@ -884,7 +894,7 @@ class DeFiHandler:
 
             return token_balance
 
-    async def transfer_native_token(self, wallet, recipient_address, amount_in_wei, blockchain):
+    async def transfer_native_token(self, wallet, recipient_address, amount_in_wei):
         message = f"INFO - Transfering {self.web3.from_wei(amount_in_wei, 'ether')} ETH from wallet {wallet['address']} to {recipient_address}."
         print(message)
         self.logger.add_log(message)
@@ -912,6 +922,10 @@ class DeFiHandler:
             "nonce": nonce,
             "chainId": self.web3.eth.chain_id,
         }
+
+        if wallet["private_key"] is None:
+            return transaction
+
         signed_txn = self.web3.eth.account.sign_transaction(transaction, wallet["private_key"])
         txn_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
         message = f"Transaction hash in function 'transfer_native_token': {txn_hash.hex()}"
@@ -1035,3 +1049,7 @@ class DeFiHandler:
             )
 
         return await self.build_and_send_transaction(wallet, function_call, msg_value=0)
+
+    async def prepare_transaction(self, action, public_key):
+        action["wallet"] = {"address": public_key, "private_key": None}
+        return await self.perform_action(action)
