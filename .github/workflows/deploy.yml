@@ -27,12 +27,13 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           python -c "
-          with open('requirements.txt', 'r', encoding='utf-8') as file:
+          with open('requirements.txt', 'r', encoding='utf-16') as file:
               lines = file.readlines()
           with open('requirements.txt', 'w', encoding='utf-8') as file:
               for line in lines:
                   if 'pywin32==305' not in line:
-                      file.write(line)"
+                      file.write(line)
+          "
           cat requirements.txt
 
       - name: Install dependencies
