@@ -1021,9 +1021,8 @@ class TelegramBot:
             await self.bot.send_message(user_id, "Request canceled.")
         else:
             try:
-                hex_public_key = user_message if user_message.startswith('0x') else '0x' + user_message
-                public_key = Web3.to_bytes(hexstr=hex_public_key)
-                self.users_public_keys[user_id] = public_key
+                hex_public_key = user_message.strip() if user_message.startswith('0x') else '0x' + user_message
+                self.users_public_keys[user_id] = hex_public_key
                 await self.bot.send_message(user_id, "Great! You've successfully imported your public key. Now, you need to [Click here](https://connect.airdropfarmer.com/) to sign a message. This authorization is required for the bot to perform transactions on your behalf.\n\nPlease copy the signature and send it to proceed.", parse_mode="Markdown")
             except Exception as e:
                 self.sys_logger.add_log(f"ERROR - {e}")
@@ -1035,7 +1034,7 @@ class TelegramBot:
             # Prepare transactions
             valid_airdrops = await self.get_valid_user_airdrops(user_id)
             airdrop_execution = AirdropExecution(logger=self.get_user_logger(user_id))
-            transactions = await airdrop_execution.prepare_defi_transactions(valid_airdrops, public_key)
+            transactions = await airdrop_execution.prepare_defi_transactions(valid_airdrops, hex_public_key)
             print(f"INFO - Transactions prepared: {transactions}")
         except Exception as e:
             self.sys_logger.add_log(f"ERROR - {e}")
