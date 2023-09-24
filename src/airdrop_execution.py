@@ -158,7 +158,7 @@ class AirdropExecution:
 
         return success
 
-    async def prepare_defi_transactions(self, airdrop_names, public_key):
+    async def prepare_defi_transactions(self, user_id, db_manager, airdrop_names, public_key):
         self.logger.add_log("INFO - Preparing DeFi transactions")
         prepared_txns = []
 
@@ -176,5 +176,7 @@ class AirdropExecution:
                         prepared_tx = await defi_handler.prepare_transaction(action, public_key)
                         prepared_txns.append(prepared_tx)
 
-        return prepared_txns
+        txn_key = await db_manager.insert_prepared_transaction(user_id, prepared_tx)
+
+        return txn_key
 
