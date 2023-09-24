@@ -1,4 +1,6 @@
 # db:manger.py
+import json
+
 import asyncpg
 from config import settings
 from datetime import datetime, timedelta, timezone
@@ -249,9 +251,28 @@ class DBManager:
 
     async def insert_prepared_transaction(self, user_id, transaction_data):
         unique_key = str(uuid.uuid4())
+
+        # Convert transaction_data to string
+        transaction_data_str = json.dumps(transaction_data)
+
         await self.execute_query('''
             INSERT INTO prepared_transactions (user_id, transaction_data, unique_key)
             VALUES ($1, $2, $3)
-        ''', user_id, transaction_data, unique_key)
-        self.sys_logger.add_log(f"Successfully inserted prepared transaction for user {user_id} with unique_key {unique_key}")
+        ''', user_id, transaction_data_str, unique_key)
+
+        self.sys_logger.add_log(
+            f"Successfully inserted prepared transaction for user {user_id} with unique_key {unique_key}")
         return unique_key
+
+    async def get_prepared_transaction(self, unique_key):
+        query = '''
+            SELECT * FROM prepared_transactions WHERE unique_key = $1
+        '''
+        record = await self.fetch_row(query, unique_key)
+        if record:
+            # Convert transaction_data to dict
+            transaction_data = json.loads(record['transaction_data'])
+            return transaction_data
+        else:
+            self.sys_logger.add_log(f"No transaction found with unique_key {unique_key}")
+            return None
