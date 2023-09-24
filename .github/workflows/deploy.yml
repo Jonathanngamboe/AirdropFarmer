@@ -26,8 +26,11 @@ jobs:
       - name: Modify requirements.txt on non-Windows runner
         if: runner.os != 'Windows'
         run: |
-          sed -i '/pywin32==305/d' requirements.txt
-          cat requirements.txt 
+          while read -r line; do
+            [[ ! $line =~ pywin32==305 ]] && echo $line
+          done < requirements.txt > new_requirements.txt
+          mv new_requirements.txt requirements.txt
+          cat requirements.txt
 
       - name: Install dependencies
         run: |
