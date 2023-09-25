@@ -8,7 +8,6 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils.exceptions import InvalidQueryID
 from aiogram.dispatcher.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputFile, InputMediaPhoto
-from web3 import Web3
 from config import settings
 import logging
 from ecdsa import SECP256k1
@@ -33,6 +32,7 @@ class TelegramBot:
         self.bot = Bot(token=token)
         self.dp = Dispatcher(self.bot, storage=MemoryStorage())
         self.db_manager = db_manager
+        self.user_message_states = {}
         self.farming_users = {}  # Used to keep track of the users that are farming
         self.user_airdrop_executions = defaultdict(dict)
         self.airdrop_events = defaultdict(asyncio.Event)
@@ -543,7 +543,8 @@ class TelegramBot:
         elif action == "contact_us":
             user_id = query.from_user.id
             await self.bot.send_message(user_id, "Please type your message in the chat or type 'cancel' to cancel:")
-            self.dp.register_message_handler(self.send_contact_message, lambda msg: msg.from_user.id == user_id)
+            self.user_message_states[user_id] = "awaiting_contact_message"
+            self.dp.register_message_handler(self.handle_message, lambda msg: msg.from_user.id == user_id)
         elif action == "send_txn_info":
             await self.send_txn_info(user_id=query.from_user.id, chosen_plan=params[0], duration=params[1], chosen_coin=params[2], message_id=query.message.message_id)
         elif action == "stop":
@@ -604,7 +605,8 @@ class TelegramBot:
             user_id = query.from_user.id
             # Tell the user on what currency and what network the payment will be done and ask for the user's wallet adress
             await self.bot.send_message(query.from_user.id, "To claim your referral rewards, please send your wallet address on the *BNB* network. The rewards will be sent in *USDT*. Type 'cancel' to cancel.", parse_mode='Markdown')
-            self.dp.register_message_handler(self.send_contact_message, lambda msg: msg.from_user.id == user_id)
+            self.user_message_states[user_id] = "awaiting_contact_message"
+            self.dp.register_message_handler(self.handle_message, lambda msg: msg.from_user.id == user_id)
 
         await self.retry_request(self.bot.answer_callback_query, query.id)
 
@@ -737,7 +739,7 @@ class TelegramBot:
                 InlineKeyboardButton("👥 Referral", callback_data="menu:referral"),
             )
             # Check if the user has any farming in progress
-            if chat_id in self.farming_users.keys():
+            if chat_id in self.farming_users and self.farming_users[chat_id]['status']:
                 keyboard.add(
                     InlineKeyboardButton("🛑 Stop farming", callback_data="stop_farming"),
                 )
@@ -936,7 +938,8 @@ class TelegramBot:
             return
 
         self.farming_users[user_id] = {
-            'message_id': message_id
+            'message_id': message_id,
+            'status': False,
         }
 
         if not user_wallets:
@@ -947,7 +950,8 @@ class TelegramBot:
                                         "🔑 Please, enter your public key to proceed, or you can type `/cancel` to stop the process anytime. "
                                         "If you need help or have any concerns about this process, please /contact us.",
                                         parse_mode="Markdown")
-            self.dp.register_message_handler(self.validate_and_store_public_key, lambda msg: msg.from_user.id == user_id)
+            self.user_message_states[user_id] = "awaiting_public_key"
+            self.dp.register_message_handler(self.handle_message, lambda msg: msg.from_user.id == user_id)
         else:
             await self.execute_airdrop_farming(user_id, valid_airdrops, user_wallets)
 
@@ -1049,9 +1053,12 @@ class TelegramBot:
                                         parse_mode="Markdown",
                                         disable_web_page_preview=True)
         except Exception as e:
-            self.sys_logger.add_log(f"ERROR - {e}")
-            print(f"ERROR - {e}")
-            await self.bot.send_message(user_id, "Error preparing transactions. Please try again by clicking 'Start farming'. If the error persists, please /contact us.")
+            if "ENS name" in str(e):
+                await self.bot.send_message(user_id, "❌ Invalid public key. Please try again by clicking 'Start farming'.")
+            else:
+                self.sys_logger.add_log(f"ERROR - {e}")
+                print(f"ERROR - {e}")
+                await self.bot.send_message(user_id, "Error preparing transactions. Please try again by clicking 'Start farming'. If the error persists, please /contact us.")
             return
 
     def get_user_logger(self, user_id):
@@ -1437,3 +1444,11 @@ class TelegramBot:
         else:
             await message.answer("You are not allowed to use this command")
 
+    async def handle_message(self, message):
+        user_id = message.from_user.id
+        state = self.user_message_states.get(user_id)
+
+        if state == 'awaiting_public_key':
+            await self.validate_and_store_public_key(message)
+        elif state == 'awaiting_contact_message':
+            await self.send_contact_message(message)
