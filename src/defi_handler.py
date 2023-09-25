@@ -45,10 +45,7 @@ class DeFiHandler:
             print(message)
             self.logger.add_log(message)
         else:
-            message = f"INFO - Could not connect to {blockchain} blockchain."
-            print(message)
-            self.logger.add_log(message)
-            message = f"INFO - Exiting program..."
+            message = f"ERROR - Could not connect to {blockchain} blockchain."
             print(message)
             self.logger.add_log(message)
             return None
