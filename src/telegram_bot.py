@@ -191,6 +191,8 @@ class TelegramBot:
     async def send_contact_message(self, message: types.Message):
         user_id = message.chat.id
         user_message = message.text
+        self.user_message_states.pop(user_id)
+        
         if user_message.lower() == "cancel":
             await self.bot.send_message(user_id, "Request canceled.")
         else:
@@ -1025,6 +1027,7 @@ class TelegramBot:
     async def validate_and_store_public_key(self, message: types.Message):
         user_id = message.chat.id
         user_message = message.text
+        self.user_message_states.pop(user_id)
 
         if user_message.lower() == "cancel":
             await self.bot.send_message(user_id, "Request canceled.")
